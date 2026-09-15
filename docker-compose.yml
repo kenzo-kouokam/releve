@@ -49,6 +49,46 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
+  n8n:
+    # Automatisations : notification des candidats proposes, relance des
+    # missions non pourvues. L'API reste la source de verite : n8n recoit des
+    # webhooks signes et rappelle l'API sur /api/interne, jamais la base.
+    # Version figee : un workflow exporte doit se reimporter a l'identique.
+    image: docker.n8n.io/n8nio/n8n:2.39.5
+    container_name: passerelle-n8n
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    environment:
+      GENERIC_TIMEZONE: Europe/Paris
+      TZ: Europe/Paris
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      # Pas de cookie « secure » : l'interface locale est servie en http.
+      N8N_SECURE_COOKIE: 'false'
+      # Aucune telemetrie envoyee a n8n.
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+      # Les workflows lisent leur configuration via $env.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      # L'API tourne sur la machine hote, pas dans Docker.
+      RELEVE_API_URL: http://host.docker.internal:3001/api
+      # Seuil de relance en minutes : 1440 (24 h) par defaut, 5 en demonstration.
+      RELANCE_SEUIL_MIN: ${RELANCE_SEUIL_MIN:-1440}
+      # Secrets partages avec l'API, lus dans backend/.env (voir pnpm infra:up).
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+    extra_hosts:
+      # Necessaire sous Linux et WSL ; deja resolu nativement sur macOS et Windows.
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Exports versionnes des workflows (livrable) : n8n export:workflow --output.
+      - ./n8n:/home/node/workflows
+
 volumes:
   db_data:
   redis_data:
+  n8n_data:
