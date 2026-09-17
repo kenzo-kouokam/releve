@@ -509,6 +509,18 @@ export class PropositionsService {
       );
     }
 
+    // Releve avant la transaction : trois lignes plus bas ces candidatures
+    // passent REFUSEE_CLIENT, et plus rien ne les distinguera de celles
+    // refusees la semaine derniere.
+    const aPrevenir = await this.prisma.proposition.findMany({
+      where: {
+        missionId: existante.missionId,
+        id: { not: id },
+        statut: { in: ['ENVOYEE', 'ACCEPTEE_CANDIDAT'] },
+      },
+      select: { candidatId: true },
+    });
+
     await this.prisma.$transaction([
       this.prisma.proposition.update({
         where: { id },
@@ -546,6 +558,7 @@ export class PropositionsService {
       type: 'mission.pourvue',
       auteur: session,
       propositionIds: [id],
+      candidatsAPrevenirIds: aPrevenir.map((ligne) => ligne.candidatId),
     });
 
     return this.resume(proposition);

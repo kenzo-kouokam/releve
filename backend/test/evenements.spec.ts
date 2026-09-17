@@ -5,6 +5,7 @@ import { ENTETE_SERVICE } from '@releve/shared';
 import { avec, connecter, type Session } from './aide';
 import { creerApp, creerCompteDeTest, prisma, reinitialiser, type Jeu } from './fixtures';
 import { WebhooksService } from '../src/evenements/webhooks.service';
+import { MailService } from '../src/mail/mail.service';
 
 const JETON_SERVICE = 'jeton-de-service-de-test';
 
@@ -105,7 +106,16 @@ describe('evenements et routes internes', () => {
     candidat = await connecter(app, 'candidat.a@test.example');
 
     app.get(WebhooksService).viderEmis();
+    app.get(MailService).viderBoite();
   });
+
+  /** Dernier evenement d'un type donne, tel qu'il serait parti. */
+  function emis(type: string) {
+    return app
+      .get(WebhooksService)
+      .derniersEmis()
+      .findLast((evenement) => evenement.event === type);
+  }
 
   describe('journal des transitions', () => {
     it('consigne la publication d une mission', async () => {
@@ -467,6 +477,183 @@ describe('evenements et routes internes', () => {
         .post()
         .send({})
         .expect(404);
+    });
+  });
+
+  describe('urgence', () => {
+    it('marque urgente une vacation qui commence dans moins de 48 h', async () => {
+      await publier();
+
+      expect(emis('mission.publiee')!.mission.urgente).toBe(true);
+    });
+
+    it('ne marque pas urgente une vacation lointaine', async () => {
+      const dans10Jours = new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+      await publier({ dateDebut: dans10Jours, dateFin: dans10Jours });
+
+      expect(emis('mission.publiee')!.mission.urgente).toBe(false);
+    });
+  });
+
+  describe('candidats designes dans l evenement', () => {
+    it('joint les candidats eligibles a la publication, par reference seule', async () => {
+      await publier();
+
+      const evenement = emis('mission.publiee')!;
+
+      expect(evenement.candidatsEligibles).toHaveLength(1);
+      expect(evenement.candidatsEligibles[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
+      expect(JSON.stringify(evenement)).not.toContain('candidat.a@test.example');
+      expect(JSON.stringify(evenement)).not.toContain('Aubry');
+    });
+
+    it('ecarte qui a coupe ses notifications', async () => {
+      await prisma.utilisateur.updateMany({
+        where: { candidatId: jeu.candidatA },
+        data: { notificationsEmail: false },
+      });
+
+      await publier();
+
+      expect(emis('mission.publiee')!.candidatsEligibles).toEqual([]);
+    });
+
+    it('joint le candidat retenu et ceux a prevenir quand la mission est pourvue', async () => {
+      const id = await publier();
+
+      const candidature = await avec(app, candidat)
+        .post(`/api/missions/${id}/candidatures`)
+        .send({})
+        .expect(201);
+
+      await avec(app, client)
+        .post(`/api/propositions/${candidature.body.id}/valider`)
+        .expect(201);
+
+      const evenement = emis('mission.pourvue')!;
+
+      expect(evenement.candidatRetenu).not.toBeNull();
+      expect(evenement.candidatRetenu!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
+      // Seul candidat de l'agence : personne d'autre n'attendait.
+      expect(evenement.candidatsAPrevenir).toEqual([]);
+    });
+
+    it('joint les candidatures qui tombent a l annulation', async () => {
+      const id = await publier();
+
+      await avec(app, candidat).post(`/api/missions/${id}/candidatures`).send({}).expect(201);
+      await avec(app, client).post(`/api/missions/${id}/annuler`).expect(201);
+
+      expect(emis('mission.annulee')!.candidatsAPrevenir).toHaveLength(1);
+    });
+  });
+
+  describe('envoi des courriels demande par l automatisation', () => {
+    /** La reference telle que l'automatisation la recoit. */
+    function reference(): string {
+      return emis('mission.publiee')!.candidatsEligibles[0]!.candidatRef;
+    }
+
+    it('expedie l alerte urgente aux references designees', async () => {
+      const id = await publier();
+      const ref = reference();
+
+      const reponse = await interne(`/api/interne/missions/${id}/alertes`)
+        .post()
+        .send({ type: 'urgente', candidatRefs: [ref] })
+        .expect(201);
+
+      expect(reponse.body).toMatchObject({ demandees: 1, envoyees: 1, ignorees: [] });
+
+      const courriel = app.get(MailService).dernierPour('candidat.a@test.example');
+
+      expect(courriel).toBeDefined();
+      expect(courriel!.sujet).toContain('pourvoir rapidement');
+      expect(courriel!.texte).toContain('48 heures');
+    });
+
+    it('ignore une reference inconnue plutot que d echouer', async () => {
+      const id = await publier();
+
+      const reponse = await interne(`/api/interne/missions/${id}/alertes`)
+        .post()
+        .send({ type: 'urgente', candidatRefs: [reference(), 'CAN-000000'] })
+        .expect(201);
+
+      expect(reponse.body.envoyees).toBe(1);
+      expect(reponse.body.ignorees).toEqual(['CAN-000000']);
+    });
+
+    /**
+     * La borne par type est une protection : un appelant machine qui connait
+     * une reference ne doit pas pouvoir s'en servir pour ecrire a n'importe qui.
+     */
+    it('refuse de confirmer a quelqu un qui n est pas le candidat retenu', async () => {
+      const id = await publier();
+
+      const reponse = await interne(`/api/interne/missions/${id}/alertes`)
+        .post()
+        .send({ type: 'confirmation', candidatRefs: [reference()] })
+        .expect(201);
+
+      expect(reponse.body.envoyees).toBe(0);
+      expect(reponse.body.ignorees).toHaveLength(1);
+      expect(app.get(MailService).dernierPour('candidat.a@test.example')).toBeUndefined();
+    });
+
+    it('confirme au candidat retenu une fois la mission pourvue', async () => {
+      const id = await publier();
+
+      const candidature = await avec(app, candidat)
+        .post(`/api/missions/${id}/candidatures`)
+        .send({})
+        .expect(201);
+
+      await avec(app, client)
+        .post(`/api/propositions/${candidature.body.id}/valider`)
+        .expect(201);
+
+      const evenement = emis('mission.pourvue')!;
+      const ref = evenement.candidatRetenu!.candidatRef;
+
+      await interne(`/api/interne/missions/${id}/alertes`)
+        .post()
+        .send({ type: 'confirmation', candidatRefs: [ref] })
+        .expect(201);
+
+      const courriel = app.get(MailService).dernierPour('candidat.a@test.example');
+
+      expect(courriel!.sujet).toContain('confirmee');
+      // La reference est citee : c'est elle que la personne rappellera a l'agence.
+      expect(courriel!.texte).toContain(evenement.mission.reference);
+    });
+
+    it('annonce la cloture a qui a postule sans etre retenu', async () => {
+      const id = await publier();
+
+      await avec(app, candidat).post(`/api/missions/${id}/candidatures`).send({}).expect(201);
+      await avec(app, client).post(`/api/missions/${id}/annuler`).expect(201);
+
+      const ref = emis('mission.annulee')!.candidatsAPrevenir[0]!.candidatRef;
+
+      await interne(`/api/interne/missions/${id}/alertes`)
+        .post()
+        .send({ type: 'cloture', candidatRefs: [ref] })
+        .expect(201);
+
+      const courriel = app.get(MailService).dernierPour('candidat.a@test.example');
+
+      expect(courriel!.sujet).toContain('annulee');
+    });
+
+    it('exige le jeton de service', async () => {
+      const id = await publier();
+
+      await request(app.getHttpServer())
+        .post(`/api/interne/missions/${id}/alertes`)
+        .send({ type: 'urgente', candidatRefs: ['CAN-ABCDEF'] })
+        .expect(401);
     });
   });
 
