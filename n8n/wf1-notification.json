@@ -176,6 +176,40 @@
               },
               "renameOutput": true,
               "outputKey": "Mission pourvue ou annulée"
+            },
+            {
+              "renameOutput": true,
+              "outputKey": "Mission urgente publiée",
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "7284eb67-f3ed-4656-b373-925b17cc7f49",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "mission.publiee",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "d0e02292-cb71-41ca-ae92-8130d806cf9d",
+                    "leftValue": "={{ $json.body.mission.urgente }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              }
             }
           ]
         },
@@ -277,6 +311,162 @@
         130
       ],
       "parameters": {}
+    },
+    {
+      "id": "033a0ef6-5c7b-4b22-9794-7a21bbec1242",
+      "name": "Candidats éligibles",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        968,
+        522
+      ],
+      "parameters": {
+        "fieldToSplitOut": "body.candidatsEligibles",
+        "include": "noOtherFields",
+        "options": {}
+      }
+    },
+    {
+      "id": "12318c70-0f94-4c72-b88f-f4e8f8d9515e",
+      "name": "Alertes activées ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1188,
+        522
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "52fa3709-6dae-4b9c-bea7-2bed874e505e",
+              "leftValue": "={{ $json.notificationsEmail }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b6ee17b9-6352-41a7-908e-3314ee77f537",
+      "name": "Compteur d'alertes du jour",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        422
+      ],
+      "parameters": {
+        "operation": "incr",
+        "key": "=n8n:alertes:{{ $json.candidatRef }}:{{ $now.setZone('Europe/Paris').toFormat('yyyy-MM-dd') }}",
+        "expire": true,
+        "ttl": 172800
+      },
+      "credentials": {
+        "redis": {
+          "id": "redisLocalReleve",
+          "name": "Redis (local)"
+        }
+      }
+    },
+    {
+      "id": "f5123973-4192-4c9a-883f-b81984b19592",
+      "name": "Candidat + compteur",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1628,
+        522
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "cbad57f8-d770-49bf-b9d4-b817a88d8375",
+      "name": "3 alertes max par jour ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1848,
+        522
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "9c9852af-c623-4873-9e80-5df67f3357bd",
+              "leftValue": "={{ Object.entries($json).find(([cle]) => cle.startsWith('n8n:alertes:'))?.[1] }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "167d6911-3ae7-4df8-863b-02666e9cc900",
+      "name": "E-mail d'alerte urgente",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2068,
+        422
+      ],
+      "parameters": {
+        "fromEmail": "Relève <ne-pas-repondre@releve.example>",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Mission urgente : {{ $('Webhook').first().json.body.mission.qualification }} à {{ $('Webhook').first().json.body.mission.commune }}",
+        "emailFormat": "html",
+        "html": "={{ (() => {\n  const m = $('Webhook').first().json.body.mission;\n  const date = new Date(m.dateDebut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });\n  const taux = m.tauxHoraire ? `${String(m.tauxHoraire).replace('.', ',')} € brut de l'heure` : 'selon la grille de la structure';\n  return `<p>Bonjour ${$json.prenom},</p>\n<p>Une mission urgente correspond à votre profil :</p>\n<ul>\n<li><strong>${m.qualification}</strong> à <strong>${m.commune}</strong></li>\n<li>${date}, de ${m.heureDebut} à ${m.heureFin}</li>\n<li>Rémunération : ${taux}</li>\n</ul>\n<p>La mission démarre bientôt : le premier profil validé l'obtient.</p>\n<p><a href=\"${m.lienApp}\">Voir la mission et postuler</a></p>\n<p>L'équipe Relève</p>\n<p style=\"font-size:12px;color:#666\">Vous recevez cette alerte car les notifications sont activées sur votre compte (3 alertes par jour au maximum). Vous pouvez les désactiver dans « Mon compte ».</p>`;\n})() }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "mailpitSmtpLocal",
+          "name": "Mailpit (local)"
+        }
+      }
+    },
+    {
+      "id": "3339a910-3907-4d5b-a004-3b7eaf188fa3",
+      "name": "Plafond atteint (pas d'envoi)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2068,
+        622
+      ],
+      "parameters": {}
     }
   ],
   "connections": {
@@ -350,6 +540,13 @@
         ],
         [
           {
+            "node": "Candidats éligibles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Ignoré (hors WF1)",
             "type": "main",
             "index": 0
@@ -367,6 +564,73 @@
           }
         ]
       ]
+    },
+    "Candidats éligibles": {
+      "main": [
+        [
+          {
+            "node": "Alertes activées ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alertes activées ?": {
+      "main": [
+        [
+          {
+            "node": "Compteur d'alertes du jour",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Candidat + compteur",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Compteur d'alertes du jour": {
+      "main": [
+        [
+          {
+            "node": "Candidat + compteur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Candidat + compteur": {
+      "main": [
+        [
+          {
+            "node": "3 alertes max par jour ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 alertes max par jour ?": {
+      "main": [
+        [
+          {
+            "node": "E-mail d'alerte urgente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Plafond atteint (pas d'envoi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -377,7 +641,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 12,
+  "versionCounter": 13,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

@@ -40,7 +40,18 @@ Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir*
 
 Un même événement peut déclencher plusieurs workflows : `mission.pourvue` met à jour le message Slack de l'agence et prévient les autres candidats (WF1), et déclenche la confirmation du candidat retenu (WF3).
 
-Pour `mission.publiee`, l'API joint à l'événement les candidats éligibles (calculés par le service de matching) et un indicateur `urgente` (début dans moins de 48 h).
+Pour `mission.publiee`, l'API joint à l'événement les candidats éligibles (calculés par le service de matching) et un indicateur `urgente` (début dans moins de 48 h) :
+
+```json
+"mission": { "...": "...", "urgente": true },
+"candidatsEligibles": [
+  { "candidatRef": "CAN-19B0E4", "prenom": "Sophie", "email": "sophie@exemple.fr", "notificationsEmail": true }
+]
+```
+
+Pour `mission.pourvue` et `mission.annulee`, elle joint `candidatRetenu` et `candidatsAPrevenir` (mêmes champs, sans `notificationsEmail`).
+
+**Plafond anti-spam** : n8n incrémente dans Redis un compteur `n8n:alertes:<candidatRef>:<AAAA-MM-JJ>` (expiration 48 h) avant chaque alerte, et n'envoie pas au-delà de 3 par jour. Les candidats dont `notificationsEmail` vaut `false` ne reçoivent aucune alerte.
 
 ## Événements émis par l'API
 

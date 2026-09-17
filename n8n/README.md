@@ -4,7 +4,7 @@ Exports des automatisations de Relève (livrable « Workflows no-code »).
 
 | Fichier | Workflow | Statut |
 |---|---|---|
-| `wf1-notification.json` | Cycle de notification des candidats proposés | En cours : webhook, vérification HMAC et aiguillage faits ; Slack et Airtable à brancher |
+| `wf1-notification.json` | Alertes : e-mail urgent aux candidats éligibles, e-mail de clôture, suivi Slack de l'agence | En cours : signature, aiguillage, alerte urgente (3/jour) et clôture faits ; Slack et Airtable à brancher |
 | `wf2-relance.json` | Relance des missions non pourvues + escalade | À venir |
 
 Contrat d'échange avec l'API : [`docs/automatisations.md`](../docs/automatisations.md).
@@ -32,7 +32,15 @@ FAUSSE_SIGNATURE=1 ./n8n/test-webhook.sh      # doit être rejeté
 
 L'URL de test ne répond que pendant un « Execute workflow » dans l'éditeur, et pour un seul appel.
 
-À l'import, le nœud « Calcul signature HMAC » demande un credential **Crypto** : son champ *Hmac Secret* reçoit la valeur de `N8N_WEBHOOK_SECRET` du `backend/.env`.
+Credentials à recréer après import (aucun n'est exporté) :
+
+| Credential | Type | Valeurs en local |
+|---|---|---|
+| Crypto account | Crypto | *Hmac Secret* = `N8N_WEBHOOK_SECRET` du `backend/.env` |
+| Mailpit (local) | SMTP | hôte `mailpit`, port `1025`, sans utilisateur ni mot de passe, SSL désactivé |
+| Redis (local) | Redis | hôte `redis`, port `6379`, base `0`, sans mot de passe |
+
+Le plafond de 3 alertes urgentes par jour s'appuie sur des compteurs Redis `n8n:alertes:<candidat>:<date>`, qui expirent au bout de 48 h.
 
 ## Exporter / importer
 
