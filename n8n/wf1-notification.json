@@ -89,7 +89,7 @@
       "typeVersion": 1,
       "position": [
         688,
-        192
+        322
       ]
     },
     {
@@ -217,25 +217,66 @@
     },
     {
       "parameters": {},
-      "id": "be3bf51c-86c4-4ec2-a652-11d40e87b40c",
-      "name": "À venir : clôturer les messages",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1008,
-        0
-      ]
-    },
-    {
-      "parameters": {},
       "id": "c4eaa136-9103-4f3c-bf71-428b11631a9b",
       "name": "Ignoré (hors WF1)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1008,
-        160
+        290
       ]
+    },
+    {
+      "id": "7e3b7d01-2a8b-4291-9b9a-fd50f81b0758",
+      "name": "Candidats à prévenir",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "body.candidatsAPrevenir",
+        "include": "noOtherFields",
+        "options": {}
+      }
+    },
+    {
+      "id": "250ef0ab-2516-46df-a2d1-212d08de7138",
+      "name": "E-mail de clôture",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1248,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "Relève <ne-pas-repondre@releve.example>",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Mission pourvue' : 'Mission annulée' }} – {{ $('Webhook').first().json.body.mission.qualification }} à {{ $('Webhook').first().json.body.mission.commune }}",
+        "emailFormat": "html",
+        "html": "={{ (() => {\n  const m = $('Webhook').first().json.body.mission;\n  const pourvue = $('Webhook').first().json.body.event === 'mission.pourvue';\n  const date = new Date(m.dateDebut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });\n  return `<p>Bonjour ${$json.prenom},</p>\n<p>La mission <strong>${m.qualification}</strong> à <strong>${m.commune}</strong> du ${date} (${m.heureDebut}–${m.heureFin}) ${pourvue ? 'a été pourvue par un autre intervenant' : \"a été annulée par l'établissement\"}.</p>\n<p>Votre candidature est donc close. Merci pour votre réactivité : d'autres missions vous attendent sur Relève.</p>\n<p><a href=\"http://localhost:3000/missions\">Voir les missions disponibles</a></p>\n<p>L'équipe Relève</p>`;\n})() }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "smtp": {
+          "id": "mailpitSmtpLocal",
+          "name": "Mailpit (local)"
+        }
+      }
+    },
+    {
+      "id": "3cafc475-afbf-47d4-899f-5cf6758e99be",
+      "name": "À venir : message Slack agence (pourvue)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        130
+      ],
+      "parameters": {}
     }
   ],
   "connections": {
@@ -297,7 +338,12 @@
         ],
         [
           {
-            "node": "À venir : clôturer les messages",
+            "node": "Candidats à prévenir",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "À venir : message Slack agence (pourvue)",
             "type": "main",
             "index": 0
           }
@@ -305,6 +351,17 @@
         [
           {
             "node": "Ignoré (hors WF1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Candidats à prévenir": {
+      "main": [
+        [
+          {
+            "node": "E-mail de clôture",
             "type": "main",
             "index": 0
           }
@@ -320,7 +377,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 11,
+  "versionCounter": 12,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

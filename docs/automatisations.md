@@ -6,7 +6,7 @@
 ## Vue d'ensemble
 
 ```
-API Relève ──(webhook signé HMAC)──▶ n8n ──▶ Slack (notifications)
+API Relève ──(webhook signé HMAC)──▶ n8n ──▶ Slack (agence) · E-mail (candidats)
      ▲                                 │
      └──(GET/POST /api/interne/*, jeton de service)◀┘──▶ Airtable (base tampon)
 ```
@@ -14,22 +14,42 @@ API Relève ──(webhook signé HMAC)──▶ n8n ──▶ Slack (notificati
 - L'API reste la source de vérité. n8n ne modifie jamais la base directement : il passe par des routes internes.
 - Si n8n est indisponible, le métier continue. L'émission est réessayée, puis l'échec est journalisé.
 
+## Qui prévient qui, et par quel canal
+
+Chaque canal a son public : l'e-mail pour les candidats (externes), Slack pour l'équipe de l'agence (interne).
+
+| Destinataire | Message | Canal (POC) | En production | Porté par |
+|---|---|---|---|---|
+| Candidat | Récapitulatif quotidien des missions publiées qui lui correspondent, **missions urgentes incluses tant qu'elles ne sont pas pourvues** | E-mail (Mailpit) | E-mail | Backend (`notifier:missions`) |
+| Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus, désactivable (préférence « notifications e-mail ») | E-mail (Mailpit) | SMS ou notification push | n8n — WF1 |
+| Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | n8n — WF1 |
+| Candidat | **Confirmation de mission** (mentions obligatoires), e-mail transactionnel envoyé quelle que soit la préférence | E-mail (Mailpit) | E-mail | n8n — WF3 |
+| Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` | Slack / Teams | n8n — WF1 |
+| Agence | Relances des missions non pourvues, escalade à la 3e | Slack `#agence-relances` | Slack / Teams | n8n — WF2 |
+| Agence (tech) | Erreurs des workflows | Slack `#ops` | Slack / Teams | n8n |
+
+Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir** des missions sans saturer la boîte ; l'alerte sert l'**urgence** (un remplacement du jour ne peut pas attendre le lendemain).
+
 ## Workflows prévus
 
 | Workflow | Déclencheur | Rôle | Priorité |
 |---|---|---|---|
-| WF1 — Cycle de notification | Webhook `proposition.envoyee`, `mission.pourvue`, `mission.annulee` | Notifier les candidats proposés, puis clôturer les autres | MUST |
+| WF1 — Alertes | Webhook `mission.publiee` (urgente), `proposition.envoyee`, `proposition.acceptee`, `mission.pourvue`, `mission.annulee` | Alerte e-mail aux candidats éligibles pour une mission urgente ; suivi en temps réel pour l'agence sur Slack ; e-mail de clôture aux candidats en cours | MUST |
 | WF2 — Relance des missions non pourvues | Planification (15 min ; 1 min en démo) | Relancer une mission ouverte au-delà du seuil, escalade après 3 relances | MUST |
-| WF3 — Confirmation de mission | Webhook `mission.pourvue` | Générer une confirmation depuis un template | SHOULD |
+| WF3 — Confirmation de mission | Webhook `mission.pourvue` | E-mail de confirmation au candidat retenu depuis un template, puis ligne « confirmation envoyée » sur Slack pour l'agence | MUST |
+
+Un même événement peut déclencher plusieurs workflows : `mission.pourvue` met à jour le message Slack de l'agence et prévient les autres candidats (WF1), et déclenche la confirmation du candidat retenu (WF3).
+
+Pour `mission.publiee`, l'API joint à l'événement les candidats éligibles (calculés par le service de matching) et un indicateur `urgente` (début dans moins de 48 h).
 
 ## Événements émis par l'API
 
 | Événement | Transition métier | Consommé par |
 |---|---|---|
-| `mission.publiee` | `BROUILLON` → `PUBLIEE` | Journal, KPI |
+| `mission.publiee` | `BROUILLON` → `PUBLIEE` | WF1 (si urgente), journal, KPI |
 | `proposition.envoyee` | Création d'une `Proposition` (`ENVOYEE`) | WF1 |
 | `proposition.acceptee` | `ACCEPTEE_CANDIDAT` | WF1 |
-| `mission.pourvue` | Mission → `VALIDEE` | WF1, WF3 |
+| `mission.pourvue` | Mission → `VALIDEE` | WF1 (Slack agence + e-mail aux candidats en cours), WF3 |
 | `mission.annulee` | Mission → `ANNULEE` | WF1 |
 | `mission.relancee` / `mission.escaladee` | Déclenchés par WF2 via l'API | Journal, KPI |
 
@@ -77,7 +97,7 @@ Le jeton bot est enregistré dans les credentials n8n, jamais dans le dépôt.
 
 ## Données personnelles
 
-- Aucun nom, e-mail, téléphone ni adresse ne sort vers n8n, Slack ou Airtable.
+- Aucun nom, e-mail, téléphone ni adresse ne sort vers Slack ou Airtable. n8n, hébergé avec l'application, reçoit l'adresse e-mail des seuls candidats à prévenir, pour l'envoi.
 - Le candidat est désigné par une référence pseudonyme `CAN-XXXXXX`, dérivée de son identifiant par HMAC.
 - Slack et Airtable sont hébergés hors UE : cette minimisation est la condition de leur usage.
 
