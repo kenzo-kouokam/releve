@@ -1,7 +1,19 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-01',
-  devtools: { enabled: true },
-  devServer: { port: 3000 },
+  devtools: { enabled: false },
+  // `host: '::'` et non l'ecoute par defaut, qui se lie au seul `::1`.
+  //
+  // Sous Windows, `localhost` resout vers les deux familles — `::1` en AAAA et
+  // `127.0.0.1` en A — et le navigateur choisit. Quand il retient l'adresse
+  // IPv4 alors que le serveur n'ecoute qu'en IPv6, la page ne s'ouvre pas :
+  // ERR_CONNECTION_REFUSED sur http://localhost:3000, sans la moindre trace
+  // cote serveur, qui n'a jamais vu passer la connexion. Le symptome est
+  // deroutant parce qu'il ressemble a un serveur arrete alors qu'il tourne.
+  //
+  // `::` ecoute en IPv6 et accepte l'IPv4 par adresses mappees : les deux
+  // chemins aboutissent. C'est deja ce que fait l'API sur le port 3001, d'ou
+  // le fait qu'elle, elle ait toujours repondu.
+  devServer: { port: 3000, host: '::' },
   css: ['~/assets/css/main.css', '~/assets/css/vitrine.css', '~/assets/css/legal.css'],
   routeRules: {
     // L'ecran de choix a disparu : il n'y a qu'un parcours public, celui du
