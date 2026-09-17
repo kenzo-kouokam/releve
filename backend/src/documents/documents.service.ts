@@ -1,0 +1,271 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  TAILLE_MAX_DOCUMENT,
+  TYPE_DOCUMENT_LIBELLES,
+  TYPE_DOCUMENT_MOTIFS,
+  TYPES_DOCUMENT,
+  TYPES_MIME_DOCUMENT,
+  typeMimeAccepte,
+  type DocumentResume,
+  type LigneDossier,
+  type TypeDocument,
+} from '@releve/shared';
+import { PrismaService } from '../prisma/prisma.service';
+import { StockageService } from './stockage.service';
+import { echeanceConservation } from './echeances';
+
+/** Ce que l'intercepteur de fichier depose, reduit a ce dont le service a besoin. */
+export interface FichierRecu {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
+/**
+ * Les pieces justificatives d'un dossier candidat.
+ *
+ * Le service ne connait qu'un candidat par son identifiant : c'est l'appelant —
+ * `/mon-profil/documents` pour l'interesse, `/candidats/:id/documents` pour
+ * l'agence — qui a deja tranche le droit d'acces. Deux portes, une seule
+ * mecanique.
+ */
+@Injectable()
+export class DocumentsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stockage: StockageService,
+  ) {}
+
+  /**
+   * Le dossier complet : une ligne par piece attendue, remplie ou non.
+   *
+   * Rendre seulement les pieces deposees obligerait chaque ecran a reconstituer
+   * la liste des manques, et deux ecrans finiraient par ne pas s'accorder sur
+   * ce qui est attendu.
+   */
+  async dossier(candidatId: string): Promise<LigneDossier[]> {
+    const deposes = await this.prisma.documentCandidat.findMany({
+      where: { candidatId },
+    });
+
+    return TYPES_DOCUMENT.map((type) => {
+      const document = deposes.find((piece) => piece.type === type);
+
+      return {
+        type,
+        libelle: TYPE_DOCUMENT_LIBELLES[type],
+        motif: TYPE_DOCUMENT_MOTIFS[type],
+        document: document ? this.resumer(document) : null,
+      };
+    });
+  }
+
+  /**
+   * Depose une piece, en remplacant celle du meme type s'il y en avait une.
+   *
+   * Le remplacement est volontaire : un dossier qui accumulerait trois RIB ne
+   * dirait plus lequel fait foi. L'ancien binaire est efface apres l'ecriture
+   * du nouveau, jamais avant — un incident entre les deux laisserait sinon une
+   * ligne sans fichier.
+   */
+  async deposer(
+    candidatId: string,
+    type: TypeDocument,
+    fichier: FichierRecu | undefined,
+  ): Promise<DocumentResume> {
+    if (!fichier) {
+      throw new BadRequestException('Aucun fichier recu');
+    }
+
+    this.verifier(fichier);
+
+    const ancien = await this.prisma.documentCandidat.findUnique({
+      where: { candidatId_type: { candidatId, type } },
+      select: { cheminStockage: true },
+    });
+
+    const { reference, empreinte } = await this.stockage.ecrire(fichier.buffer);
+    const depot = new Date();
+
+    const document = await this.prisma.documentCandidat.upsert({
+      where: { candidatId_type: { candidatId, type } },
+      create: {
+        candidatId,
+        type,
+        nomOrigine: this.nomLisible(fichier.originalname),
+        typeMime: fichier.mimetype,
+        taille: fichier.size,
+        cheminStockage: reference,
+        empreinte,
+        ajouteLe: depot,
+        conservationJusquAu: echeanceConservation(depot),
+      },
+      update: {
+        nomOrigine: this.nomLisible(fichier.originalname),
+        typeMime: fichier.mimetype,
+        taille: fichier.size,
+        cheminStockage: reference,
+        empreinte,
+        // Une piece remplacee redevient non verifiee : le controle portait sur
+        // le fichier precedent, pas sur celui-ci.
+        verifieLe: null,
+        verifieParId: null,
+        ajouteLe: depot,
+        // Et elle repart pour un an. Deposer une piece est un signe de vie du
+        // dossier ; garder l'echeance de celle qu'elle remplace ferait effacer
+        // dans trois semaines un fichier arrive aujourd'hui.
+        conservationJusquAu: echeanceConservation(depot),
+        relanceEnvoyeeLe: null,
+      },
+    });
+
+    if (ancien) {
+      await this.stockage.effacer(ancien.cheminStockage);
+    }
+
+    return this.resumer(document);
+  }
+
+  /** Contenu d'une piece, pour telechargement. Le candidat est verifie ici. */
+  async contenu(
+    candidatId: string,
+    documentId: string,
+  ): Promise<{ contenu: Buffer; nomOrigine: string; typeMime: string }> {
+    const document = await this.prisma.documentCandidat.findFirst({
+      where: { id: documentId, candidatId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document introuvable');
+    }
+
+    return {
+      contenu: await this.stockage.lire(document.cheminStockage),
+      nomOrigine: document.nomOrigine,
+      typeMime: document.typeMime,
+    };
+  }
+
+  /**
+   * Retire une piece.
+   *
+   * La ligne part d'abord, le fichier ensuite : l'inverse laisserait, en cas
+   * d'incident, une reference vers un binaire disparu — c'est-a-dire une piece
+   * que l'ecran annonce et que personne ne peut ouvrir.
+   */
+  async retirer(candidatId: string, documentId: string): Promise<void> {
+    const document = await this.prisma.documentCandidat.findFirst({
+      where: { id: documentId, candidatId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document introuvable');
+    }
+
+    await this.prisma.documentCandidat.delete({ where: { id: document.id } });
+    await this.stockage.effacer(document.cheminStockage);
+  }
+
+  /** Nombre de pieces deposees, pour le calcul de completude. */
+  compter(candidatId: string): Promise<number> {
+    return this.prisma.documentCandidat.count({ where: { candidatId } });
+  }
+
+  /**
+   * Efface les pieces d'un type deposees il y a plus de `jours`.
+   *
+   * Jamais declenchee seule : c'est `pnpm cli purger:documents` qui l'appelle,
+   * avec un type et un age explicites. Le mode `simulation` compte sans rien
+   * ecrire — une purge se regarde avant de s'appliquer.
+   */
+  async purger(
+    type: TypeDocument,
+    jours: number,
+    simulation: boolean,
+  ): Promise<{ avant: Date; concernees: number; supprimees: number }> {
+    const avant = new Date(Date.now() - jours * 24 * 60 * 60 * 1000);
+
+    const concernees = await this.prisma.documentCandidat.findMany({
+      where: { type, ajouteLe: { lt: avant } },
+      select: { id: true, cheminStockage: true },
+    });
+
+    if (simulation) {
+      return { avant, concernees: concernees.length, supprimees: 0 };
+    }
+
+    await this.prisma.documentCandidat.deleteMany({
+      where: { id: { in: concernees.map((piece) => piece.id) } },
+    });
+
+    for (const piece of concernees) {
+      await this.stockage.effacer(piece.cheminStockage);
+    }
+
+    return { avant, concernees: concernees.length, supprimees: concernees.length };
+  }
+
+  /**
+   * Controle de recevabilite.
+   *
+   * Le type MIME annonce par le navigateur n'est qu'une declaration : il est
+   * verifie contre la liste blanche, mais ne prouve rien du contenu. Une
+   * inspection de la signature du fichier, et une analyse antivirale, restent a
+   * ajouter avant un usage reel — c'est dit dans `docs/conservation-documents.md`.
+   */
+  private verifier(fichier: FichierRecu): void {
+    if (fichier.size === 0) {
+      throw new BadRequestException('Fichier vide');
+    }
+
+    if (fichier.size > TAILLE_MAX_DOCUMENT) {
+      const maxMo = Math.round(TAILLE_MAX_DOCUMENT / (1024 * 1024));
+      throw new BadRequestException(`Fichier trop volumineux : ${maxMo} Mo au plus`);
+    }
+
+    if (!typeMimeAccepte(fichier.mimetype)) {
+      throw new BadRequestException(
+        `Format non accepte. Formats admis : ${TYPES_MIME_DOCUMENT.join(', ')}`,
+      );
+    }
+  }
+
+  /**
+   * Nom d'origine ramene a quelque chose d'affichable.
+   *
+   * Il ne sert jamais a ecrire sur le disque, mais il est reaffiche : sans
+   * nettoyage, un nom de fichier choisi par un tiers deviendrait un vecteur
+   * d'injection dans l'ecran de l'agence.
+   */
+  private nomLisible(nom: string): string {
+    const base = nom.split(/[\\/]/).pop() ?? 'document';
+
+    // eslint-disable-next-line no-control-regex
+    return base.replace(/[ -<>"']/g, '').slice(0, 120) || 'document';
+  }
+
+  private resumer(document: {
+    id: string;
+    type: string;
+    nomOrigine: string;
+    typeMime: string;
+    taille: number;
+    ajouteLe: Date;
+    verifieLe: Date | null;
+    expireLe: Date | null;
+    conservationJusquAu: Date;
+  }): DocumentResume {
+    return {
+      id: document.id,
+      type: document.type as TypeDocument,
+      nomOrigine: document.nomOrigine,
+      typeMime: document.typeMime,
+      taille: document.taille,
+      ajouteLe: document.ajouteLe.toISOString(),
+      verifieLe: document.verifieLe?.toISOString() ?? null,
+      expireLe: document.expireLe?.toISOString().slice(0, 10) ?? null,
+      conservationJusquAu: document.conservationJusquAu.toISOString(),
+    };
+  }
+}

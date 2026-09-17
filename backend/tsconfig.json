@@ -1,0 +1,23 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "incremental": true,
+    // Dans dist/ et pas a cote : nest-cli supprime dist a chaque build
+    // (deleteOutDir). Un .tsbuildinfo qui survit a cette suppression fait croire
+    // a tsc que tout est a jour, et `nest build` sort en succes sans rien emettre.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "prisma"]
+}

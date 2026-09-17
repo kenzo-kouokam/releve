@@ -1,0 +1,42 @@
+{
+  "name": "releve",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plateforme d'interim pour l'aide a domicile - monorepo",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend build && pnpm --filter @releve/frontend build",
+    "dev": "pnpm --filter @releve/shared build && pnpm -r --parallel dev",
+    "dev:backend": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend dev",
+    "dev:frontend": "pnpm --filter @releve/shared build && pnpm --filter @releve/frontend dev",
+    "test": "pnpm test:shared && pnpm test:backend",
+    "test:shared": "vitest run --root shared",
+    "test:backend": "pnpm --filter @releve/backend test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:generate": "pnpm --filter @releve/backend db:generate",
+    "db:migrate": "pnpm --filter @releve/backend db:migrate",
+    "db:seed": "pnpm --filter @releve/backend db:seed",
+    "db:studio": "pnpm --filter @releve/backend db:studio",
+    "db:reset": "pnpm --filter @releve/backend db:reset",
+    "cli": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend cli"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^5.0.0",
+    "vue-eslint-parser": "^10.0.0"
+  }
+}

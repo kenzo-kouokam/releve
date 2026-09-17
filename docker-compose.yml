@@ -1,0 +1,54 @@
+name: passerelle
+
+services:
+  db:
+    # Image PostGIS : le geomatching candidat -> lieu d'intervention en depend.
+    image: postgis/postgis:16-3.4
+    container_name: passerelle-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: passerelle
+      POSTGRES_PASSWORD: passerelle
+      POSTGRES_DB: passerelle
+    ports:
+      # 5434 : 5432 et 5433 sont deja pris sur les postes de dev (Postgres local / WSL).
+      - '5434:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U passerelle -d passerelle']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # File de jobs BullMQ : matching differe, notifications, relances.
+    image: redis:7-alpine
+    container_name: passerelle-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+
+  mailpit:
+    # Serveur SMTP de developpement : il accepte tout et n'envoie rien dehors.
+    # Les mails de verification s'ouvrent dans l'interface web, ce qui permet de
+    # derouler le parcours complet sans compte chez un fournisseur — et sans
+    # risquer d'ecrire a une vraie adresse depuis un jeu de test.
+    image: axllent/mailpit:latest
+    container_name: passerelle-mailpit
+    restart: unless-stopped
+    ports:
+      # 8025 : la boite de reception, dans le navigateur.
+      - '8025:8025'
+      # 1025 : le SMTP auquel l'API parle.
+      - '1025:1025'
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  db_data:
+  redis_data:

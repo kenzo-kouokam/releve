@@ -1,0 +1,97 @@
+/*
+ * Echelle typographique et briques communes aux six pages vitrine.
+ *
+ * Feuille globale plutot que styles scopes recopies : l'accroche, le titre et
+ * la carte sont strictement les memes d'une page a l'autre dans le canvas, et
+ * six copies divergeraient a la premiere retouche. Tout ce qui est propre a une
+ * page reste dans son bloc <style scoped>.
+ */
+
+.vitrine {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-block: 64px 90px;
+}
+
+.vitrine-accroche {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--eta);
+}
+
+.vitrine-titre {
+  margin: 0 0 18px;
+  font-size: clamp(32px, 6vw, 46px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: pretty;
+}
+
+.vitrine-chapeau {
+  max-width: 64ch;
+  margin: 0 0 48px;
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.vitrine-carte {
+  padding: 26px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+/* Les deux boutons du canvas, tailles pour la vitrine : plus grands que ceux de
+ * l'espace connecte. */
+.vitrine-bouton {
+  display: inline-block;
+  padding: 16px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--surface);
+  text-align: center;
+  text-decoration: none;
+  background: var(--dom);
+  border: 1px solid var(--dom);
+  border-radius: 13px;
+  cursor: pointer;
+}
+
+.vitrine-bouton:hover {
+  color: var(--surface);
+  background: var(--dom-fonce);
+  border-color: var(--dom-fonce);
+}
+
+.vitrine-bouton.secondaire {
+  color: var(--dom-fonce);
+  background: var(--surface);
+  border-color: var(--line-forte);
+}
+
+.vitrine-bouton.secondaire:hover {
+  color: var(--dom-fonce);
+  background: var(--surface);
+  border-color: var(--dom);
+}
+
+.vitrine-bouton:focus-visible {
+  outline: 2px solid var(--dom);
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .vitrine {
+    padding-block: 44px 64px;
+  }
+
+  .vitrine-carte {
+    padding: 20px;
+  }
+}

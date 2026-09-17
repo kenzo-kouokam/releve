@@ -1,0 +1,926 @@
+// Schema Relève - voir docs/analyse-de-marche.html
+//
+// Trois invariants portes par ce schema :
+//  1. le CLIENT contractuel n'est pas le LIEU d'intervention : un SAAD signe la
+//     mission, l'intervention a lieu chez le beneficiaire ;
+//  2. la convention collective est portee par le CLIENT (principe d'egalite de
+//     traitement avec les salaries de l'entreprise utilisatrice), pas par le candidat ;
+//  3. le statut reglementaire du CLIENT est saisi sur piece par l'agence : il
+//     decide de ce que la structure a le droit de faire, et rien dans le SIRET
+//     ne le dit.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // L'image postgis/postgis installe ces quatre extensions a la creation de la
+  // base. Les declarer toutes evite que `prisma migrate dev` les voie comme une
+  // derive et propose de reinitialiser la base a chaque migration.
+  extensions = [postgis, postgis_topology, fuzzystrmatch, postgis_tiger_geocoder]
+}
+
+// ---------------------------------------------------------------- enums
+
+enum RoleUtilisateur {
+  ADMIN_AGENCE
+  CHARGE_RECRUTEMENT
+  CLIENT
+  CANDIDAT
+}
+
+enum StatutCandidat {
+  BROUILLON
+  EN_VERIFICATION
+  ACTIF
+  INACTIF
+  ARCHIVE
+}
+
+// Un seul type de client : l'agence ne place que dans des services d'aide et
+// d'accompagnement a domicile. L'enum survit a la reduction parce qu'il porte
+// une information juridique : un SAAD releve de l'article L. 312-1 du CASF.
+/// Voir `shared/src/habilitation.ts` pour ce que chaque regime autorise.
+enum StatutReglementaire {
+  DECLARE_SAP
+  AGREE_SAP
+  AUTORISE_SAD_ESMS
+  PRESTATAIRE_CLASSIQUE
+}
+
+enum TypeClient {
+  SAAD
+}
+
+enum TypeLieu {
+  DOMICILE_BENEFICIAIRE
+  ETABLISSEMENT
+}
+
+/// Finesse du point calcule a partir d'une adresse postale.
+///
+/// Une adresse n'est pas situee ou non : elle l'est a une finesse pres. La Base
+/// Adresse Nationale place souvent un numero de rue au metre, mais elle retombe
+/// parfois sur le centre de la commune. Les deux rendent un couple
+/// latitude / longitude d'apparence identique, et les confondre revient a
+/// annoncer « a 3 km » pour quelqu'un qu'on n'a situe qu'a la ville pres.
+enum PrecisionGeocodage {
+  NUMERO
+  RUE
+  LIEU_DIT
+  COMMUNE
+}
+
+enum StatutMission {
+  BROUILLON
+  PUBLIEE
+  EN_MATCHING
+  PROPOSEE
+  VALIDEE
+  CONTRACTUALISEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+  NON_POURVUE
+}
+
+enum StatutProposition {
+  ENVOYEE
+  ACCEPTEE_CANDIDAT
+  REFUSEE_CANDIDAT
+  VALIDEE_CLIENT
+  REFUSEE_CLIENT
+  EXPIREE
+}
+
+enum StatutContrat {
+  A_SIGNER
+  SIGNE
+  DPAE_ENVOYEE
+  ROMPU
+}
+
+enum StatutReleve {
+  SAISI
+  VALIDE_CLIENT
+  CONTESTE
+  EXPORTE
+}
+
+// ---------------------------------------------------------------- agence & acces
+
+model Agence {
+  id        String   @id @default(uuid()) @db.Uuid
+  nom       String
+  ville     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  utilisateurs Utilisateur[]
+  candidats    Candidat[]
+  clients      Client[]
+  missions     Mission[]
+
+  @@map("agence")
+}
+
+model Utilisateur {
+  id           String          @id @default(uuid()) @db.Uuid
+  email        String          @unique
+  motDePasse   String
+  role         RoleUtilisateur
+  actif        Boolean         @default(true)
+  derniereCnx  DateTime?
+
+  /// Date de confirmation de l'adresse, par clic sur le lien recu. Tant qu'elle
+  /// est nulle, la connexion est refusee : l'adresse n'a pas ete prouvee, et
+  /// c'est elle qui sert d'identifiant. Nullable plutot que booleen, parce que
+  /// « quand » se demande toujours apres « si » — support, litige, RGPD.
+  emailVerifieLe DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // Compteur d'echecs consecutifs. Il alimente un ralentissement progressif de la
+  // reponse, pas un verrouillage : bloquer un compte donnerait a un attaquant le
+  // moyen de fermer l'agence a 6h30 en saisissant trois fois un mauvais mot de
+  // passe. Porte par le compte et non par l'IP, car un bourrinage distribue
+  // change d'adresse a chaque essai mais pas de cible.
+  echecsConnexion Int       @default(0)
+  dernierEchecLe  DateTime?
+
+  /// Date a laquelle la personne a coche « j'accepte les conditions generales »,
+  /// et version du texte qu'elle a accepte. Nulles pour les comptes crees par
+  /// l'agence et pour ceux qui existaient avant la case : on n'antidate pas un
+  /// consentement. Conserver la version compte autant que la date — un texte
+  /// revise n'est plus celui qui a ete accepte, et c'est cette paire qui se
+  /// produit en cas de litige.
+  conditionsAccepteesLe DateTime?
+  conditionsVersion     String?
+
+  /// Reception des courriels qui ne sont pas lies a la securite du compte :
+  /// validation du dossier, missions correspondantes.
+  ///
+  /// Vrai par defaut : quelqu'un qui s'inscrit sur une plateforme d'interim
+  /// cherche des missions, et ne pas l'avertir qu'il en existe reviendrait a
+  /// lui rendre le service a moitie. Il reste maitre du reglage depuis
+  /// « Mon compte ».
+  ///
+  /// Ne commande jamais les courriels transactionnels — confirmation
+  /// d'adresse, reinitialisation, fin de conservation des pieces. Ceux-la
+  /// portent une obligation ou une consequence irreversible : les taire parce
+  /// qu'une case est decochee ferait effacer des documents sans prevenir.
+  notificationsEmail Boolean @default(true)
+
+  agenceId   String?   @db.Uuid
+  agence     Agence?   @relation(fields: [agenceId], references: [id], onDelete: SetNull)
+  candidatId String?   @unique @db.Uuid
+  candidat   Candidat? @relation(fields: [candidatId], references: [id], onDelete: SetNull)
+  clientId   String?   @db.Uuid
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  jetons JetonRafraichissement[]
+  liens  JetonUsageUnique[]
+
+  @@index([agenceId, role])
+  @@map("utilisateur")
+}
+
+/// Jeton de rafraichissement : la seule partie revocable de la session.
+///
+/// Le jeton d'acces est un JWT autoportant, donc invalidable uniquement par
+/// expiration. Ce modele apporte ce qui lui manque : une session qu'on peut
+/// couper. Seule une empreinte SHA-256 est stockee - une fuite de la table ne
+/// donne aucun jeton utilisable.
+model JetonRafraichissement {
+  id            String   @id @default(uuid()) @db.Uuid
+  utilisateurId String   @db.Uuid
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  empreinte String   @unique
+  expireLe  DateTime
+  createdAt DateTime @default(now())
+
+  utiliseLe  DateTime?
+  revoqueLe  DateTime?
+  /// Rotation : chaque usage emet un successeur. Rejouer un jeton deja utilise
+  /// signale un vol, et fait tomber toute la chaine (voir auth.service).
+  remplacePar String? @db.Uuid
+
+  /// Racine de la chaine de rotation, pour revoquer une session d'un seul coup.
+  familleId String @db.Uuid
+
+  @@index([utilisateurId, revoqueLe])
+  @@index([familleId])
+  @@map("jeton_rafraichissement")
+}
+
+/// Ce a quoi un lien donne droit. Le meme jeton ne doit jamais servir aux deux :
+/// un lien de confirmation intercepte ouvrirait sinon une reinitialisation.
+enum UsageJeton {
+  VERIFICATION_EMAIL
+  REINITIALISATION_MOT_DE_PASSE
+  CONSERVATION_DOCUMENTS
+}
+
+/**
+ * Lien envoye par courriel, a usage unique.
+ *
+ * Une seule table pour les deux parcours — confirmer une adresse, reprendre la
+ * main sur un compte — parce que leurs proprietes de securite sont exactement
+ * les memes : empreinte SHA-256 et jamais la valeur, peremption, consommation
+ * unique, invalidation des liens precedents. Les ecrire deux fois les ferait
+ * diverger, et c'est toujours la copie oubliee qui reste exploitable.
+ *
+ * Meme traitement que le jeton de rafraichissement, et pour la meme raison :
+ * une fuite de la table ne donne aucun lien utilisable, alors que ces liens
+ * ouvrent une session ou changent un mot de passe.
+ */
+model JetonUsageUnique {
+  id            String      @id @default(uuid()) @db.Uuid
+  utilisateurId String      @db.Uuid
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  usage UsageJeton
+
+  empreinte  String    @unique
+  expireLe   DateTime
+  consommeLe DateTime?
+  createdAt  DateTime  @default(now())
+
+  /// Adresse visee au moment de l'emission. Un lien emis pour une adresse ne
+  /// doit rien accorder sur celle qui l'a remplacee entre-temps.
+  email String
+
+  @@index([utilisateurId, usage, consommeLe])
+  @@map("jeton_usage_unique")
+}
+
+// ---------------------------------------------------------------- offre : candidats
+
+model Candidat {
+  id        String         @id @default(uuid()) @db.Uuid
+  agenceId  String         @db.Uuid
+  agence    Agence         @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  nom       String
+  prenom    String
+  email     String         @unique
+  telephone String
+  statut    StatutCandidat @default(BROUILLON)
+
+  adresse    String
+  codePostal String
+  ville      String
+  // Calculees par `GeocodageService` a partir de l'adresse, jamais saisies.
+  // Nulles tant que l'adresse n'a pas pu etre situee : le matching ecarte alors
+  // la fiche en le disant, plutot que de mesurer une distance inventee.
+  latitude   Float?
+  longitude  Float?
+  // Colonne PostGIS, ecrite en SQL brut : le client Prisma la declare
+  // `Unsupported` et refuse de l'ecrire. Elle bouge toujours avec les deux
+  // colonnes ci-dessus, dans la meme instruction.
+  geom       Unsupported("geography(Point, 4326)")?
+  /// Date du dernier geocodage reussi. Nulle quand la fiche n'est pas situee.
+  geocodeLe        DateTime?
+  geocodePrecision PrecisionGeocodage?
+
+  rayonKm  Int     @default(20)
+  permisB  Boolean @default(false)
+  vehicule Boolean @default(false)
+
+  visiteMedicaleLe  DateTime? @db.Date
+  vaccinationVerifiee Boolean @default(false)
+
+  /// Derniere fois que le candidat a ete averti de missions correspondantes.
+  ///
+  /// Sert de borne au balayage quotidien : seules les missions publiees depuis
+  /// cette date sont annoncees. Sans elle, chaque passage renverrait le meme
+  /// courriel, et la personne se desabonnerait au troisieme.
+  missionsNotifieesLe DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  utilisateur      Utilisateur?
+  qualifications   QualificationCandidat[]
+  experiences      ExperienceProfessionnelle[]
+  disponibilites   Disponibilite[]
+  indisponibilites Indisponibilite[]
+  documents        DocumentCandidat[]
+  propositions     Proposition[]
+  contrats         Contrat[]
+  missions         Mission[]
+  releves          ReleveHeures[]
+
+  @@index([agenceId, statut])
+  @@index([codePostal])
+  @@map("candidat")
+}
+
+/// Pieces que l'agence demande pour constituer un dossier.
+///
+/// Deux d'entre elles ne servent qu'a l'administratif d'embauche (NIR, RIB) et
+/// deux a la verification des competences (diplome, CV). La piece d'identite
+/// valide le contrat. Cette distinction commande la duree de conservation :
+/// voir `docs/conservation-documents.md`.
+enum TypeDocument {
+  NIR
+  DIPLOME
+  CV
+  PIECE_IDENTITE
+  RIB
+}
+
+/// Piece justificative deposee par un candidat.
+///
+/// Le contenu n'est jamais en base : seule la reference du fichier l'est, le
+/// binaire vivant dans le stockage configure par `STOCKAGE_DOCUMENTS`. Une
+/// colonne `bytea` rendrait chaque `SELECT` de fiche couteux et les sauvegardes
+/// impraticables.
+///
+/// `cheminStockage` est un identifiant opaque, jamais un nom de fichier choisi
+/// par la personne : un nom d'origine se promene avec des separateurs, des
+/// accents et parfois `..`. Le nom d'origine est conserve a part, pour
+/// reaffichage seulement.
+model DocumentCandidat {
+  id         String       @id @default(uuid()) @db.Uuid
+  candidatId String       @db.Uuid
+  candidat   Candidat     @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+  type       TypeDocument
+
+  /// Nom tel que la personne l'a televerse. Sert a l'affichage, jamais au disque.
+  nomOrigine String
+  /// Type MIME constate a la reception, restreint a la liste blanche du service.
+  typeMime   String
+  /// Taille en octets, plafonnee a la reception.
+  taille     Int
+  /// Identifiant opaque du fichier dans le stockage.
+  cheminStockage String @unique
+
+  /// Empreinte SHA-256 du contenu. Permet de constater qu'un fichier n'a pas
+  /// change, et de detecter un doublon sans rouvrir le binaire.
+  empreinte String
+
+  /// Date a laquelle l'agence a constate la piece. Nulle tant qu'elle ne l'a pas
+  /// fait : une piece deposee n'est pas une piece verifiee, exactement comme
+  /// pour un diplome declare.
+  verifieLe     DateTime?
+  verifieParId  String?   @db.Uuid
+
+  /// Date de peremption, pour les pieces qui en ont une (titre de sejour,
+  /// carte d'identite). Nulle sinon.
+  ///
+  /// A ne pas confondre avec `conservationJusquAu` : celle-ci dit quand le
+  /// document cesse d'etre valable, celle-la quand la plateforme cesse d'avoir
+  /// le droit de le garder. Une carte d'identite perimee reste conservable, et
+  /// un diplome sans peremption finit quand meme par devoir etre efface.
+  expireLe DateTime? @db.Date
+
+  /// Date jusqu'a laquelle la plateforme conserve la piece : un an apres le
+  /// depot, renouvele d'un an a chaque fois que la personne le confirme.
+  /// Passee cette date, un courriel lui demande si elle veut qu'on la garde.
+  conservationJusquAu DateTime
+
+  /// Date d'envoi de ce courriel. Nulle tant que rien n'a ete demande, remise a
+  /// nulle des que la personne repond. Sa presence est ce qui declenche le
+  /// compte a rebours avant effacement : sans reponse, le silence vaut refus.
+  relanceEnvoyeeLe DateTime?
+
+  ajouteLe  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Un seul document par type et par candidat : deposer a nouveau remplace.
+  /// Un dossier qui accumulerait trois RIB ne dirait plus lequel fait foi.
+  @@unique([candidatId, type])
+  @@index([candidatId])
+  /// Les deux balayages de conservation parcourent la table entiere : celui qui
+  /// releve les pieces echues, puis celui qui efface celles restees sans
+  /// reponse. Cet index leur evite de la lire en entier a chaque passage.
+  @@index([conservationJusquAu, relanceEnvoyeeLe])
+  @@map("document_candidat")
+}
+
+model Qualification {
+  id       String    @id @default(uuid()) @db.Uuid
+  code     String    @unique
+  libelle  String
+
+  // Code ROME du metier correspondant. C'est le pont vers les offres collectees
+  // sur France Travail : il permet de proposer a l'etablissement le taux median
+  // du marche au moment ou il fixe sa remuneration.
+  romeCode String?
+
+  candidats    QualificationCandidat[]
+  experiences  ExperienceProfessionnelle[]
+  missions     Mission[]
+
+  @@map("qualification")
+}
+
+model QualificationCandidat {
+  id              String        @id @default(uuid()) @db.Uuid
+  candidatId      String        @db.Uuid
+  candidat        Candidat      @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+  qualificationId String        @db.Uuid
+  qualification   Qualification @relation(fields: [qualificationId], references: [id], onDelete: Restrict)
+
+  obtenueLe       DateTime? @db.Date
+  expireLe        DateTime? @db.Date
+  justificatifUrl String?
+  verifieeLe      DateTime?
+  verifieePar     String?
+
+  @@unique([candidatId, qualificationId])
+  @@map("qualification_candidat")
+}
+
+/**
+ * Un poste occupe, declare par l'intervenant.
+ *
+ * Le bareme mesurait jusqu'ici l'« experience » par l'anciennete du diplome.
+ * C'est un mauvais substitut : un DEAS obtenu en 2014 et jamais exerce comptait
+ * autant que dix ans de terrain, et une personne qui reprend apres quinze ans
+ * d'interruption partait devant celle qui n'a jamais quitte le metier. Ce
+ * modele porte ce que le diplome ne dit pas.
+ *
+ * Meme invariant que pour les qualifications : la ligne nait non verifiee et ne
+ * rapporte rien tant que l'agence ne l'a pas controlee. Sans cela, le score se
+ * declarerait tout seul, et l'etablissement classerait sur de la parole.
+ */
+model ExperienceProfessionnelle {
+  id         String   @id @default(uuid()) @db.Uuid
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+
+  employeur String
+  intitule  String
+
+  /// Rattachement au referentiel des qualifications.
+  ///
+  /// Null quand le poste n'y correspond a rien — caissiere, manutention. Cette
+  /// experience-la compte pour moitie : elle dit quelque chose de la personne
+  /// au travail, rien de son metier. `SetNull` et non `Cascade` : retirer une
+  /// qualification du referentiel ne doit pas effacer le passe professionnel de
+  /// ceux qui la detenaient.
+  qualificationId String?        @db.Uuid
+  qualification   Qualification? @relation(fields: [qualificationId], references: [id], onDelete: SetNull)
+
+  debutLe DateTime  @db.Date
+  /// Nulle quand le poste est toujours occupe. La duree se compte alors jusqu'a
+  /// aujourd'hui, et elle grandit d'elle-meme — ce qui est exact, et evite de
+  /// demander une mise a jour que personne ne fait.
+  finLe   DateTime? @db.Date
+
+  /// Temps de travail, en pourcentage d'un temps plein. Le temps partiel est la
+  /// norme dans l'aide a domicile : compter deux ans a mi-temps comme deux ans
+  /// de terrain surestimerait la moitie du vivier.
+  quotitePourcent Int @default(100)
+
+  description String?
+
+  /// Controle par l'agence, sur certificat de travail ou attestation. Tant
+  /// qu'elle est nulle, la ligne s'affiche sur la fiche mais ne compte pas.
+  verifieeLe  DateTime?
+  verifieePar String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([candidatId, debutLe])
+  @@index([qualificationId])
+  @@map("experience_professionnelle")
+}
+
+model Disponibilite {
+  id         String   @id @default(uuid()) @db.Uuid
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+
+  jourSemaine Int // 1 = lundi ... 7 = dimanche
+  heureDebut  String // "07:00"
+  heureFin    String // "12:30"
+  recurrente  Boolean   @default(true)
+  valideDu    DateTime? @db.Date
+  valideAu    DateTime? @db.Date
+
+  @@index([candidatId, jourSemaine])
+  @@map("disponibilite")
+}
+
+model Indisponibilite {
+  id         String   @id @default(uuid()) @db.Uuid
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+  du         DateTime @db.Date
+  au         DateTime @db.Date
+  motif      String?
+
+  @@index([candidatId, du, au])
+  @@map("indisponibilite")
+}
+
+// ---------------------------------------------------------------- demande : clients & lieux
+
+model Client {
+  id            String     @id @default(uuid()) @db.Uuid
+  agenceId      String     @db.Uuid
+  agence        Agence     @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+  raisonSociale String
+  siret         String     @unique
+  type          TypeClient @default(SAAD)
+
+  /// Regime sous lequel la structure intervient, et la piece qui l'etablit.
+  ///
+  /// Nullable a dessein : les fiches creees avant l'introduction de la regle
+  /// n'ont pas de statut, et leur en inventer un serait pire que l'absence. Le
+  /// champ n'est pas pour autant facultatif — une fiche sans statut ne peut
+  /// pas etre activee, donc ne recoit aucune mise a disposition.
+  statutReglementaire StatutReglementaire?
+  numeroSap           String?
+  numeroAgrement      String?
+  numeroFiness        String?
+  arreteReference     String?
+  arreteDate          DateTime?
+
+  // Sert a calculer le salaire de reference de l'interimaire : c'est la
+  // convention de l'entreprise utilisatrice qui s'applique, pas celle du candidat.
+  conventionCollective String?
+  idcc                 String?
+
+  contactNom   String?
+  contactEmail String?
+  contactTel   String?
+  actif        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lieux        LieuIntervention[]
+  missions     Mission[]
+  factures     Facture[]
+  utilisateurs Utilisateur[]
+
+  @@index([agenceId, actif])
+  @@map("client")
+}
+
+model LieuIntervention {
+  id       String   @id @default(uuid()) @db.Uuid
+  clientId String   @db.Uuid
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type     TypeLieu
+  libelle  String
+
+  adresse    String
+  codePostal String
+  ville      String
+  // Meme regle que pour le candidat : calculees, jamais saisies. Une mission
+  // dont le lieu n'est pas situe n'a aucun candidat retenu, puisque la distance
+  // n'est mesurable pour personne.
+  latitude   Float?
+  longitude  Float?
+  geom       Unsupported("geography(Point, 4326)")?
+  geocodeLe        DateTime?
+  geocodePrecision PrecisionGeocodage?
+
+  etage     String?
+  codeAcces String?
+  consignes String?
+  // Aucune donnee de sante : uniquement une reference pseudonymisee.
+  beneficiaireRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  missions Mission[]
+
+  @@index([clientId, type])
+  @@map("lieu_intervention")
+}
+
+// ---------------------------------------------------------------- mission & aval
+
+model Mission {
+  id        String @id @default(uuid()) @db.Uuid
+  reference String @unique
+  agenceId  String @db.Uuid
+  agence    Agence @relation(fields: [agenceId], references: [id], onDelete: Restrict)
+
+  clientId String           @db.Uuid
+  client   Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  lieuId   String           @db.Uuid
+  lieu     LieuIntervention @relation(fields: [lieuId], references: [id], onDelete: Restrict)
+
+  qualificationRequiseId String        @db.Uuid
+  qualificationRequise   Qualification @relation(fields: [qualificationRequiseId], references: [id], onDelete: Restrict)
+
+  statut      StatutMission @default(BROUILLON)
+  dateDebut   DateTime      @db.Date
+  dateFin     DateTime      @db.Date
+  heureDebut  String
+  heureFin    String
+  travailNuit Boolean       @default(false)
+
+  motifRecours String
+  description  String?
+  tauxHoraire  Decimal? @db.Decimal(8, 4)
+  coefficient  Decimal? @db.Decimal(5, 3)
+
+  candidatRetenuId String?   @db.Uuid
+  candidatRetenu   Candidat? @relation(fields: [candidatRetenuId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propositions Proposition[]
+  contrat      Contrat?
+  releves      ReleveHeures[]
+  evenements   EvenementMission[]
+
+  @@index([agenceId, statut])
+  @@index([dateDebut])
+  @@index([clientId, statut])
+  @@map("mission")
+}
+
+model Proposition {
+  id         String   @id @default(uuid()) @db.Uuid
+  missionId  String   @db.Uuid
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+
+  score Decimal? @db.Decimal(5, 2)
+  // Detail des composantes du score : le charge de recrutement doit pouvoir
+  // comprendre pourquoi un candidat est troisieme et pas premier.
+  detailScore Json?
+
+  // Mot d'accompagnement ecrit par le candidat au moment de postuler. Il est
+  // lu par l'etablissement sur la fiche du profil : c'est souvent lui qui
+  // departage deux candidatures equivalentes.
+  message String?
+
+  statut     StatutProposition @default(ENVOYEE)
+  envoyeeLe  DateTime          @default(now())
+  repondueLe DateTime?
+  expireLe   DateTime?
+  motifRefus String?
+
+  @@unique([missionId, candidatId])
+  @@index([candidatId, statut])
+  @@map("proposition")
+}
+
+model Contrat {
+  id         String   @id @default(uuid()) @db.Uuid
+  missionId  String   @unique @db.Uuid
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Restrict)
+
+  numero        String        @unique
+  motifRecours  String
+  dateDebut     DateTime      @db.Date
+  dateFin       DateTime      @db.Date
+  statut        StatutContrat @default(A_SIGNER)
+  signeLe       DateTime?
+  documentUrl   String?
+  dpaeEnvoyeeLe DateTime?
+  dpaeReference String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contrat")
+}
+
+model ReleveHeures {
+  id         String   @id @default(uuid()) @db.Uuid
+  missionId  String   @db.Uuid
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Restrict)
+
+  semaineDu      DateTime @db.Date
+  heuresNormales Decimal  @default(0) @db.Decimal(6, 2)
+  heuresNuit     Decimal  @default(0) @db.Decimal(6, 2)
+  heuresDimanche Decimal  @default(0) @db.Decimal(6, 2)
+  heuresFeriees  Decimal  @default(0) @db.Decimal(6, 2)
+  kilometres     Decimal  @default(0) @db.Decimal(7, 2)
+
+  statut      StatutReleve @default(SAISI)
+  saisiLe     DateTime     @default(now())
+  valideLe    DateTime?
+  validePar   String?
+  commentaire String?
+
+  factureId String?  @db.Uuid
+  facture   Facture? @relation(fields: [factureId], references: [id], onDelete: SetNull)
+
+  @@unique([missionId, semaineDu])
+  @@index([statut])
+  @@map("releve_heures")
+}
+
+model Facture {
+  id       String @id @default(uuid()) @db.Uuid
+  numero   String @unique
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  periodeDebut DateTime @db.Date
+  periodeFin   DateTime @db.Date
+  montantHT    Decimal  @default(0) @db.Decimal(10, 2)
+  tauxTva      Decimal  @default(20) @db.Decimal(5, 2)
+  montantTTC   Decimal  @default(0) @db.Decimal(10, 2)
+  emiseLe      DateTime?
+  payeeLe      DateTime?
+
+  createdAt DateTime @default(now())
+
+  releves ReleveHeures[]
+
+  @@index([clientId, periodeDebut])
+  @@map("facture")
+}
+
+/// Journal immuable : c'est ce qu'on ressort en cas de litige sur une mission.
+model EvenementMission {
+  id        String  @id @default(uuid()) @db.Uuid
+  missionId String  @db.Uuid
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  type       String
+  auteurId   String?          @db.Uuid
+  auteurRole RoleUtilisateur?
+  donnees    Json?
+  createdAt  DateTime         @default(now())
+
+  @@index([missionId, createdAt])
+  @@map("evenement_mission")
+}
+
+// ---------------------------------------------------------------- donnees publiques
+
+/// Cycle de vie d'une offre collectee.
+///
+/// La licence de reutilisation France Travail impose qu'une offre retiree chez
+/// la source disparaisse aussi chez le reutilisateur. On ne supprime pas la
+/// ligne pour autant : le barometre porte sur une fenetre glissante de trente a
+/// quatre-vingt-dix jours et doit continuer a voir les offres passees. C'est
+/// l'affichage public qui filtre sur ACTIVE.
+enum StatutOffreCollectee {
+  ACTIVE
+  EXPIREE
+}
+
+/// D'ou viennent les coordonnees d'une offre collectee.
+///
+/// La distinction compte au moment d'afficher une distance. France Travail ne
+/// geolocalise qu'une annonce sur sept : les autres sont situees au centre de
+/// leur commune, ce qui suffit largement a filtrer sur un rayon de vingt ou
+/// trente kilometres, mais pas a annoncer « 12 km » comme une mesure. Une
+/// coordonnee deduite s'affiche avec un « environ ».
+enum OrigineCoordonnees {
+  /// Fournies telles quelles par la source.
+  SOURCE
+  /// Deduites du centre de la commune, faute de mieux.
+  COMMUNE
+}
+
+/// Commune situee une fois, puis reutilisee.
+///
+/// C'est ce qui rend le rattrapage tenable : mille sept cents offres sans
+/// coordonnees ne representent que mille quarante couples code postal / commune
+/// distincts, et une commune situee sert a toutes ses offres, aujourd'hui comme
+/// aux imports suivants. Geocoder offre par offre appellerait la Base Adresse
+/// Nationale des milliers de fois pour recalculer sans cesse les memes points.
+model CommuneGeocodee {
+  codePostal String
+  nom        String
+
+  latitude  Float?
+  longitude Float?
+
+  /// Vraie quand la BAN n'a rien su rendre de convaincant. Sans ce drapeau,
+  /// chaque import retenterait indefiniment les memes communes introuvables.
+  introuvable Boolean @default(false)
+
+  situeeLe DateTime @default(now())
+
+  @@id([codePostal, nom])
+  @@map("commune_geocodee")
+}
+
+/// Offre d'interim collectee sur une source publique.
+///
+/// Une seule table pour deux lectures. L'affichage republie l'annonce telle
+/// quelle — la licence interdit de la denaturer, donc `intitule` et
+/// `description` sont ceux de l'employeur. Le barometre lit les valeurs
+/// derivees, `intituleNormalise`, `tauxHoraire` et `empreinte`, calculees a
+/// cote sans jamais ecraser l'original. Le libelle de salaire d'origine reste
+/// garde a cote de la valeur normalisee : c'est la seule facon de verifier une
+/// conversion qui parait fausse.
+///
+/// Ce que cette table ne contient pas, et ne doit jamais contenir : les
+/// coordonnees du recruteur (`contact` cote API). Elles sont explicitement
+/// exclues du perimetre de reutilisation.
+model OffreCollectee {
+  /// Identifiant de l'offre chez la source : il porte l'idempotence de l'import.
+  id     String @id
+  source String @default("FRANCE_TRAVAIL")
+
+  statut StatutOffreCollectee @default(ACTIVE)
+
+  /// Null quand la source ne rattache pas l'offre au referentiel. L'annonce
+  /// reste publiable, elle sort seulement des agregats par metier.
+  romeCode    String?
+  romeLibelle String?
+
+  /// Tel que saisi par l'employeur ("AIDE-SOIGNANT(E) - Interim (H/F)").
+  /// C'est ce qui s'affiche, sans retouche.
+  intitule String
+  /// Ramene a l'appellation du referentiel ROME, pour pouvoir regrouper.
+  /// Usage statistique uniquement : ne jamais l'afficher a la place du titre.
+  intituleNormalise String
+  /// Le corps de l'annonce. La licence demande de restituer le contenu mis a
+  /// disposition, pas un resume.
+  description String?
+
+  entreprise            String?
+  entrepriseDescription String?
+
+  /// Null quand le lieu n'est pas situable ("France entiere").
+  departement String?
+  /// Nom lisible, tire du libelle du lieu : "74 - Thenes" donne "Thenes".
+  communeNom  String?
+  /// Code INSEE, que l'API range sous `lieuTravail.commune`. Ce n'est pas un
+  /// nom de ville, et l'afficher tel quel montrerait "74280" a l'utilisateur.
+  communeCode String?
+  codePostal  String?
+  latitude    Float?
+  longitude   Float?
+  /// Null tant que l'offre n'est pas situee. Voir `OrigineCoordonnees` : une
+  /// coordonnee deduite de la commune ne vaut pas une coordonnee de la source,
+  /// et l'affichage doit pouvoir le dire.
+  origineCoordonnees OrigineCoordonnees?
+
+  /// Ramene a l'heure, quelle que soit la base annoncee. Null quand le libelle
+  /// n'est pas exploitable : mieux vaut une absence qu'un chiffre invente.
+  tauxHoraire  Decimal? @db.Decimal(8, 4)
+  /// Libelle d'origine, conserve pour l'audit de la conversion et pour
+  /// l'affichage : c'est lui que lit le visiteur, pas la valeur convertie.
+  salaireLibelle String?
+
+  experienceExigee       Boolean @default(false)
+  experienceLibelle      String?
+  qualificationLibelle   String?
+  secteurActiviteLibelle String?
+  /// Listes telles que la source les structure. Json plutot que des tables
+  /// filles : rien ne les interroge, elles ne servent qu'a etre reaffichees.
+  competences        Json @default("[]")
+  horaires           Json @default("[]")
+  conditionsExercice Json @default("[]")
+
+  dureeTravailLibelle String?
+  natureContrat       String?
+  typeContrat         String?
+  typeContratLibelle  String?
+  alternance          Boolean @default(false)
+  nombrePostes        Int     @default(1)
+
+  publieeLe   DateTime
+  /// Date de derniere modification chez la source. La licence impose de
+  /// l'afficher au visiteur.
+  actualiseeLe DateTime?
+  /// Lien vers l'annonce d'origine. Exige par la licence, et c'est aussi par la
+  /// que le candidat postule : la plateforme ne recoit pas ces candidatures.
+  urlOrigine   String?
+
+  collecteeLe DateTime  @default(now())
+  /// Dernier balayage complet ou l'offre etait encore presente chez la source.
+  /// C'est la comparaison avec la date du balayage qui declenche l'expiration.
+  vueLe       DateTime  @default(now())
+  expireeLe   DateTime?
+
+  /// Signature employeur + intitule + commune : les agences republient la meme
+  /// offre sous plusieurs identifiants. Les lignes sont toutes conservees — la
+  /// licence demande de restituer le catalogue — et c'est le barometre qui
+  /// dedoublonne sur cette colonne au moment du calcul.
+  empreinte String
+
+  @@index([romeCode, departement])
+  @@index([publieeLe])
+  @@index([empreinte])
+  @@index([statut, publieeLe])
+  @@index([source, statut])
+  // Le rapprochement candidat filtre d'abord sur le metier, puis sur une boite
+  // englobante de latitude et longitude : cet index porte les deux premieres
+  // colonnes de ce filtre.
+  @@index([statut, romeCode, latitude])
+  // Le rattrapage cherche les offres sans coordonnees, commune par commune.
+  @@index([codePostal, communeNom])
+  @@map("offre_collectee")
+}

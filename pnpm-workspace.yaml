@@ -1,0 +1,16 @@
+packages:
+  - backend
+  - frontend
+  - shared
+
+# pnpm bloque les scripts d'installation par defaut : on autorise
+# explicitement ceux dont on a besoin (moteurs Prisma, binaire esbuild).
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true

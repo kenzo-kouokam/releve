@@ -1,0 +1,144 @@
+/*
+ * Palette relevee sur le canvas Claude Design « Relève app web design »
+ * (projet e3f578c4-45f4-4fd3-8f81-57fa3f3349b4). Le canvas n'expose aucune
+ * variable : les valeurs sont les hex bruts de ses douze ecrans, regroupes ici
+ * pour rester la seule source de verite du front.
+ */
+:root {
+  --ground: #f4f8f5;
+  --surface: #ffffff;
+  --surface-2: #e8f2ed;
+  --ink: #11221c;
+  --muted: #5b7168;
+  --line: #dce7e0;
+  --dom: #167a65;
+  --dom-soft: #e8f2ed;
+  --sans: 'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  /* Filet plus marque que --line : le canvas le reserve au contour des boutons
+   * secondaires et des zones en pointilles (depot de fichier). */
+  --line-forte: #cbddd3;
+
+  /* Vert sombre : survol des boutons pleins, et fond des cartes pleines
+   * (action urgente de l'accueil etablissement, bandeau de correspondance). */
+  --dom-fonce: #0e4c3f;
+
+  /* Texte secondaire pose sur --dom-fonce, la ou --muted manquerait de
+   * contraste. */
+  --dom-contraste: #dcede8;
+
+  /* Vert clair du canvas, pour les accroches en capitales posees sur
+   * --dom-fonce (le rouge --eta y devient illisible). */
+  --dom-clair: #8fd3be;
+
+  /* Rouge de l'accroche « Le soin, sans attendre » et des etats urgents. Le
+   * canvas le decline en trio fond / filet / encre pour ses pastilles. */
+  --eta: #da2f20;
+  --eta-soft: #fdeae7;
+  --eta-line: #f6d3cd;
+  --eta-encre: #b5392b;
+
+  /* Le canvas distingue l'avatar de la personne connectee de celui des
+   * etablissements par cette teinte lavande, declinee en meme trio. */
+  --lavande: #edebf7;
+  --lavande-line: #dad5ee;
+  --lavande-encre: #5b53a3;
+
+  /* Troisieme trio du canvas : les encarts d'information a echeance
+   * (document a renouveler, disponibilite a confirmer). */
+  --ambre: #fff8e8;
+  --ambre-line: #f0e0b8;
+  --ambre-encre: #6b5a2e;
+
+  /* Rayons du canvas : champ, marque, tuile d'icone, carte, grande carte. */
+  --r-champ: 12px;
+  --r-marque: 13px;
+  --r-tuile: 14px;
+  --r-carte: 16px;
+  --r-carte-large: 24px;
+
+  --ombre-carte: 0 8px 24px rgba(17, 34, 28, 0.07);
+}
+
+/* Le canvas ne couvre pas le theme sombre : les teintes sont transposees a
+ * partir des memes hues pour que les ecrans deja codes restent lisibles. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0d1714;
+    --surface: #14201c;
+    --surface-2: #1b2a25;
+    --ink: #e4ede9;
+    --muted: #93a8a0;
+    --line: #26342e;
+    --line-forte: #32433c;
+    --dom: #4fb79c;
+    --dom-soft: #123028;
+    --dom-fonce: #0b463b;
+    --dom-contraste: #cfe3dc;
+    --dom-clair: #8fd3be;
+    --eta: #f07a68;
+    --eta-soft: #3a1c17;
+    --eta-line: #4d2721;
+    --eta-encre: #f2a093;
+    --lavande: #241f33;
+    --lavande-line: #3a3252;
+    --lavande-encre: #b3abe0;
+    --ambre: #2b2415;
+    --ambre-line: #4a3f22;
+    --ambre-encre: #e3cf9a;
+    --ombre-carte: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--dom);
+}
+
+/* Contraste renforce, regle depuis l'ecran « Mon compte ». Seuls les tokens
+ * bougent : le texte secondaire et les filets sont les deux endroits ou le
+ * canvas descend le plus bas en contraste. */
+:root[data-contraste='fort'] {
+  --ink: #05130e;
+  --muted: #3c5049;
+  --line: #9fb8ad;
+  --line-forte: #7fa295;
+  --eta: #b52416;
+  --ambre-encre: #4d4120;
+  --lavande-encre: #443c85;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-contraste='fort'] {
+    --ink: #f4faf7;
+    --muted: #c3d5ce;
+    --line: #4d635b;
+    --line-forte: #61796f;
+    --eta: #ffa693;
+    --ambre-encre: #f0dcaa;
+    --lavande-encre: #cec6f2;
+  }
+}
+
+/* Animations reduites, meme reglage. La regle double `prefers-reduced-motion`
+ * du systeme : quelqu'un peut vouloir ce confort ici sans l'imposer partout. */
+:root[data-animations='reduites'] *,
+:root[data-animations='reduites'] *::before,
+:root[data-animations='reduites'] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
