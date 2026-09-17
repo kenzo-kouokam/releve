@@ -1,0 +1,330 @@
+{
+  "updatedAt": "2026-09-17T09:46:41.988Z",
+  "createdAt": "2026-09-16T08:46:33.140Z",
+  "id": "d8QVqzS08bEjGiKP",
+  "name": "WF1 - Notification des candidats",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "releve/evenements",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dba425a1-252a-488a-b2ff-0a3afd48fbe4",
+      "name": "Webhook",
+      "webhookId": "337850f9-84b5-4449-97ef-1fc1abb59b46"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "binaryData": true,
+        "dataPropertyName": "signatureCalculee"
+      },
+      "id": "be9761b1-446a-4bbd-b3c0-b528c4461f3e",
+      "name": "Calcul signature HMAC",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "crypto": {
+          "id": "rh1ZozZdJLkizZse",
+          "name": "Crypto account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "777c3a49-cdf0-45b0-9185-f248bc41b78b",
+              "leftValue": "={{ $json.headers['x-releve-signature'] }}",
+              "rightValue": "={{ 'sha256=' + $json.signatureCalculee }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1d90c8b8-4d1d-4065-9c70-e8e6312218fe",
+      "name": "Signature valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "Signature HMAC invalide : événement rejeté"
+      },
+      "id": "e3f32479-ed4b-47f4-8816-dc7f707b0440",
+      "name": "Rejet : signature invalide",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        688,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b4343be6-4ab3-4df3-9320-d5ef5295127a",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "proposition.envoyee",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "Proposition envoyée"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e09ff5e8-e97b-4623-8db1-6c5f65eb6e7f",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "proposition.acceptee",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "Proposition acceptée"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3a4dbe7e-69dd-47a8-a79e-465f4c2842a8",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "mission.pourvue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "ff38e6de-905d-4dd6-9ff2-2fa450902781",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "mission.annulee",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "or"
+              },
+              "renameOutput": true,
+              "outputKey": "Mission pourvue ou annulée"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Autre événement"
+        }
+      },
+      "id": "25959c93-cce8-41ff-9419-c96a9deed3f9",
+      "name": "Type d'événement",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        688,
+        -96
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "043f5f36-9537-440f-9395-217fdf898120",
+      "name": "À venir : notifier les candidats (Slack)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        -320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "bd2241cc-fb45-4848-80c3-87fd9c70ecc0",
+      "name": "À venir : noter l'acceptation (Airtable)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        -160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "be3bf51c-86c4-4ec2-a652-11d40e87b40c",
+      "name": "À venir : clôturer les messages",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c4eaa136-9103-4f3c-bf71-428b11631a9b",
+      "name": "Ignoré (hors WF1)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Calcul signature HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcul signature HMAC": {
+      "main": [
+        [
+          {
+            "node": "Signature valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valide ?": {
+      "main": [
+        [
+          {
+            "node": "Type d'événement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rejet : signature invalide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Type d'événement": {
+      "main": [
+        [
+          {
+            "node": "À venir : notifier les candidats (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "À venir : noter l'acceptation (Airtable)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "À venir : clôturer les messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignoré (hors WF1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "versionCounter": 11,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

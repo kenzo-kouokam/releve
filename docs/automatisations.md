@@ -6,7 +6,7 @@
 ## Vue d'ensemble
 
 ```
-API Relève ──(webhook signé HMAC)──▶ n8n ──▶ Discord (notifications)
+API Relève ──(webhook signé HMAC)──▶ n8n ──▶ Slack (notifications)
      ▲                                 │
      └──(GET/POST /api/interne/*, jeton de service)◀┘──▶ Airtable (base tampon)
 ```
@@ -63,11 +63,23 @@ Corps (exemple `proposition.envoyee`) :
 }
 ```
 
+## Canal de notification : Slack
+
+Une application Slack dédiée (jeton bot `xoxb-…`, portées `chat:write` et `chat:write.public`) publie dans trois salons :
+
+| Salon | Usage |
+|---|---|
+| `#missions-proposees` | WF1 : proposition aux candidats, puis mise à jour du message à la clôture (`chat.update`) |
+| `#agence-relances` | WF2 : relances et escalades (`@here` sur escalade) |
+| `#ops` | Erreurs des workflows |
+
+Le jeton bot est enregistré dans les credentials n8n, jamais dans le dépôt.
+
 ## Données personnelles
 
-- Aucun nom, e-mail, téléphone ni adresse ne sort vers n8n, Discord ou Airtable.
+- Aucun nom, e-mail, téléphone ni adresse ne sort vers n8n, Slack ou Airtable.
 - Le candidat est désigné par une référence pseudonyme `CAN-XXXXXX`, dérivée de son identifiant par HMAC.
-- Discord et Airtable sont hébergés hors UE : cette minimisation est la condition de leur usage.
+- Slack et Airtable sont hébergés hors UE : cette minimisation est la condition de leur usage.
 
 ## Routes internes appelées par n8n
 
