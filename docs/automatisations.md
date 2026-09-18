@@ -24,9 +24,9 @@ Chaque canal a son public : l'e-mail pour les candidats (externes), Slack pour l
 | Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus | E-mail (Mailpit) | SMS ou notification push | **n8n décide, l'API expédie** — WF1 |
 | Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | **n8n décide, l'API expédie** — WF1 |
 | Candidat | **Confirmation de mission** (mentions obligatoires), e-mail transactionnel envoyé quelle que soit la préférence | E-mail (Mailpit) | E-mail | n8n — WF3 |
-| Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` | Slack / Teams | n8n — WF1 |
+| Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` — le message de proposition est **mis à jour** à la clôture (son horodatage est gardé dans Redis, `n8n:slack:<missionId>`, 30 jours) | Slack / Teams | n8n — WF1 |
 | Agence | Relances des missions non pourvues, escalade à la 3e | Slack `#agence-relances` | Slack / Teams | n8n — WF2 |
-| Agence (tech) | Erreurs des workflows | Slack `#ops` | Slack / Teams | n8n |
+| Agence (tech) | Erreurs des workflows | Slack `#ops` — chaque appel à l'API a 2 tentatives puis bascule sur cette alerte, sans interrompre le reste du workflow | Slack / Teams | n8n |
 
 Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir** des missions sans saturer la boîte ; l'alerte sert l'**urgence** (un remplacement du jour ne peut pas attendre le lendemain).
 
