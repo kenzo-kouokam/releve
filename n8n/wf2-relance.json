@@ -1,0 +1,417 @@
+{
+  "updatedAt": "2026-09-18T09:43:19.464Z",
+  "createdAt": "2026-09-18T09:43:19.464Z",
+  "id": "wf2RelanceReleve",
+  "name": "WF2 - Relance des missions non pourvues",
+  "description": null,
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "f9273dd8-f141-40a2-a996-6cdc0a55a5f3",
+      "name": "Toutes les 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9fe95c85-2523-4194-a6dd-fae1c60afd11",
+      "name": "API : missions non pourvues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/non-pourvues",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "seuilMinutes",
+              "value": "={{ $env.RELANCE_SEUIL_MIN || 1440 }}"
+            },
+            {
+              "name": "limite",
+              "value": "50"
+            }
+          ]
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "ac2ef99a-707d-45b4-86b3-92c0d14d93de",
+      "name": "Des missions en attente ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "319c0863-8912-4a47-94e2-18b34b0de549",
+              "leftValue": "={{ $json.mission?.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4e5fcee5-b2a3-4dda-89eb-fb8a608673aa",
+      "name": "Moins de 3 relances ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "b463187f-b433-4203-b3ec-99506e4b7887",
+              "leftValue": "={{ $json.relances }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e9cbdfd0-c208-4cb8-a7a6-057ae7aa3a77",
+      "name": "API : enregistrer la relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.mission.id }}/relances",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ motif: \"Relance automatique : mission ouverte depuis \" + Math.round($json.ouverteDepuisMinutes / 60) + \" h sans candidat retenu\" }) }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b5d71790-de02-42a0-977b-34743abccea6",
+      "name": "API : enregistrer l'escalade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        360
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.mission.id }}/escalade",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ motif: \"Escalade : \" + $json.relances + \" relances sans candidat retenu\" }) }}"
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "249c1093-ac15-4f9a-8c35-3c2034d82abb",
+      "name": "Slack : relance",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        120
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2MNPD21H"
+        },
+        "text": "=:alarm_clock: *Relance {{ $json.relances }}/3* — {{ $('Des missions en attente ?').item.json.mission.reference }}\n>{{ $('Des missions en attente ?').item.json.mission.qualification }} · {{ $('Des missions en attente ?').item.json.mission.commune }} ({{ $('Des missions en attente ?').item.json.mission.departement }})\n>Début {{ DateTime.fromISO($('Des missions en attente ?').item.json.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }} · {{ $('Des missions en attente ?').item.json.mission.heureDebut }}–{{ $('Des missions en attente ?').item.json.mission.heureFin }}\n>Ouverte depuis {{ Math.round($('Des missions en attente ?').item.json.ouverteDepuisMinutes / 60) }} h · {{ $('Des missions en attente ?').item.json.candidaturesEnAttente }} candidature(s) en attente\n<{{ $('Des missions en attente ?').item.json.mission.lienApp }}|Ouvrir la mission>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "732fa3f5-e0f2-494d-99c9-e896c17c8666",
+      "name": "Slack : escalade",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        360
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2MNPD21H"
+        },
+        "text": "=:rotating_light: <!here> *Escalade* — {{ $('Des missions en attente ?').item.json.mission.reference }} toujours sans candidat après {{ $json.relances }} relances\n>{{ $('Des missions en attente ?').item.json.mission.qualification }} · {{ $('Des missions en attente ?').item.json.mission.commune }} · début {{ DateTime.fromISO($('Des missions en attente ?').item.json.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }} {{ $('Des missions en attente ?').item.json.mission.heureDebut }}\n>Une intervention humaine est nécessaire : élargir le rayon, revoir le taux, ou prévenir l'établissement.\n<{{ $('Des missions en attente ?').item.json.mission.lienApp }}|Ouvrir la mission>",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "5624e0a1-1355-409c-a922-941b09a5d054",
+      "name": "Slack : incident (#ops)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        600
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2VTG9E1X"
+        },
+        "text": "=:warning: *WF2 — échec* sur {{ $json.mission?.reference ?? 'une mission' }}\n>{{ $json.error?.message ?? $json.error ?? 'erreur inconnue' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "b819b7a1-ce37-45e4-b4c5-369653eda449",
+      "name": "Rien à relancer",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        720,
+        480
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Toutes les 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "API : missions non pourvues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API : missions non pourvues": {
+      "main": [
+        [
+          {
+            "node": "Des missions en attente ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Des missions en attente ?": {
+      "main": [
+        [
+          {
+            "node": "Moins de 3 relances ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rien à relancer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Moins de 3 relances ?": {
+      "main": [
+        [
+          {
+            "node": "API : enregistrer la relance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "API : enregistrer l'escalade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API : enregistrer la relance": {
+      "main": [
+        [
+          {
+            "node": "Slack : relance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API : enregistrer l'escalade": {
+      "main": [
+        [
+          {
+            "node": "Slack : escalade",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionCounter": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

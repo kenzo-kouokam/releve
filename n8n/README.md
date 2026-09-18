@@ -5,7 +5,7 @@ Exports des automatisations de Relève (livrable « Workflows no-code »).
 | Fichier | Workflow | Statut |
 |---|---|---|
 | `wf1-notification.json` | Alertes : e-mail urgent aux candidats éligibles, e-mail de clôture, suivi Slack de l'agence | En cours : signature, aiguillage, alerte urgente (3/jour) et clôture faits ; Slack et Airtable à brancher |
-| `wf2-relance.json` | Relance des missions non pourvues + escalade | À venir |
+| `wf2-relance.json` | Relance des missions non pourvues + escalade | Fait : planification, relance, escalade à la 3e, alertes Slack |
 
 Contrat d'échange avec l'API : [`docs/automatisations.md`](../docs/automatisations.md).
 
@@ -39,8 +39,19 @@ Credentials à recréer après import (aucun n'est exporté) :
 | Crypto account | Crypto | *Hmac Secret* = `N8N_WEBHOOK_SECRET` du `backend/.env` |
 | Mailpit (local) | SMTP | hôte `mailpit`, port `1025`, sans utilisateur ni mot de passe, SSL désactivé |
 | Redis (local) | Redis | hôte `redis`, port `6379`, base `0`, sans mot de passe |
+| Slack — Relève | Slack API | jeton bot `xoxb-…` de l'app Slack « Releve » (scopes `chat:write`, `chat:write.public`) |
 
 Le plafond de 3 alertes urgentes par jour s'appuie sur des compteurs Redis `n8n:alertes:<candidat>:<date>`, qui expirent au bout de 48 h.
+
+## Mode démonstration
+
+`RELANCE_SEUIL_MIN` (dans `backend/.env`, transmis au conteneur) fixe l'attente avant relance : `1440` en exploitation, `1` pour une démonstration. Après l'avoir changé :
+
+```bash
+pnpm infra:up      # recrée le conteneur n8n avec la nouvelle valeur
+```
+
+WF2 se déclenche seul toutes les 15 minutes une fois publié ; en démonstration, le bouton « Execute workflow » suffit.
 
 ## Exporter / importer
 
