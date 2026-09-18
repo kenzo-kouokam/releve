@@ -276,32 +276,6 @@
       }
     },
     {
-      "id": "250ef0ab-2516-46df-a2d1-212d08de7138",
-      "name": "E-mail de clôture",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        1248,
-        0
-      ],
-      "parameters": {
-        "fromEmail": "Relève <ne-pas-repondre@releve.example>",
-        "toEmail": "={{ $json.email }}",
-        "subject": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Mission pourvue' : 'Mission annulée' }} – {{ $('Webhook').first().json.body.mission.qualification }} à {{ $('Webhook').first().json.body.mission.commune }}",
-        "emailFormat": "html",
-        "html": "={{ (() => {\n  const m = $('Webhook').first().json.body.mission;\n  const pourvue = $('Webhook').first().json.body.event === 'mission.pourvue';\n  const date = new Date(m.dateDebut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });\n  return `<p>Bonjour ${$json.prenom},</p>\n<p>La mission <strong>${m.qualification}</strong> à <strong>${m.commune}</strong> du ${date} (${m.heureDebut}–${m.heureFin}) ${pourvue ? 'a été pourvue par un autre intervenant' : \"a été annulée par l'établissement\"}.</p>\n<p>Votre candidature est donc close. Merci pour votre réactivité : d'autres missions vous attendent sur Relève.</p>\n<p><a href=\"http://localhost:3000/missions\">Voir les missions disponibles</a></p>\n<p>L'équipe Relève</p>`;\n})() }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "credentials": {
-        "smtp": {
-          "id": "mailpitSmtpLocal",
-          "name": "Mailpit (local)"
-        }
-      }
-    },
-    {
       "id": "3cafc475-afbf-47d4-899f-5cf6758e99be",
       "name": "À venir : message Slack agence (pourvue)",
       "type": "n8n-nodes-base.noOp",
@@ -322,42 +296,8 @@
         522
       ],
       "parameters": {
-        "fieldToSplitOut": "body.candidatsEligibles",
+        "fieldToSplitOut": "body.candidatsAPrevenir",
         "include": "noOtherFields",
-        "options": {}
-      }
-    },
-    {
-      "id": "12318c70-0f94-4c72-b88f-f4e8f8d9515e",
-      "name": "Alertes activées ?",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
-      "position": [
-        1188,
-        522
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "52fa3709-6dae-4b9c-bea7-2bed874e505e",
-              "leftValue": "={{ $json.notificationsEmail }}",
-              "rightValue": "",
-              "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
-              }
-            }
-          ]
-        },
         "options": {}
       }
     },
@@ -432,32 +372,6 @@
       }
     },
     {
-      "id": "167d6911-3ae7-4df8-863b-02666e9cc900",
-      "name": "E-mail d'alerte urgente",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [
-        2068,
-        422
-      ],
-      "parameters": {
-        "fromEmail": "Relève <ne-pas-repondre@releve.example>",
-        "toEmail": "={{ $json.email }}",
-        "subject": "=Mission urgente : {{ $('Webhook').first().json.body.mission.qualification }} à {{ $('Webhook').first().json.body.mission.commune }}",
-        "emailFormat": "html",
-        "html": "={{ (() => {\n  const m = $('Webhook').first().json.body.mission;\n  const date = new Date(m.dateDebut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });\n  const taux = m.tauxHoraire ? `${String(m.tauxHoraire).replace('.', ',')} € brut de l'heure` : 'selon la grille de la structure';\n  return `<p>Bonjour ${$json.prenom},</p>\n<p>Une mission urgente correspond à votre profil :</p>\n<ul>\n<li><strong>${m.qualification}</strong> à <strong>${m.commune}</strong></li>\n<li>${date}, de ${m.heureDebut} à ${m.heureFin}</li>\n<li>Rémunération : ${taux}</li>\n</ul>\n<p>La mission démarre bientôt : le premier profil validé l'obtient.</p>\n<p><a href=\"${m.lienApp}\">Voir la mission et postuler</a></p>\n<p>L'équipe Relève</p>\n<p style=\"font-size:12px;color:#666\">Vous recevez cette alerte car les notifications sont activées sur votre compte (3 alertes par jour au maximum). Vous pouvez les désactiver dans « Mon compte ».</p>`;\n})() }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "credentials": {
-        "smtp": {
-          "id": "mailpitSmtpLocal",
-          "name": "Mailpit (local)"
-        }
-      }
-    },
-    {
       "id": "3339a910-3907-4d5b-a004-3b7eaf188fa3",
       "name": "Plafond atteint (pas d'envoi)",
       "type": "n8n-nodes-base.noOp",
@@ -467,6 +381,102 @@
         622
       ],
       "parameters": {}
+    },
+    {
+      "id": "e83c4a6a-92db-49d3-9f24-00c1033e689e",
+      "name": "Références à prévenir",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1228,
+        0
+      ],
+      "parameters": {
+        "aggregate": "aggregateIndividualFields",
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "candidatRef"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "db436130-ca57-48cd-916a-96757f5917c2",
+      "name": "API : courriels de clôture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1448,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/courriels",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: \"cloture\", candidatRefs: $json.candidatRef }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "8a9ca7e0-c749-4833-b928-b56af8609070",
+      "name": "Références retenues",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2068,
+        422
+      ],
+      "parameters": {
+        "aggregate": "aggregateIndividualFields",
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "candidatRef"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3b6d1228-c16b-4de9-8e97-bf074449b9df",
+      "name": "API : alerte urgente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2288,
+        422
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/courriels",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: \"urgente\", candidatRefs: $json.candidatRef }) }}",
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -558,7 +568,7 @@
       "main": [
         [
           {
-            "node": "E-mail de clôture",
+            "node": "Références à prévenir",
             "type": "main",
             "index": 0
           }
@@ -566,17 +576,6 @@
       ]
     },
     "Candidats éligibles": {
-      "main": [
-        [
-          {
-            "node": "Alertes activées ?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Alertes activées ?": {
       "main": [
         [
           {
@@ -618,7 +617,7 @@
       "main": [
         [
           {
-            "node": "E-mail d'alerte urgente",
+            "node": "Références retenues",
             "type": "main",
             "index": 0
           }
@@ -626,6 +625,28 @@
         [
           {
             "node": "Plafond atteint (pas d'envoi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Références à prévenir": {
+      "main": [
+        [
+          {
+            "node": "API : courriels de clôture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Références retenues": {
+      "main": [
+        [
+          {
+            "node": "API : alerte urgente",
             "type": "main",
             "index": 0
           }
@@ -641,7 +662,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 13,
+  "versionCounter": 14,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

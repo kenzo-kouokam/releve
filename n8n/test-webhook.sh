@@ -26,17 +26,17 @@ else
   URL="http://localhost:5678/webhook-test/releve/evenements"
 fi
 
-# Pour une cloture, l'API joint le candidat retenu et les candidats a prevenir
-# (adresses fictives : en local, Mailpit intercepte tout).
+# L'API ne transmet aucune donnee personnelle : seulement des references
+# pseudonymes. C'est elle qui expedie les courriels, n8n ne fait que decider.
 EXTRA=""
 case "$EVENEMENT" in
   mission.pourvue|mission.annulee)
-    EXTRA=',"candidatRetenu":"CAN-7F3A2C","candidatsAPrevenir":[{"candidatRef":"CAN-19B0E4","prenom":"Sophie","email":"sophie.test@example.org"},{"candidatRef":"CAN-5D21A8","prenom":"Karim","email":"karim.test@example.org"}]'
+    EXTRA=',"candidatRetenu":"CAN-7F3A2C","candidatsAPrevenir":[{"candidatRef":"CAN-19B0E4"},{"candidatRef":"CAN-5D21A8"}]'
     ;;
   mission.publiee)
     # URGENTE=0 simule une mission qui demarre dans plus de 48 h (aucune alerte).
     URG="true"; [ "${URGENTE:-1}" = "0" ] && URG="false"
-    EXTRA=',"candidatsEligibles":[{"candidatRef":"CAN-19B0E4","prenom":"Sophie","email":"sophie.test@example.org","notificationsEmail":true},{"candidatRef":"CAN-5D21A8","prenom":"Karim","email":"karim.test@example.org","notificationsEmail":true},{"candidatRef":"CAN-0A77F1","prenom":"Ines","email":"ines.test@example.org","notificationsEmail":false}]'
+    EXTRA=',"candidatsAPrevenir":[{"candidatRef":"CAN-19B0E4"},{"candidatRef":"CAN-5D21A8"},{"candidatRef":"CAN-0A77F1"}]'
     ;;
 esac
 

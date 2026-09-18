@@ -21,8 +21,8 @@ Chaque canal a son public : l'e-mail pour les candidats (externes), Slack pour l
 | Destinataire | Message | Canal (POC) | En production | Porté par |
 |---|---|---|---|---|
 | Candidat | Récapitulatif quotidien des missions publiées qui lui correspondent, **missions urgentes incluses tant qu'elles ne sont pas pourvues** | E-mail (Mailpit) | E-mail | Backend (`notifier:missions`) |
-| Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus, désactivable (préférence « notifications e-mail ») | E-mail (Mailpit) | SMS ou notification push | n8n — WF1 |
-| Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | n8n — WF1 |
+| Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus | E-mail (Mailpit) | SMS ou notification push | **n8n décide, l'API expédie** — WF1 |
+| Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | **n8n décide, l'API expédie** — WF1 |
 | Candidat | **Confirmation de mission** (mentions obligatoires), e-mail transactionnel envoyé quelle que soit la préférence | E-mail (Mailpit) | E-mail | n8n — WF3 |
 | Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` | Slack / Teams | n8n — WF1 |
 | Agence | Relances des missions non pourvues, escalade à la 3e | Slack `#agence-relances` | Slack / Teams | n8n — WF2 |
@@ -51,7 +51,20 @@ Pour `mission.publiee`, l'API joint à l'événement les candidats éligibles (c
 
 Pour `mission.pourvue` et `mission.annulee`, elle joint `candidatRetenu` et `candidatsAPrevenir` (mêmes champs, sans `notificationsEmail`).
 
-**Plafond anti-spam** : n8n incrémente dans Redis un compteur `n8n:alertes:<candidatRef>:<AAAA-MM-JJ>` (expiration 48 h) avant chaque alerte, et n'envoie pas au-delà de 3 par jour. Les candidats dont `notificationsEmail` vaut `false` ne reçoivent aucune alerte.
+**Aucune donnée personnelle ne sort de l'API** (décision du 17/09, avec le dev). L'événement ne porte que des références pseudonymes `candidatsAPrevenir: [{ candidatRef }]`, et les candidats qui ont coupé leurs notifications sont déjà écartés par l'API.
+
+**Qui envoie quoi** : n8n **décide** (urgence, plafond, moment), l'**API expédie**. Après son filtrage, le workflow rassemble les références retenues et appelle :
+
+```
+POST {RELEVE_API_URL}/interne/missions/:id/courriels
+X-Service-Token: <INTERNAL_SERVICE_TOKEN>
+{ "type": "urgente" | "cloture" | "confirmation", "candidatRefs": ["CAN-19B0E4", "CAN-5D21A8"] }
+→ { missionId, type, demandees, envoyees, ignorees }
+```
+
+Un seul appel par lot, pas un par candidat : un envoi correspond à un geste.
+
+**Plafond anti-spam** : avant l'appel, n8n incrémente dans Redis un compteur `n8n:alertes:<candidatRef>:<AAAA-MM-JJ>` (expiration 48 h) et ne garde que les candidats sous la barre des 3 alertes du jour.
 
 ## Événements émis par l'API
 
