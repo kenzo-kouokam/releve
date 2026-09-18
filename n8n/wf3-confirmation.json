@@ -1,0 +1,221 @@
+{
+  "updatedAt": "2026-09-18T10:38:12.000Z",
+  "createdAt": "2026-09-18T10:07:31.749Z",
+  "id": "wf3ConfirmationReleve",
+  "name": "WF3 - Confirmation de mission",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "28b8d659-399a-4335-8075-458ce8fee681",
+      "name": "Appelé par WF1 (mission pourvue)",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "71e9ea26-825f-4f10-883e-58b05df45564",
+      "name": "Un candidat retenu ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "35d0c39a-f07d-4ce4-97e8-04f128fcc4ce",
+              "leftValue": "={{ $json.body.candidatRetenu?.candidatRef }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "124e59f4-a607-44bc-9f18-e91001f96c9d",
+      "name": "API : courriel de confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.body.mission.id }}/alertes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: \"confirmation\", candidatRefs: [$json.body.candidatRetenu.candidatRef] }) }}",
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9bc11f5e-98a5-4937-b579-93ee2e5768fd",
+      "name": "Slack : confirmation envoyée",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        120
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2S0X5W4W"
+        },
+        "text": "=:page_facing_up: *Confirmation envoyée* à {{ $('Appelé par WF1 (mission pourvue)').first().json.body.candidatRetenu.candidatRef }} — {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}\n>{{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.qualification }} · {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Appelé par WF1 (mission pourvue)').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }} {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.heureDebut }}–{{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.heureFin }}\n>{{ $json.envoyees }} courriel(s) parti(s){{ ($json.ignorees || []).length ? ' · ' + $json.ignorees.length + ' référence(s) ignorée(s)' : '' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "7858f560-2d28-44db-91e0-2effc7bb7bab",
+      "name": "Slack : incident (#ops)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        340
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2VTG9E1X"
+        },
+        "text": "=:warning: *WF3 — confirmation non envoyée* pour {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}\n>{{ $json.error?.message ?? $json.error ?? 'erreur inconnue' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "2838c51a-cb01-4dba-9ded-25045bda81be",
+      "name": "Aucun candidat retenu",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        480,
+        420
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Appelé par WF1 (mission pourvue)": {
+      "main": [
+        [
+          {
+            "node": "Un candidat retenu ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un candidat retenu ?": {
+      "main": [
+        [
+          {
+            "node": "API : courriel de confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aucun candidat retenu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API : courriel de confirmation": {
+      "main": [
+        [
+          {
+            "node": "Slack : confirmation envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionCounter": 3,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

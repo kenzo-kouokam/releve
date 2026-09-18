@@ -31,7 +31,7 @@ fi
 EXTRA=""
 case "$EVENEMENT" in
   mission.pourvue|mission.annulee)
-    EXTRA=',"candidatRetenu":"CAN-7F3A2C","candidatsAPrevenir":[{"candidatRef":"CAN-19B0E4"},{"candidatRef":"CAN-5D21A8"}]'
+    EXTRA=',"candidatRetenu":{"candidatRef":"CAN-7F3A2C"},"candidatsAPrevenir":[{"candidatRef":"CAN-19B0E4"},{"candidatRef":"CAN-5D21A8"}]'
     ;;
   mission.publiee)
     # URGENTE=0 simule une mission qui demarre dans plus de 48 h (aucune alerte).

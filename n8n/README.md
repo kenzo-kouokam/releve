@@ -6,6 +6,7 @@ Exports des automatisations de Relève (livrable « Workflows no-code »).
 |---|---|---|
 | `wf1-notification.json` | Alertes : e-mail urgent aux candidats éligibles, e-mail de clôture, suivi Slack de l'agence | En cours : signature, aiguillage, alerte urgente (3/jour) et clôture faits ; Slack et Airtable à brancher |
 | `wf2-relance.json` | Relance des missions non pourvues + escalade | Fait : planification, relance, escalade à la 3e, alertes Slack |
+| `wf3-confirmation.json` | Confirmation de mission au candidat retenu | Fait : appelé par WF1 à la validation, courriel via l'API + ligne Slack |
 
 Contrat d'échange avec l'API : [`docs/automatisations.md`](../docs/automatisations.md).
 
@@ -42,6 +43,10 @@ Credentials à recréer après import (aucun n'est exporté) :
 | Slack — Relève | Slack API | jeton bot `xoxb-…` de l'app Slack « Releve » (scopes `chat:write`, `chat:write.public`) |
 
 Le plafond de 3 alertes urgentes par jour s'appuie sur des compteurs Redis `n8n:alertes:<candidat>:<date>`, qui expirent au bout de 48 h.
+
+## Publication
+
+WF1 et WF3 doivent être **publiés** pour fonctionner : WF1 écoute le webhook de production, et WF3 est appelé par WF1 (un workflow non publié ne peut pas être appelé). WF2 se publie quand on veut la planification automatique ; en démonstration, « Execute workflow » suffit.
 
 ## Mode démonstration
 

@@ -36,7 +36,7 @@ Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir*
 |---|---|---|---|
 | WF1 — Alertes | Webhook `mission.publiee` (urgente), `proposition.envoyee`, `proposition.acceptee`, `mission.pourvue`, `mission.annulee` | Alerte e-mail aux candidats éligibles pour une mission urgente ; suivi en temps réel pour l'agence sur Slack ; e-mail de clôture aux candidats en cours | MUST |
 | WF2 — Relance des missions non pourvues | Planification toutes les 15 min | `GET /interne/missions/non-pourvues?seuilMinutes=` puis, par mission : `POST /relances` et message dans `#agence-relances`, ou `POST /escalade` + alerte au canal à partir de la 3e relance. Le compteur vient de l'API, et le seuil se mesure depuis le **dernier mouvement** : une mission relancée sort de la liste jusqu'au seuil suivant, ce qui évite toute boucle. | MUST |
-| WF3 — Confirmation de mission | Webhook `mission.pourvue` | E-mail de confirmation au candidat retenu depuis un template, puis ligne « confirmation envoyée » sur Slack pour l'agence | MUST |
+| WF3 — Confirmation de mission | Appelé par WF1 à la validation (`mission.pourvue`) | Demande à l'API le courriel `type: confirmation` pour le seul candidat retenu, puis trace « confirmation envoyée » dans `#missions-proposees`. Une annulation ne déclenche rien. | MUST |
 
 Un même événement peut déclencher plusieurs workflows : `mission.pourvue` met à jour le message Slack de l'agence et prévient les autres candidats (WF1), et déclenche la confirmation du candidat retenu (WF3).
 

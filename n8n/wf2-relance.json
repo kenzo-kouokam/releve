@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-18T09:43:19.464Z",
+  "updatedAt": "2026-09-18T10:05:15.427Z",
   "createdAt": "2026-09-18T09:43:19.464Z",
   "id": "wf2RelanceReleve",
   "name": "WF2 - Relance des missions non pourvues",
@@ -8,14 +8,6 @@
   "isArchived": false,
   "nodes": [
     {
-      "id": "f9273dd8-f141-40a2-a996-6cdc0a55a5f3",
-      "name": "Toutes les 15 minutes",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        0,
-        300
-      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -25,30 +17,19 @@
             }
           ]
         }
-      }
+      },
+      "id": "f9273dd8-f141-40a2-a996-6cdc0a55a5f3",
+      "name": "Toutes les 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        304
+      ]
     },
     {
-      "id": "9fe95c85-2523-4194-a6dd-fae1c60afd11",
-      "name": "API : missions non pourvues",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        240,
-        300
-      ],
       "parameters": {
-        "method": "GET",
         "url": "={{ $env.RELEVE_API_URL }}/interne/missions/non-pourvues",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Service-Token",
-              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
-            }
-          ]
-        },
-        "options": {},
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -61,22 +42,32 @@
               "value": "50"
             }
           ]
-        }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
       },
+      "id": "9fe95c85-2523-4194-a6dd-fae1c60afd11",
+      "name": "API : missions non pourvues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        304
+      ],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
       "onError": "continueErrorOutput"
     },
     {
-      "id": "ac2ef99a-707d-45b4-86b3-92c0d14d93de",
-      "name": "Des missions en attente ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        480,
-        300
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -100,17 +91,17 @@
           ]
         },
         "options": {}
-      }
-    },
-    {
-      "id": "4e5fcee5-b2a3-4dda-89eb-fb8a608673aa",
-      "name": "Moins de 3 relances ?",
+      },
+      "id": "ac2ef99a-707d-45b4-86b3-92c0d14d93de",
+      "name": "Des missions en attente ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        720,
-        220
-      ],
+        480,
+        304
+      ]
+    },
+    {
       "parameters": {
         "conditions": {
           "options": {
@@ -133,17 +124,17 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "4e5fcee5-b2a3-4dda-89eb-fb8a608673aa",
+      "name": "Moins de 3 relances ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        224
+      ]
     },
     {
-      "id": "e9cbdfd0-c208-4cb8-a7a6-057ae7aa3a77",
-      "name": "API : enregistrer la relance",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        960,
-        120
-      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.mission.id }}/relances",
@@ -156,25 +147,25 @@
             }
           ]
         },
-        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ motif: \"Relance automatique : mission ouverte depuis \" + Math.round($json.ouverteDepuisMinutes / 60) + \" h sans candidat retenu\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ motif: \"Relance automatique : mission ouverte depuis \" + Math.round($json.ouverteDepuisMinutes / 60) + \" h sans candidat retenu\" }) }}",
+        "options": {}
       },
+      "id": "e9cbdfd0-c208-4cb8-a7a6-057ae7aa3a77",
+      "name": "API : enregistrer la relance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        128
+      ],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
       "onError": "continueErrorOutput"
     },
     {
-      "id": "b5d71790-de02-42a0-977b-34743abccea6",
-      "name": "API : enregistrer l'escalade",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        960,
-        360
-      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.mission.id }}/escalade",
@@ -187,34 +178,26 @@
             }
           ]
         },
-        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ motif: \"Escalade : \" + $json.relances + \" relances sans candidat retenu\" }) }}"
+        "jsonBody": "={{ JSON.stringify({ motif: \"Escalade : \" + $json.relances + \" relances sans candidat retenu\" }) }}",
+        "options": {}
       },
+      "id": "b5d71790-de02-42a0-977b-34743abccea6",
+      "name": "API : enregistrer l'escalade",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        368
+      ],
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
       "onError": "continueErrorOutput"
     },
     {
-      "id": "249c1093-ac15-4f9a-8c35-3c2034d82abb",
-      "name": "Slack : relance",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1200,
-        120
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "aBd8lcQaqq3LyRQb",
-          "name": "Slack — Relève"
-        }
-      },
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -225,26 +208,25 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
-      }
-    },
-    {
-      "id": "732fa3f5-e0f2-494d-99c9-e896c17c8666",
-      "name": "Slack : escalade",
+      },
+      "id": "249c1093-ac15-4f9a-8c35-3c2034d82abb",
+      "name": "Slack : relance",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
         1200,
-        360
+        112
       ],
+      "webhookId": "149b2289-6764-4314-b190-16711d5688ff",
       "credentials": {
         "slackApi": {
           "id": "aBd8lcQaqq3LyRQb",
           "name": "Slack — Relève"
         }
-      },
+      }
+    },
+    {
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -255,26 +237,25 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
-      }
-    },
-    {
-      "id": "5624e0a1-1355-409c-a922-941b09a5d054",
-      "name": "Slack : incident (#ops)",
+      },
+      "id": "732fa3f5-e0f2-494d-99c9-e896c17c8666",
+      "name": "Slack : escalade",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1200,
-        600
+        1216,
+        352
       ],
+      "webhookId": "aa8d151f-78cd-4482-9aa1-536f5a57ce2d",
       "credentials": {
         "slackApi": {
           "id": "aBd8lcQaqq3LyRQb",
           "name": "Slack — Relève"
         }
-      },
+      }
+    },
+    {
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -285,18 +266,33 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
+      },
+      "id": "5624e0a1-1355-409c-a922-941b09a5d054",
+      "name": "Slack : incident (#ops)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        720
+      ],
+      "webhookId": "489b40a0-498d-4f12-8013-d36ced319e26",
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
       }
     },
     {
+      "parameters": {},
       "id": "b819b7a1-ce37-45e4-b4c5-369653eda449",
       "name": "Rien à relancer",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        720,
-        480
-      ],
-      "parameters": {}
+        736,
+        416
+      ]
     }
   ],
   "connections": {
@@ -403,11 +399,12 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
   "meta": null,
   "nodeGroups": [],
-  "versionCounter": 1,
+  "versionCounter": 6,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

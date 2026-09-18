@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-09-17T09:46:41.988Z",
+  "updatedAt": "2026-09-18T10:34:32.000Z",
   "createdAt": "2026-09-16T08:46:33.140Z",
   "id": "d8QVqzS08bEjGiKP",
   "name": "WF1 - Notification des candidats",
   "description": null,
-  "active": false,
+  "active": true,
   "isArchived": false,
   "nodes": [
     {
@@ -89,7 +89,7 @@
       "typeVersion": 1,
       "position": [
         688,
-        322
+        336
       ]
     },
     {
@@ -178,19 +178,17 @@
               "outputKey": "Mission pourvue ou annulée"
             },
             {
-              "renameOutput": true,
-              "outputKey": "Mission urgente publiée",
               "conditions": {
                 "options": {
                   "caseSensitive": true,
                   "leftValue": "",
-                  "typeValidation": "strict",
+                  "typeValidation": "loose",
                   "version": 2
                 },
                 "combinator": "and",
                 "conditions": [
                   {
-                    "id": "7284eb67-f3ed-4656-b373-925b17cc7f49",
+                    "id": "5f016717-828d-4e63-8ad5-3ac405b5cd37",
                     "leftValue": "={{ $json.body.event }}",
                     "rightValue": "mission.publiee",
                     "operator": {
@@ -199,17 +197,27 @@
                     }
                   },
                   {
-                    "id": "d0e02292-cb71-41ca-ae92-8130d806cf9d",
-                    "leftValue": "={{ $json.body.mission.urgente }}",
-                    "rightValue": "",
+                    "id": "e37beae7-a451-4dba-be86-8c24ab11d852",
+                    "leftValue": "={{ DateTime.fromISO($json.body.mission.dateDebut + 'T' + $json.body.mission.heureDebut, { zone: 'Europe/Paris' }).diffNow('hours').hours }}",
+                    "rightValue": 48,
                     "operator": {
-                      "type": "boolean",
-                      "operation": "true",
-                      "singleValue": true
+                      "type": "number",
+                      "operation": "lt"
+                    }
+                  },
+                  {
+                    "id": "67b18c45-7400-4daa-84a6-791f8d9fb730",
+                    "leftValue": "={{ ($json.body.candidatsEligibles || []).length }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gt"
                     }
                   }
                 ]
-              }
+              },
+              "renameOutput": true,
+              "outputKey": "Mission urgente publiée"
             }
           ]
         },
@@ -235,10 +243,14 @@
       "typeVersion": 1,
       "position": [
         1008,
-        290
+        368
       ]
     },
     {
+      "parameters": {
+        "fieldToSplitOut": "body.candidatsAPrevenir",
+        "options": {}
+      },
       "id": "7e3b7d01-2a8b-4291-9b9a-fd50f81b0758",
       "name": "Candidats à prévenir",
       "type": "n8n-nodes-base.splitOut",
@@ -246,43 +258,37 @@
       "position": [
         1008,
         0
-      ],
-      "parameters": {
-        "fieldToSplitOut": "body.candidatsAPrevenir",
-        "include": "noOtherFields",
-        "options": {}
-      }
+      ]
     },
     {
+      "parameters": {
+        "fieldToSplitOut": "body.candidatsEligibles",
+        "options": {}
+      },
       "id": "033a0ef6-5c7b-4b22-9794-7a21bbec1242",
       "name": "Candidats éligibles",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        968,
-        522
-      ],
-      "parameters": {
-        "fieldToSplitOut": "body.candidatsAPrevenir",
-        "include": "noOtherFields",
-        "options": {}
-      }
+        976,
+        592
+      ]
     },
     {
-      "id": "b6ee17b9-6352-41a7-908e-3314ee77f537",
-      "name": "Compteur d'alertes du jour",
-      "type": "n8n-nodes-base.redis",
-      "typeVersion": 1,
-      "position": [
-        1408,
-        422
-      ],
       "parameters": {
         "operation": "incr",
         "key": "=n8n:alertes:{{ $json.candidatRef }}:{{ $now.setZone('Europe/Paris').toFormat('yyyy-MM-dd') }}",
         "expire": true,
         "ttl": 172800
       },
+      "id": "b6ee17b9-6352-41a7-908e-3314ee77f537",
+      "name": "Compteur d'alertes du jour",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1392,
+        608
+      ],
       "credentials": {
         "redis": {
           "id": "redisLocalReleve",
@@ -291,29 +297,21 @@
       }
     },
     {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
       "id": "f5123973-4192-4c9a-883f-b81984b19592",
       "name": "Candidat + compteur",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1628,
-        522
-      ],
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
-        "options": {}
-      }
+        1744,
+        560
+      ]
     },
     {
-      "id": "cbad57f8-d770-49bf-b9d4-b817a88d8375",
-      "name": "3 alertes max par jour ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1848,
-        522
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -336,30 +334,29 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "cbad57f8-d770-49bf-b9d4-b817a88d8375",
+      "name": "3 alertes max par jour ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        560
+      ]
     },
     {
+      "parameters": {},
       "id": "3339a910-3907-4d5b-a004-3b7eaf188fa3",
       "name": "Plafond atteint (pas d'envoi)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2068,
-        622
-      ],
-      "parameters": {}
+        2144,
+        752
+      ]
     },
     {
-      "id": "e83c4a6a-92db-49d3-9f24-00c1033e689e",
-      "name": "Références à prévenir",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
-      "position": [
-        1228,
-        0
-      ],
       "parameters": {
-        "aggregate": "aggregateIndividualFields",
         "fieldsToAggregate": {
           "fieldToAggregate": [
             {
@@ -368,17 +365,17 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "e83c4a6a-92db-49d3-9f24-00c1033e689e",
+      "name": "Références à prévenir",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        0
+      ]
     },
     {
-      "id": "db436130-ca57-48cd-916a-96757f5917c2",
-      "name": "API : courriels de clôture",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1448,
-        0
-      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/alertes",
@@ -396,22 +393,21 @@
         "jsonBody": "={{ JSON.stringify({ type: \"cloture\", candidatRefs: $json.candidatRef }) }}",
         "options": {}
       },
-      "onError": "continueErrorOutput",
+      "id": "db436130-ca57-48cd-916a-96757f5917c2",
+      "name": "API : courriels de clôture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1456,
+        0
+      ],
       "retryOnFail": true,
       "maxTries": 2,
-      "waitBetweenTries": 2000
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "8a9ca7e0-c749-4833-b928-b56af8609070",
-      "name": "Références retenues",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
-      "position": [
-        2068,
-        422
-      ],
       "parameters": {
-        "aggregate": "aggregateIndividualFields",
         "fieldsToAggregate": {
           "fieldToAggregate": [
             {
@@ -420,17 +416,17 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "8a9ca7e0-c749-4833-b928-b56af8609070",
+      "name": "Références retenues",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        544
+      ]
     },
     {
-      "id": "3b6d1228-c16b-4de9-8e97-bf074449b9df",
-      "name": "API : alerte urgente",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2288,
-        422
-      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/alertes",
@@ -448,29 +444,21 @@
         "jsonBody": "={{ JSON.stringify({ type: \"urgente\", candidatRefs: $json.candidatRef }) }}",
         "options": {}
       },
-      "onError": "continueErrorOutput",
+      "id": "3b6d1228-c16b-4de9-8e97-bf074449b9df",
+      "name": "API : alerte urgente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2384,
+        544
+      ],
       "retryOnFail": true,
       "maxTries": 2,
-      "waitBetweenTries": 2000
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "2f66de60-ece8-4b04-8369-8385f6631831",
-      "name": "Slack : candidats proposés",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1008,
-        -320
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "aBd8lcQaqq3LyRQb",
-          "name": "Slack — Relève"
-        }
-      },
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -481,15 +469,38 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
+      },
+      "id": "2f66de60-ece8-4b04-8369-8385f6631831",
+      "name": "Slack : candidats proposés",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        -320
+      ],
+      "webhookId": "9bb591b4-d14f-43d0-95f6-e0c5e350e0dd",
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
       }
     },
     {
+      "parameters": {
+        "operation": "set",
+        "key": "=n8n:slack:{{ $('Webhook').first().json.body.mission.id }}",
+        "value": "={{ $json.message_timestamp ?? $json.message?.ts ?? $json.ts }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 2592000
+      },
       "id": "0a62028a-ed5c-44da-b746-db1a920932f1",
       "name": "Mémoriser le message Slack",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        1228,
+        1232,
         -320
       ],
       "credentials": {
@@ -497,35 +508,10 @@
           "id": "redisLocalReleve",
           "name": "Redis (local)"
         }
-      },
-      "parameters": {
-        "operation": "set",
-        "key": "=n8n:slack:{{ $('Webhook').first().json.body.mission.id }}",
-        "value": "={{ $json.message_timestamp ?? $json.message?.ts ?? $json.ts }}",
-        "keyType": "string",
-        "expire": true,
-        "ttl": 2592000,
-        "valueIsJSON": false
       }
     },
     {
-      "id": "0d372a64-a12e-42c3-b0e5-4b225d7724c2",
-      "name": "Slack : candidat a accepté",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1008,
-        -160
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "aBd8lcQaqq3LyRQb",
-          "name": "Slack — Relève"
-        }
-      },
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -536,40 +522,47 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
+      },
+      "id": "0d372a64-a12e-42c3-b0e5-4b225d7724c2",
+      "name": "Slack : candidat a accepté",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1008,
+        -160
+      ],
+      "webhookId": "cc4f6785-c5db-4310-9248-3fb2f8ecf5cb",
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
       }
     },
     {
-      "id": "3d0e367a-352d-4b46-82ca-5a472836211c",
-      "name": "Retrouver le message Slack",
-      "type": "n8n-nodes-base.redis",
-      "typeVersion": 1,
-      "position": [
-        1008,
-        130
-      ],
-      "credentials": {
-        "redis": {
-          "id": "redisLocalReleve",
-          "name": "Redis (local)"
-        }
-      },
       "parameters": {
         "operation": "get",
         "propertyName": "tsSlack",
         "key": "=n8n:slack:{{ $('Webhook').first().json.body.mission.id }}",
         "keyType": "string",
         "options": {}
+      },
+      "id": "3d0e367a-352d-4b46-82ca-5a472836211c",
+      "name": "Retrouver le message Slack",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        208
+      ],
+      "credentials": {
+        "redis": {
+          "id": "redisLocalReleve",
+          "name": "Redis (local)"
+        }
       }
     },
     {
-      "id": "421dae74-15be-462b-8de9-6b68c09d1c18",
-      "name": "Message Slack connu ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        1228,
-        130
-      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -593,25 +586,18 @@
           ]
         },
         "options": {}
-      }
+      },
+      "id": "421dae74-15be-462b-8de9-6b68c09d1c18",
+      "name": "Message Slack connu ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1232,
+        208
+      ]
     },
     {
-      "id": "db46dd3a-4008-4789-89f1-4b52d6025a30",
-      "name": "Slack : mettre à jour le message",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.3,
-      "position": [
-        1448,
-        50
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "aBd8lcQaqq3LyRQb",
-          "name": "Slack — Relève"
-        }
-      },
       "parameters": {
-        "resource": "message",
         "operation": "update",
         "channelId": {
           "__rl": true,
@@ -619,59 +605,57 @@
           "value": "C0C2S0X5W4W"
         },
         "ts": "={{ $json.tsSlack }}",
-        "messageType": "text",
-        "text": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? ':white_check_mark: *Mission pourvue*' : ':x: *Mission annulée*' }} — {{ $('Webhook').first().json.body.mission.reference }}\n>{{ $('Webhook').first().json.body.mission.qualification }} · {{ $('Webhook').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Webhook').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }}\n>{{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Retenu : ' + ($('Webhook').first().json.body.candidatRetenu ?? '—') : 'Annulée par l’établissement' }}",
-        "updateFields": {}
-      }
-    },
-    {
-      "id": "67df2c96-baf0-4e82-8093-cb1a6babe6ab",
-      "name": "Slack : message de clôture",
+        "text": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? ':white_check_mark: *Mission pourvue*' : ':x: *Mission annulée*' }} — {{ $('Webhook').first().json.body.mission.reference }}\n>{{ $('Webhook').first().json.body.mission.qualification }} · {{ $('Webhook').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Webhook').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }}\n>{{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Retenu : ' + ($('Webhook').first().json.body.candidatRetenu?.candidatRef ?? '—') : 'Annulée par l’établissement' }}",
+        "updateFields": {},
+        "otherOptions": {}
+      },
+      "id": "db46dd3a-4008-4789-89f1-4b52d6025a30",
+      "name": "Slack : mettre à jour le message",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1448,
-        210
+        1456,
+        128
       ],
+      "webhookId": "5582841c-c301-453b-a507-bf5d61e0de41",
       "credentials": {
         "slackApi": {
           "id": "aBd8lcQaqq3LyRQb",
           "name": "Slack — Relève"
         }
-      },
+      }
+    },
+    {
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
           "mode": "id",
           "value": "C0C2S0X5W4W"
         },
-        "text": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? ':white_check_mark: *Mission pourvue*' : ':x: *Mission annulée*' }} — {{ $('Webhook').first().json.body.mission.reference }}\n>{{ $('Webhook').first().json.body.mission.qualification }} · {{ $('Webhook').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Webhook').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }}\n>{{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Retenu : ' + ($('Webhook').first().json.body.candidatRetenu ?? '—') : 'Annulée par l’établissement' }}",
+        "text": "={{ $('Webhook').first().json.body.event === 'mission.pourvue' ? ':white_check_mark: *Mission pourvue*' : ':x: *Mission annulée*' }} — {{ $('Webhook').first().json.body.mission.reference }}\n>{{ $('Webhook').first().json.body.mission.qualification }} · {{ $('Webhook').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Webhook').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }}\n>{{ $('Webhook').first().json.body.event === 'mission.pourvue' ? 'Retenu : ' + ($('Webhook').first().json.body.candidatRetenu?.candidatRef ?? '—') : 'Annulée par l’établissement' }}",
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
-      }
-    },
-    {
-      "id": "91492572-1db9-4e45-a21f-72bb23bc4032",
-      "name": "Slack : incident (#ops)",
+      },
+      "id": "67df2c96-baf0-4e82-8093-cb1a6babe6ab",
+      "name": "Slack : message de clôture",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        1708,
-        140
+        1456,
+        288
       ],
+      "webhookId": "304a0c1f-7e7a-41a0-b6af-71ea7b39b81f",
       "credentials": {
         "slackApi": {
           "id": "aBd8lcQaqq3LyRQb",
           "name": "Slack — Relève"
         }
-      },
+      }
+    },
+    {
       "parameters": {
-        "resource": "message",
-        "operation": "post",
         "select": "channel",
         "channelId": {
           "__rl": true,
@@ -682,7 +666,87 @@
         "otherOptions": {
           "includeLinkToWorkflow": false
         }
+      },
+      "id": "91492572-1db9-4e45-a21f-72bb23bc4032",
+      "name": "Slack : incident (#ops)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1712,
+        208
+      ],
+      "webhookId": "b9a09cb9-d987-4f1d-8341-073331831168",
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
       }
+    },
+    {
+      "id": "12bb0954-d3b0-4f0e-8c7d-3285e1ce3f45",
+      "name": "Mission pourvue ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        968,
+        324
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "67cacada-9980-4f17-a5fe-54359625367f",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "mission.pourvue",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8a4f9ba5-4434-4ca2-af69-079b1385af36",
+      "name": "WF3 : confirmation de mission",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1208,
+        284
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "wf3ConfirmationReleve"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "815def67-3fe6-4d8c-914f-d2ac1ad5fa3d",
+      "name": "Annulation : pas de confirmation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1208,
+        424
+      ],
+      "parameters": {}
     }
   ],
   "connections": {
@@ -750,6 +814,11 @@
           },
           {
             "node": "Retrouver le message Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mission pourvue ?",
             "type": "main",
             "index": 0
           }
@@ -922,6 +991,24 @@
           }
         ]
       ]
+    },
+    "Mission pourvue ?": {
+      "main": [
+        [
+          {
+            "node": "WF3 : confirmation de mission",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Annulation : pas de confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -932,7 +1019,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 18,
+  "versionCounter": 36,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {
