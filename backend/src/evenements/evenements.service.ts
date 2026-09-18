@@ -150,8 +150,16 @@ export class EvenementsService {
     const retenu =
       transition.type === 'mission.pourvue' ? await this.destinataires.retenu(mission.id) : null;
 
-    const viser = (candidatId: string): CandidatVise => ({
-      candidatRef: this.webhooks.referenceCandidat(candidatId),
+    // Les candidats a prevenir sont donnes par identifiant : il faut relire leur
+    // prenom et leur adresse pour que l'automatisation puisse leur ecrire.
+    const aPrevenir = transition.candidatsAPrevenirIds?.length
+      ? await this.destinataires.parIds(transition.candidatsAPrevenirIds)
+      : [];
+
+    const viser = (candidat: { id: string; prenom: string; email: string }): CandidatVise => ({
+      candidatRef: this.webhooks.referenceCandidat(candidat.id),
+      prenom: candidat.prenom,
+      email: candidat.email,
     });
 
     return {
@@ -166,9 +174,15 @@ export class EvenementsService {
           score: proposition.score === null ? null : Number(proposition.score),
         }),
       ),
-      candidatsEligibles: eligibles.map((candidat) => viser(candidat.id)),
-      candidatRetenu: retenu ? viser(retenu.id) : null,
-      candidatsAPrevenir: (transition.candidatsAPrevenirIds ?? []).map(viser),
+      // `notificationsEmail` vaut toujours vrai ici : `eligibles()` a deja
+      // ecarte ceux qui ont coupe leurs alertes. Le champ est rendu quand meme,
+      // parce que le workflow filtre dessus.
+      candidatsEligibles: eligibles.map((candidat) => ({
+        ...viser(candidat),
+        notificationsEmail: true,
+      })),
+      candidatRetenu: retenu ? viser(retenu) : null,
+      candidatsAPrevenir: aPrevenir.map(viser),
     };
   }
 

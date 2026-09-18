@@ -15,12 +15,11 @@ const ETATS_EN_COURS = ['ENVOYEE', 'ACCEPTEE_CANDIDAT'] as const;
 /**
  * Qui est concerne par une mission, et a quel titre.
  *
- * Un seul endroit, appele deux fois : une premiere pour composer l'evenement —
- * qui n'en garde que les references pseudonymes — et une seconde quand
- * l'automatisation demande l'envoi. Si les deux calculs vivaient separement, un
- * workflow pourrait demander un courriel pour quelqu'un qui n'etait pas dans la
- * liste qu'on lui a servie, et la porte d'eligibilite ne voudrait plus rien
- * dire.
+ * Un seul endroit, appele deux fois : une premiere pour composer l'evenement
+ * que recoit l'automatisation, une seconde quand elle demande a l'API
+ * d'expedier elle-meme. Si les deux calculs vivaient separement, un workflow
+ * pourrait obtenir un courriel pour quelqu'un qui n'etait pas dans la liste
+ * qu'on lui a servie, et la porte d'eligibilite ne voudrait plus rien dire.
  */
 @Injectable()
 export class DestinatairesService {
@@ -121,6 +120,29 @@ export class DestinatairesService {
     }
 
     return { id: candidat.id, prenom: candidat.prenom, email: candidat.utilisateur.email };
+  }
+
+  /**
+   * Retrouve des candidats par identifiant, pour leur ecrire.
+   *
+   * Sert aux listes que l'appelant a relevees avant sa transaction : il en
+   * connait les identifiants, pas les adresses. Ceux dont l'adresse n'est pas
+   * verifiee sont ecartes — il n'y aurait nulle part ou ecrire.
+   */
+  async parIds(ids: string[]): Promise<Destinataire[]> {
+    const candidats = await this.prisma.candidat.findMany({
+      where: {
+        id: { in: ids },
+        utilisateur: { actif: true, emailVerifieLe: { not: null } },
+      },
+      select: { id: true, prenom: true, utilisateur: { select: { email: true } } },
+    });
+
+    return candidats.map((candidat) => ({
+      id: candidat.id,
+      prenom: candidat.prenom,
+      email: candidat.utilisateur!.email,
+    }));
   }
 
   private async parPropositions(

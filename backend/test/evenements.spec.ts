@@ -160,11 +160,14 @@ describe('evenements et routes internes', () => {
     });
 
     /**
-     * La charge utile ne doit porter ni nom, ni adresse, ni courriel : c'est la
-     * condition qui rend acceptable l'envoi vers des outils hors UE. Le test
-     * lit ce qui *serait* parti, l'emetteur etant en sourdine.
+     * La frontiere passe a l'interieur de l'evenement, et c'est elle qu'il faut
+     * tenir : `propositions` alimente le message Slack de l'agence — Slack est
+     * hors UE, rien de nominatif n'y va — la ou les listes de candidats servent
+     * a leur ecrire et portent donc prenom et adresse.
+     *
+     * Le test lit ce qui *serait* parti, l'emetteur etant en sourdine.
      */
-    it('n emet aucune donnee personnelle', async () => {
+    it('garde pseudonyme la liste qui alimente Slack', async () => {
       const id = await publier();
 
       await avec(app, agence)
@@ -172,16 +175,36 @@ describe('evenements et routes internes', () => {
         .send({ candidatIds: [jeu.candidatA] })
         .expect(201);
 
-      const emis = app.get(WebhooksService).derniersEmis();
-      const proposition = emis.find((e) => e.event === 'proposition.envoyee');
+      const proposition = emis('proposition.envoyee')!;
 
-      expect(proposition).toBeDefined();
-      expect(proposition!.propositions[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
+      expect(proposition.propositions[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
 
-      const corps = JSON.stringify(proposition);
+      const corps = JSON.stringify(proposition.propositions);
 
-      expect(corps).not.toContain('Aubry');
+      expect(corps).not.toContain('Alice');
       expect(corps).not.toContain('candidat.a@test.example');
+      expect(corps).not.toContain(jeu.candidatA);
+    });
+
+    /**
+     * Ce qui sort pour ecrire se limite au strict necessaire. Le nom de
+     * famille, le telephone et l'adresse postale restent dans la plateforme :
+     * aucun courriel n'en a besoin, et chacun elargirait ce qui sort sans
+     * contrepartie.
+     */
+    it('ne fait sortir que le prenom et l adresse, jamais plus', async () => {
+      await prisma.candidat.update({
+        where: { id: jeu.candidatA },
+        data: { telephone: '0600000042' },
+      });
+
+      await publier();
+
+      const corps = JSON.stringify(emis('mission.publiee'));
+
+      expect(corps).toContain('candidat.a@test.example');
+      expect(corps).not.toContain('Aubry');
+      expect(corps).not.toContain('0600000042');
       expect(corps).not.toContain(jeu.candidatA);
     });
   });
@@ -497,15 +520,20 @@ describe('evenements et routes internes', () => {
   });
 
   describe('candidats designes dans l evenement', () => {
-    it('joint les candidats eligibles a la publication, par reference seule', async () => {
+    it('joint les candidats eligibles a la publication, avec de quoi leur ecrire', async () => {
       await publier();
 
       const evenement = emis('mission.publiee')!;
 
       expect(evenement.candidatsEligibles).toHaveLength(1);
+      expect(evenement.candidatsEligibles[0]).toMatchObject({
+        prenom: 'Alice',
+        email: 'candidat.a@test.example',
+        // Toujours vrai : l'API a deja ecarte ceux qui ont coupe leurs alertes.
+        // Le champ reste rendu parce que le workflow filtre dessus.
+        notificationsEmail: true,
+      });
       expect(evenement.candidatsEligibles[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
-      expect(JSON.stringify(evenement)).not.toContain('candidat.a@test.example');
-      expect(JSON.stringify(evenement)).not.toContain('Aubry');
     });
 
     it('ecarte qui a coupe ses notifications', async () => {
@@ -533,7 +561,10 @@ describe('evenements et routes internes', () => {
 
       const evenement = emis('mission.pourvue')!;
 
-      expect(evenement.candidatRetenu).not.toBeNull();
+      expect(evenement.candidatRetenu).toMatchObject({
+        prenom: 'Alice',
+        email: 'candidat.a@test.example',
+      });
       expect(evenement.candidatRetenu!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
       // Seul candidat de l'agence : personne d'autre n'attendait.
       expect(evenement.candidatsAPrevenir).toEqual([]);
@@ -545,7 +576,12 @@ describe('evenements et routes internes', () => {
       await avec(app, candidat).post(`/api/missions/${id}/candidatures`).send({}).expect(201);
       await avec(app, client).post(`/api/missions/${id}/annuler`).expect(201);
 
-      expect(emis('mission.annulee')!.candidatsAPrevenir).toHaveLength(1);
+      const aPrevenir = emis('mission.annulee')!.candidatsAPrevenir;
+
+      expect(aPrevenir).toHaveLength(1);
+      // Pas de preference ici : la cloture part quoi qu'il arrive.
+      expect(aPrevenir[0]!.notificationsEmail).toBeUndefined();
+      expect(aPrevenir[0]!.email).toBe('candidat.a@test.example');
     });
   });
 
