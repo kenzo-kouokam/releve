@@ -598,6 +598,12 @@ export class MissionsService {
       throw new ForbiddenException('Une mission terminee ne s annule pas');
     }
 
+    // Releve avant la transaction, qui va les faire passer EXPIREE.
+    const aPrevenir = await this.prisma.proposition.findMany({
+      where: { missionId: id, statut: { in: ['ENVOYEE', 'ACCEPTEE_CANDIDAT'] } },
+      select: { candidatId: true },
+    });
+
     const [mission] = await this.prisma.$transaction([
       this.prisma.mission.update({
         where: { id },
@@ -616,6 +622,7 @@ export class MissionsService {
       missionId: id,
       type: 'mission.annulee',
       auteur: session,
+      candidatsAPrevenirIds: aPrevenir.map((ligne) => ligne.candidatId),
     });
 
     return this.resume(mission);

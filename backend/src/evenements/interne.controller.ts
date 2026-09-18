@@ -1,9 +1,12 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiExcludeController, ApiOperation } from '@nestjs/swagger';
 import {
+  alerteCreateSchema,
   balayageNotificationsSchema,
   missionsNonPourvuesQuerySchema,
   relanceCreateSchema,
+  type AlerteCreate,
+  type AlerteEnvoyee,
   type BalayageNotifications,
   type MissionNonPourvue,
   type MissionsNonPourvuesQuery,
@@ -14,6 +17,7 @@ import {
 import { ServiceInterne } from '../auth/auth.decorateurs';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { NotificationsMissionsService } from '../notifications/notifications-missions.service';
+import { AlertesService } from './alertes.service';
 import { InterneService } from './interne.service';
 
 /**
@@ -34,6 +38,7 @@ import { InterneService } from './interne.service';
 export class InterneController {
   constructor(
     private readonly interne: InterneService,
+    private readonly alertes: AlertesService,
     private readonly notifications: NotificationsMissionsService,
   ) {}
 
@@ -61,6 +66,23 @@ export class InterneController {
     @Body(new ZodValidationPipe(relanceCreateSchema)) donnees: RelanceCreate,
   ): Promise<RelanceEnregistree> {
     return this.interne.escalader(id, donnees);
+  }
+
+  /**
+   * Expédie les courriels que l'automatisation a décidé d'envoyer.
+   *
+   * Le pendant de l'émission sans adresse : l'événement sort pseudonymisé, le
+   * workflow applique son plafond et sa déduplication, puis rend la main avec
+   * les seules références retenues. C'est l'API qui écrit, depuis les mêmes
+   * gabarits que tous les autres courriels de la plateforme.
+   */
+  @Post('missions/:id/alertes')
+  @ApiOperation({ summary: 'Envoie les courriels aux candidats designes par leur reference' })
+  alerter(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(alerteCreateSchema)) donnees: AlerteCreate,
+  ): Promise<AlerteEnvoyee> {
+    return this.alertes.envoyer(id, donnees);
   }
 
   /**

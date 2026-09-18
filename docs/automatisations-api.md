@@ -88,7 +88,7 @@ le nœud Webhook doit donc être en `rawBody: true` — ce qui est déjà le cas
   "deliveryId": "5f0c…",
   "mission": {
     "id": "…",
-    "reference": "MIS-2026-0042",
+    "reference": "M-2026-0042",
     "qualification": "AES",
     "commune": "Nantes",
     "departement": "44",
@@ -99,9 +99,29 @@ le nœud Webhook doit donc être en `rawBody: true` — ce qui est déjà le cas
     "tauxHoraire": 13.5,
     "lienApp": "http://localhost:3000/missions/…"
   },
-  "propositions": [{ "id": "…", "candidatRef": "CAN-7F3A2C", "score": 87.5 }]
+  "propositions": [{ "id": "…", "candidatRef": "CAN-7F3A2C", "score": 87.5 }],
+  "candidatsEligibles": [],
+  "candidatRetenu": null,
+  "candidatsAPrevenir": []
 }
 ```
+
+Le bloc `mission` porte aussi **`urgente`** : vrai quand la vacation commence dans
+moins de 48 h (`SEUIL_URGENCE_HEURES`). Calculé par l'API, avec l'heure de début
+et pas seulement le jour — demain 7 h et demain 22 h ne laissent pas le même
+délai. Deux workflows qui recalculeraient ce seuil chacun de leur côté
+finiraient par ne plus s'accorder sur ce qui est urgent.
+
+Trois listes désignent des personnes, toujours par référence seule :
+
+| Champ | Renseigné sur | Contenu |
+|---|---|---|
+| `candidatsEligibles` | `mission.publiee` | Candidats à qui la mission peut être annoncée, **déjà filtrés sur leur préférence de notification** |
+| `candidatRetenu` | `mission.pourvue` | Le candidat retenu |
+| `candidatsAPrevenir` | `mission.pourvue`, `mission.annulee` | Ceux dont la candidature en cours vient de tomber, le retenu excepté |
+
+Ailleurs, les listes sont vides et `candidatRetenu` est nul : la forme ne change
+pas d'un événement à l'autre.
 
 La forme ne change pas selon l'événement : `propositions` est simplement vide
 quand l'événement n'en concerne aucune. Un workflow peut donc lire le même
@@ -184,6 +204,41 @@ l'escalade côté workflow, au troisième.
 Répond `403` si la mission n'est plus ouverte ou vient d'être pourvue — le cas
 arrive quand le workflow lit une liste et que l'établissement valide entre-temps.
 
+### `POST /api/interne/missions/:id/alertes`
+
+C'est la pièce qui permet d'écrire aux candidats **sans qu'aucune adresse ne
+sorte**. L'événement désigne les personnes par référence ; le workflow applique
+son plafond anti-spam, sa déduplication, son horaire ; puis il rend la main avec
+les seules références retenues, et l'API expédie.
+
+```json
+{ "type": "urgente", "candidatRefs": ["CAN-7F3A2C", "CAN-19B0E4"] }
+```
+
+| `type` | Courriel | Destinataires possibles |
+|---|---|---|
+| `urgente` | Mission à pourvoir sous 48 h | Candidats éligibles à la mission |
+| `cloture` | Mission pourvue, ou annulée | Ceux ayant postulé, le retenu excepté |
+| `confirmation` | Confirmation au candidat retenu | Le seul candidat retenu |
+
+```json
+{ "missionId": "…", "type": "urgente", "demandees": 2, "envoyees": 2, "ignorees": [] }
+```
+
+**Chaque type borne ses destinataires possibles**, et c'est une protection
+autant qu'une commodité : une référence hors de l'ensemble autorisé est
+*ignorée* et rendue dans `ignorees`, jamais expédiée. Sans cette borne, un
+appelant qui connaîtrait une référence pourrait écrire à n'importe qui sur
+n'importe quelle mission. Un test le vérifie — demander une `confirmation` pour
+quelqu'un qui n'est pas le candidat retenu n'envoie rien.
+
+Le motif de clôture n'est pas passé par l'appelant : l'API lit le statut de la
+mission. « Pourvue » et « annulée » ne sont pas la même nouvelle, et c'est la
+plateforme qui sait laquelle est vraie.
+
+Les gabarits vivent dans `backend/src/mail/gabarits.ts`, avec tous les autres
+courriels — plutôt que réécrits dans un workflow, où ils dériveraient.
+
 ### `POST /api/interne/notifications/missions`
 
 Corps : `{ "simulation": false }`.
@@ -230,7 +285,31 @@ Trois choix à connaître :
 | `mission.filiere` dans le payload          | **Retiré.** Le modèle n'a pas ce champ, et `TypeClient` ne porte qu'une valeur — la filière serait une constante. |
 | Seuil de relance côté API                  | **Côté appelant.** `seuilMinutes` est un paramètre de requête : la démo tourne à 1 minute, l'exploitation à 1440, et ce n'est pas à l'API d'arbitrer. `RELANCE_SEUIL_MIN` reste donc une variable n8n. |
 | Airtable comme base tampon                 | **Rien côté API.** Aucune route ne lui est dédiée ; si un besoin apparaît, il passera par une route interne comme les autres. |
+| `candidatsEligibles` avec `prenom` et `email` | **Références seules.** Le brouillon prévoyait que l'API joigne les adresses pour que n8n expédie. C'est `POST /api/interne/missions/:id/alertes` qui joue ce rôle : n8n décide qui prévenir, l'API écrit. Voir ci-dessous. |
 | Route de déclenchement du balayage         | **Ajoutée**, elle n'était pas au brouillon. |
+
+### Pourquoi les adresses ne transitent pas
+
+Le brouillon prévoyait de joindre `prenom` et `email` aux événements, n8n se
+chargeant de l'envoi — en notant que n8n, auto-hébergé avec l'application, n'est
+pas Slack, et que la minimisation ne s'imposait donc pas de la même façon. Le
+raisonnement tient.
+
+Le choix retenu va néanmoins dans l'autre sens, pour deux raisons qui ne sont
+pas de conformité :
+
+- **Les gabarits restent à un seul endroit.** Les courriels de la plateforme
+  vivent déjà dans `gabarits.ts`, avec leur version texte et leur version HTML.
+  Les réécrire dans un nœud n8n en ferait une seconde version, qui dériverait de
+  la première au premier changement de pied de page.
+- **La porte d'éligibilité reste vraie.** L'ensemble des destinataires est
+  recalculé au moment de l'envoi, par le même code que le classement. Un
+  candidat devenu inéligible entre la publication et l'alerte ne reçoit rien,
+  alors qu'un envoi piloté par une liste figée l'aurait touché.
+
+Ce que n8n garde : le plafond de trois alertes par jour, la déduplication, le
+choix du moment, l'aiguillage. C'est-à-dire tout ce qui relève de
+l'orchestration — et rien de ce qui relève du métier.
 
 ### Réponses aux trois points à trancher
 
@@ -272,6 +351,7 @@ Par ailleurs, **la notion d'urgence (moins de 48 h) n'existe nulle part** dans l
 domaine, et le courriel est plafonné à cinq missions
 (`MISSIONS_PAR_COURRIEL = 5`). Les deux sont à créer si le besoin est confirmé.
 
-En attendant, WF1 peut très bien porter l'alerte urgente lui-même : les
-événements `mission.publiee` portent `dateDebut` et `heureDebut`, de quoi
-décider d'un envoi immédiat sans rien attendre de l'API.
+**L'alerte urgente, elle, est servie** : `mission.publiee` porte `urgente` et
+`candidatsEligibles`, et `POST /api/interne/missions/:id/alertes` expédie. Le
+manque ne porte donc plus que sur le récapitulatif quotidien, qui reste un
+delta.

@@ -36,6 +36,14 @@ export const TYPES_EVENEMENT = [
 export type TypeEvenement = (typeof TYPES_EVENEMENT)[number];
 
 /**
+ * En deçà, une mission est urgente.
+ *
+ * Deux jours : c'est le délai sous lequel un remplacement ne peut plus attendre
+ * le récapitulatif du lendemain.
+ */
+export const SEUIL_URGENCE_HEURES = 48;
+
+/**
  * La mission, telle qu'elle sort.
  *
  * Ni le nom du client final, ni l'adresse exacte du lieu d'intervention : la
@@ -46,6 +54,14 @@ export type TypeEvenement = (typeof TYPES_EVENEMENT)[number];
 export interface MissionEvenement {
   id: string;
   reference: string;
+  /**
+   * Vrai quand la vacation commence dans moins de {@link SEUIL_URGENCE_HEURES}.
+   *
+   * Calculé par l'API et non déduit des dates par le consommateur : le seuil
+   * est une règle métier, et deux workflows qui le recalculeraient chacun de
+   * leur côté finiraient par ne plus s'accorder sur ce qui est urgent.
+   */
+  urgente: boolean;
   /** Code de la qualification exigée — « AES », « ADVF »… */
   qualification: string;
   commune: string;
@@ -82,6 +98,19 @@ export interface PropositionEvenement {
   score: number | null;
 }
 
+/**
+ * Un candidat que l'événement désigne, sans le nommer.
+ *
+ * La référence seule, et rien d'autre. C'est tout ce dont une automatisation a
+ * besoin : compter, dédupliquer, appliquer un plafond d'envoi. Quand il faut
+ * réellement écrire à la personne, elle rappelle l'API — qui, elle, sait à qui
+ * elle parle. Faire transiter l'adresse ferait sortir une donnée personnelle
+ * pour un envoi que la plateforme sait faire elle-même.
+ */
+export interface CandidatVise {
+  candidatRef: string;
+}
+
 /** Ce que reçoit l'automatisation, quel que soit l'événement. */
 export interface EvenementSortant {
   event: TypeEvenement;
@@ -92,6 +121,21 @@ export interface EvenementSortant {
   mission: MissionEvenement;
   /** Vide pour les événements qui ne concernent aucune candidature. */
   propositions: PropositionEvenement[];
+
+  /**
+   * Candidats éligibles à la mission, déjà filtrés sur leur préférence de
+   * notification. Renseigné à la publication ; vide ailleurs.
+   */
+  candidatsEligibles: CandidatVise[];
+
+  /** Candidat retenu. Renseigné quand la mission est pourvue, nul ailleurs. */
+  candidatRetenu: CandidatVise | null;
+
+  /**
+   * Candidats dont la candidature en cours vient de tomber — mission pourvue
+   * par quelqu'un d'autre, ou annulée. Le candidat retenu n'y figure pas.
+   */
+  candidatsAPrevenir: CandidatVise[];
 }
 
 /**
@@ -172,3 +216,50 @@ export const balayageNotificationsSchema = z.object({
 });
 
 export type BalayageNotifications = z.infer<typeof balayageNotificationsSchema>;
+
+/**
+ * Les envois que l'automatisation demande à l'API.
+ *
+ * C'est l'autre moitié du parti pris : l'événement sort sans adresse, et quand
+ * n8n a décidé qui prévenir — après son plafond anti-spam, sa déduplication,
+ * son horaire — il rend la main. L'API compose et expédie. Les gabarits
+ * restent au même endroit que tous les autres courriels de la plateforme,
+ * plutôt que d'être réécrits dans un workflow.
+ */
+export const TYPES_ALERTE = ['urgente', 'cloture', 'confirmation'] as const;
+
+export type TypeAlerte = (typeof TYPES_ALERTE)[number];
+
+/**
+ * Chaque type borne son propre destinataire possible, et c'est une protection
+ * autant qu'une commodité : `confirmation` ne peut viser que le candidat
+ * retenu, `cloture` que ceux dont la candidature vient de tomber, `urgente`
+ * que les éligibles. Une référence hors de cet ensemble est ignorée — un
+ * appelant machine ne doit pas pouvoir se servir de cette route pour écrire à
+ * qui il veut.
+ */
+export const alerteCreateSchema = z.object({
+  type: z.enum(TYPES_ALERTE),
+  candidatRefs: z
+    .array(z.string().regex(/^CAN-[0-9A-F]{6}$/, 'Reference candidat invalide'))
+    .min(1, 'Au moins une reference')
+    .max(200, 'Deux cents references au plus par appel'),
+});
+
+export type AlerteCreate = z.infer<typeof alerteCreateSchema>;
+
+/** Ce que rend un envoi demandé. */
+export interface AlerteEnvoyee {
+  missionId: string;
+  type: TypeAlerte;
+  /** Références reçues, doublons retirés. */
+  demandees: number;
+  /** Courriels effectivement partis. */
+  envoyees: number;
+  /**
+   * Références qui ne correspondaient à personne dans l'ensemble autorisé pour
+   * ce type — périmées, ou hors sujet. Rendues pour que le workflow le voie
+   * plutôt que de croire à un envoi complet.
+   */
+  ignorees: string[];
+}

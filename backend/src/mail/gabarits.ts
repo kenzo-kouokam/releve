@@ -504,3 +504,202 @@ function jourLisible(dateIso: string): string {
 function montantLisible(taux: number): string {
   return `${taux.toFixed(2).replace('.', ',')} €`;
 }
+
+/** Ce qu'un courriel d'alerte ou de cloture dit d'une mission. */
+export interface MissionCourriel {
+  reference: string;
+  client: string;
+  lieu: string;
+  /** Date de debut au format ISO. */
+  dateDebut: string;
+  heureDebut: string;
+  heureFin: string;
+  tauxHoraire: number | null;
+}
+
+function ligneMission(mission: MissionCourriel): string {
+  return (
+    `  ${mission.client} — ${mission.lieu}\n` +
+    `  ${jourLisible(mission.dateDebut)}, ${mission.heureDebut}-${mission.heureFin}` +
+    (mission.tauxHoraire === null ? '' : ` — ${montantLisible(mission.tauxHoraire)} brut / heure`)
+  );
+}
+
+function carteMission(mission: MissionCourriel): string {
+  return `
+    <table style="width:100%;border-collapse:collapse">
+      <tr>
+        <td style="padding:14px 16px;border:1px solid #e7e5e4;border-radius:10px">
+          <div style="font-size:15px;font-weight:600">${echapper(mission.client)}</div>
+          <div style="font-size:13px;color:#57534e;margin-top:2px">${echapper(mission.lieu)}</div>
+          <div style="font-size:13px;color:#57534e;margin-top:8px">
+            ${echapper(jourLisible(mission.dateDebut))},
+            ${echapper(`${mission.heureDebut}-${mission.heureFin}`)}${
+              mission.tauxHoraire === null
+                ? ''
+                : ` &middot; <strong>${echapper(montantLisible(mission.tauxHoraire))} brut / heure</strong>`
+            }
+          </div>
+        </td>
+      </tr>
+    </table>`;
+}
+
+/**
+ * Mission urgente : elle commence dans moins de deux jours.
+ *
+ * Message court et seul, contrairement au recapitulatif qui en liste cinq :
+ * l'urgence ne se lit pas dans une liste. Il reste un courriel de service — la
+ * preference « Notifications par e-mail » le coupe — et le dit, sinon la
+ * personne ne saurait pas d'ou il sort ni comment l'arreter.
+ */
+export function courrielMissionUrgente(
+  destinataire: string,
+  prenom: string | null,
+  mission: MissionCourriel,
+  lienMission: string,
+): Courriel {
+  const bonjour = prenom ? `Bonjour ${prenom},` : 'Bonjour,';
+  const titre = 'Une mission a pourvoir rapidement';
+
+  const texte = [
+    bonjour,
+    '',
+    'Une mission qui correspond a votre profil commence dans moins de 48 heures :',
+    '',
+    ligneMission(mission),
+    '',
+    'Y repondre : ' + lienMission,
+    '',
+    'Pour ne plus recevoir ces alertes, decochez « Notifications par e-mail » dans « Mon compte ».',
+    '',
+    PIED,
+  ].join('\n');
+
+  const html = enveloppe(
+    titre,
+    `<p style="margin:0 0 16px;line-height:1.6">${echapper(bonjour)}</p>
+     <p style="margin:0 0 20px;line-height:1.6">
+       Une mission qui correspond a votre profil commence dans <strong>moins de 48&nbsp;heures</strong>&nbsp;:
+     </p>
+     ${carteMission(mission)}
+     <p style="margin:20px 0 0">
+       <a href="${echapper(lienMission)}" style="display:inline-block;padding:10px 18px;background:#0f766e;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">
+         Voir la mission
+       </a>
+     </p>
+     <p style="margin:24px 0 0;font-size:13px;color:#57534e;line-height:1.6">
+       Pour ne plus recevoir ces alertes, decochez «&nbsp;Notifications par e-mail&nbsp;» dans
+       «&nbsp;Mon compte&nbsp;».
+     </p>`,
+  );
+
+  return { destinataire, sujet: `Releve — ${titre}`, texte, html };
+}
+
+/**
+ * La candidature n'aboutira pas : la mission est pourvue, ou annulee.
+ *
+ * Envoye quelle que soit la preference de notification, et c'est voulu : ce
+ * n'est pas un service rendu, c'est la suite de la demarche de la personne.
+ * Se taire lui laisserait garder une date libre pour rien.
+ */
+export function courrielMissionCloturee(
+  destinataire: string,
+  prenom: string | null,
+  mission: MissionCourriel,
+  motif: 'pourvue' | 'annulee',
+  lienListe: string,
+): Courriel {
+  const bonjour = prenom ? `Bonjour ${prenom},` : 'Bonjour,';
+  const titre = motif === 'pourvue' ? 'Mission pourvue' : 'Mission annulee';
+
+  const explication =
+    motif === 'pourvue'
+      ? 'La mission pour laquelle vous vous etiez porte candidat a ete pourvue par un autre profil.'
+      : 'La mission pour laquelle vous vous etiez porte candidat a ete annulee.';
+
+  const texte = [
+    bonjour,
+    '',
+    explication,
+    '',
+    ligneMission(mission),
+    '',
+    'Votre disponibilite est a nouveau libre de notre cote. D autres missions vous attendent : ' +
+      lienListe,
+    '',
+    PIED,
+  ].join('\n');
+
+  const html = enveloppe(
+    titre,
+    `<p style="margin:0 0 16px;line-height:1.6">${echapper(bonjour)}</p>
+     <p style="margin:0 0 20px;line-height:1.6">${echapper(explication)}</p>
+     ${carteMission(mission)}
+     <p style="margin:20px 0 0;line-height:1.6">
+       Votre disponibilite est a nouveau libre de notre cote.
+     </p>
+     <p style="margin:16px 0 0">
+       <a href="${echapper(lienListe)}" style="font-size:14px;font-weight:600;color:#0f766e">
+         Voir les missions ouvertes
+       </a>
+     </p>`,
+  );
+
+  return { destinataire, sujet: `Releve — ${titre}`, texte, html };
+}
+
+/**
+ * Confirmation au candidat retenu.
+ *
+ * Transactionnel : il engage la personne sur un creneau, et porte la reference
+ * de mission qu'elle citera en cas de question. La preference de notification
+ * ne s'y applique pas — la couper reviendrait a laisser quelqu'un ignorer qu'il
+ * travaille mardi.
+ */
+export function courrielConfirmationMission(
+  destinataire: string,
+  prenom: string | null,
+  mission: MissionCourriel,
+  lienMission: string,
+): Courriel {
+  const bonjour = prenom ? `Bonjour ${prenom},` : 'Bonjour,';
+  const titre = 'Votre mission est confirmee';
+
+  const texte = [
+    bonjour,
+    '',
+    `Vous etes retenu pour la mission ${mission.reference}. Elle est confirmee :`,
+    '',
+    ligneMission(mission),
+    '',
+    'Le detail : ' + lienMission,
+    '',
+    'En cas d empechement, prevenez l agence des que possible en citant la reference ' +
+      mission.reference +
+      '.',
+    '',
+    PIED,
+  ].join('\n');
+
+  const html = enveloppe(
+    titre,
+    `<p style="margin:0 0 16px;line-height:1.6">${echapper(bonjour)}</p>
+     <p style="margin:0 0 20px;line-height:1.6">
+       Vous etes retenu pour la mission <strong>${echapper(mission.reference)}</strong>. Elle est confirmee&nbsp;:
+     </p>
+     ${carteMission(mission)}
+     <p style="margin:20px 0 0">
+       <a href="${echapper(lienMission)}" style="display:inline-block;padding:10px 18px;background:#0f766e;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">
+         Voir le detail
+       </a>
+     </p>
+     <p style="margin:24px 0 0;font-size:13px;color:#57534e;line-height:1.6">
+       En cas d empechement, prevenez l agence des que possible en citant la reference
+       ${echapper(mission.reference)}.
+     </p>`,
+  );
+
+  return { destinataire, sujet: `Releve — ${titre}`, texte, html };
+}

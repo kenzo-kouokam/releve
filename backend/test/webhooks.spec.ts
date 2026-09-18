@@ -68,7 +68,8 @@ describe('emission des evenements', () => {
       deliveryId,
       mission: {
         id: '11111111-1111-4111-8111-111111111111',
-        reference: 'MIS-2026-0042',
+        reference: 'M-2026-0042',
+        urgente: false,
         qualification: 'AES',
         commune: 'Nantes',
         departement: '44',
@@ -80,6 +81,9 @@ describe('emission des evenements', () => {
         lienApp: 'http://localhost:3000/missions/11111111-1111-4111-8111-111111111111',
       },
       propositions: [],
+      candidatsEligibles: [],
+      candidatRetenu: null,
+      candidatsAPrevenir: [],
     };
   }
 
@@ -126,7 +130,7 @@ describe('emission des evenements', () => {
     expect(recu.entetes['x-releve-event']).toBe('mission.publiee');
     expect(recu.entetes['x-releve-delivery']).toBe('livraison-2');
     expect(recu.entetes['content-type']).toBe('application/json');
-    expect(JSON.parse(recu.brut).mission.reference).toBe('MIS-2026-0042');
+    expect(JSON.parse(recu.brut).mission.reference).toBe('M-2026-0042');
   });
 
   it('se tait, sans echouer, quand rien n est configure', async () => {
