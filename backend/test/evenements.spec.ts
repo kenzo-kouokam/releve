@@ -579,9 +579,9 @@ describe('evenements et routes internes', () => {
       const aPrevenir = emis('mission.annulee')!.candidatsAPrevenir;
 
       expect(aPrevenir).toHaveLength(1);
-      // Pas de preference ici : la cloture part quoi qu'il arrive.
-      expect(aPrevenir[0]!.notificationsEmail).toBeUndefined();
-      expect(aPrevenir[0]!.email).toBe('candidat.a@test.example');
+      // Rien d'identifiant ne sort : seule la reference pseudonyme circule.
+      expect(aPrevenir[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
+      expect(Object.keys(aPrevenir[0]!)).toEqual(['candidatRef']);
     });
   });
 

@@ -381,7 +381,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/courriels",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/alertes",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -433,7 +433,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/courriels",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $('Webhook').first().json.body.mission.id }}/alertes",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -932,7 +932,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 17,
+  "versionCounter": 18,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

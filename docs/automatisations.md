@@ -56,10 +56,15 @@ Pour `mission.pourvue` et `mission.annulee`, elle joint `candidatRetenu` et `can
 **Qui envoie quoi** : n8n **décide** (urgence, plafond, moment), l'**API expédie**. Après son filtrage, le workflow rassemble les références retenues et appelle :
 
 ```
-POST {RELEVE_API_URL}/interne/missions/:id/courriels
+POST {RELEVE_API_URL}/interne/missions/:id/alertes
 X-Service-Token: <INTERNAL_SERVICE_TOKEN>
 { "type": "urgente" | "cloture" | "confirmation", "candidatRefs": ["CAN-19B0E4", "CAN-5D21A8"] }
 → { missionId, type, demandees, envoyees, ignorees }
+```
+
+Les trois types possibles sont `urgente`, `cloture` et `confirmation`. L'API borne les destinataires autorisés pour chacun : une référence hors de cet ensemble est ignorée et rendue dans `ignorees`.
+
+```
 ```
 
 Un seul appel par lot, pas un par candidat : un envoi correspond à un geste.
