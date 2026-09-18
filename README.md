@@ -28,26 +28,33 @@ Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
 | **J3–J5 — Comptes, mission, profil**         | Inscription des deux profils, dépôt de besoin, candidature, validation, espace personnel de l'intérimaire | **Livré**                     |
 | **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, moteur de matching à score explicable                     | **Livré**                     |
 | J7–J9 — Tableau de bord, vitrine, conformité | Tableau de bord candidat, pages publiques, n8n, RGAA / RGESN / RGPD                                       | **Partiel** — voir ci-dessous |
+| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **Côté API livré** — workflows partiels |
 | J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | À faire · 4 j·dev             |
 
-**371 tests au vert** : 339 sur l'API, 32 sur les règles partagées. Le front n'en a aucun.
+**439 tests au vert** : 389 sur l'API, 50 sur les règles partagées. Le front n'en a aucun.
 
 Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
 fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
 confidentialité) et la refonte complète des écrans sur le canvas de design. Le volet RGPD est
 entamé : dépôt des pièces justificatives, **conservation bornée à un an** avec relance par courriel,
-et consentement recueilli et daté à l'inscription. Restent les **automatisations n8n**, le reste de
-la **conformité** (RGAA, RGESN) et le **référencement**. Le chiffrage par fonctionnalité, le plan de
+et consentement recueilli et daté à l'inscription. Les **automatisations n8n** ont désormais tout
+leur versant API — journal des transitions, émission signée, routes de service — et il reste à finir
+les workflows eux-mêmes. Restent aussi le reste de la **conformité** (RGAA, RGESN) et le
+**référencement**. Le chiffrage par fonctionnalité, le plan de
 repli et les livrables datés sont dans le cahier des charges figé à J+2, qui sert de référence pour
 l'écart entre estimé et réel.
 
 **La boucle produit est fermée** : un service publie un besoin, un intérimaire qualifié le voit et
 postule, le service le confirme, la mission apparaît dans son suivi.
 
-**Elle s'arrête là.** Les modèles `Contrat`, `ReleveHeures`, `Facture` et `EvenementMission` sont au
-schéma et **aucun service ne les lit** — zéro occurrence dans `backend/src`. La contractualisation
-et les relevés d'heures annoncés en tête de ce document sont donc une intention du modèle de
-données, pas une fonctionnalité.
+**Elle s'arrête là.** Les modèles `Contrat`, `ReleveHeures` et `Facture` sont au schéma et **aucun
+service ne les lit** — zéro occurrence dans `backend/src`. La contractualisation et les relevés
+d'heures annoncés en tête de ce document sont donc une intention du modèle de données, pas une
+fonctionnalité.
+
+`EvenementMission`, en revanche, **est désormais écrit** : chaque transition de mission y laisse une
+trace, et c'est ce journal qui alimente les automatisations. Voir « Automatisations » dans la section
+API.
 
 **Les trois manques qui bloquaient une mise en ligne sont traités** — dépôt de pièces
 justificatives, conditions d'utilisation, identité légale. Le dernier l'est **pour la démonstration
@@ -95,7 +102,7 @@ navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, c
 dérouler une inscription complète sans écrire à une vraie adresse.
 
 ```bash
-pnpm test                    # 306 tests : règles partagées + intégration API
+pnpm test                    # 439 tests : règles partagées + intégration API
 ```
 
 La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
@@ -492,6 +499,11 @@ backend/                          API NestJS
     clients/                      clients SAAD et lieux d'intervention
     contact/                      formulaire public de la vitrine, relayé par courriel
     notifications/                annonce quotidienne des missions correspondantes
+    evenements/                   journal des transitions, webhooks signés, routes de service
+      evenements.service.ts       consigne puis émet — le journal d'abord, toujours
+      webhooks.service.ts         émission signée HMAC, non bloquante
+      destinataires.service.ts    qui est concerné par une mission, et à quel titre
+      interne.controller.ts       /api/interne/* derrière X-Service-Token
     mail/                         sortie courriel, un seul point de sortie
       gabarits.ts                 les messages en clair, texte et HTML
       notifications-compte.service.ts  ce qu'on écrit à quelqu'un sur son compte
@@ -1023,6 +1035,51 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 `/tension/suggestion` retombe sur la médiane nationale quand le département ne dit rien, et renvoie
 `perimetre: 'aucun'` plutôt que d'inventer un taux.
 
+### Automatisations
+
+Deux sens de circulation. L'API **émet** un événement signé à chaque transition de mission ;
+l'automatisation **rappelle** l'API sur un préfixe à part. Aucun outil extérieur ne touche la base.
+
+| Événement              | Transition                                  |
+| ---------------------- | ------------------------------------------- |
+| `mission.publiee`      | Création d'une mission (elle naît `PUBLIEE`) |
+| `proposition.envoyee`  | L'agence propose des candidats               |
+| `proposition.acceptee` | Un candidat postule de lui-même              |
+| `mission.pourvue`      | L'établissement retient un candidat          |
+| `mission.annulee`      | Mission annulée                              |
+| `mission.relancee`     | Relance enregistrée par l'automatisation     |
+| `mission.escaladee`    | Escalade après relances infructueuses        |
+
+Chaque envoi porte `X-Releve-Event`, `X-Releve-Delivery` et `X-Releve-Signature` — `sha256=` suivi
+du HMAC SHA-256 du **corps brut**. L'émission est asynchrone et ne lève jamais : une panne de
+l'automatisation ne doit pas faire échouer une validation de mission. Trois tentatives, puis l'échec
+est journalisé — la transition, elle, reste écrite dans `EvenementMission`, qui permet de rejouer.
+
+| Méthode | Route                                           | Accès             |
+| ------- | ----------------------------------------------- | ----------------- |
+| `POST`  | `/missions/:id/propositions`                    | back-office       |
+| `GET`   | `/interne/missions/non-pourvues`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/relances`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/escalade`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/alertes`                 | `X-Service-Token` |
+| `POST`  | `/interne/notifications/missions`               | `X-Service-Token` |
+
+`POST /missions/:id/propositions` est la route par laquelle **l'agence propose des candidats depuis
+le classement**, par lot. C'est elle qui fait naître une candidature `ENVOYEE` — jusque-là ce statut
+était lu partout et écrit nulle part.
+
+Le seuil de relance est un paramètre d'appel et non un réglage serveur : la démonstration tourne à
+la minute, l'exploitation à la journée, et ce n'est pas à l'API d'arbitrer. Le seuil se mesure depuis
+le **dernier mouvement** — publication ou relance — sans quoi une mission relancée ressortirait
+aussitôt et le workflow tournerait en boucle.
+
+Sans `INTERNAL_SERVICE_TOKEN`, les routes internes répondent `503` : un oubli de configuration ferme
+la porte, il ne l'ouvre pas. Sans `N8N_WEBHOOK_SECRET`, l'API se tait — les transitions sont
+journalisées, rien ne sort. C'est l'état normal d'un poste qui ne fait pas tourner n8n.
+
+Le détail du contrat, et ce qui sort ou non vers Slack, sont dans `docs/automatisations-api.md`. Les
+workflows exportés vivent dans `n8n/`.
+
 « back-office » = `ADMIN_AGENCE` ou `CHARGE_RECRUTEMENT`.
 
 ---
@@ -1034,7 +1091,7 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 | `pnpm dev`                               | Contracts compilés, puis API et front en parallèle  |
 | `pnpm dev:backend` / `pnpm dev:frontend` | Un seul des deux                                    |
 | `pnpm build`                             | Contracts, puis API, puis front                     |
-| `pnpm test`                              | Règles partagées (32) puis intégration API (339)    |
+| `pnpm test`                              | Règles partagées (50) puis intégration API (389)    |
 | `pnpm test:shared`                       | Règles partagées seules, sans base                  |
 | `pnpm test:backend`                      | Intégration API seule                               |
 | `pnpm typecheck`                         | TypeScript sur les trois paquets, tests compris     |
@@ -1120,8 +1177,8 @@ mais à revoir si la suite s'allonge.
 le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
 travail. Sans conséquence technique, mais visible en soutenance.
 
-**Aucun test ne couvre le front.** Les 306 tests portent sur l'API et les règles partagées ; les
-30 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
+**Aucun test ne couvre le front.** Les 439 tests portent sur l'API et les règles partagées ; les
+35 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
 
 **La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le
 rapport de couverture est un livrable attendu.
@@ -1166,10 +1223,17 @@ bloc de chiffres reste masqué tant qu'il est vide : une absence ne trompe perso
 inventé si. Le formulaire de contact, lui, envoie désormais pour de bon — voir « Contact » dans la
 section API.
 
-**Les notifications ne couvrent que deux moments.** Le candidat est averti quand son dossier est
-validé, puis une fois par jour des missions publiées qui lui correspondent. Rien ne l'avertit
-lorsqu'un établissement retient sa candidature, ni lorsqu'une mission à laquelle il a postulé est
-annulée — ces deux-là restent à écrire, et ce sont les plus attendues une fois la boucle fermée.
+**Le récapitulatif quotidien est un delta, pas un récapitulatif.** Le balayage ne retient que les
+missions créées depuis le dernier envoi, et la date de dernier envoi avance même quand aucun courriel
+ne part. Une mission publiée lundi et toujours ouverte vendredi n'a donc été annoncée qu'une fois. Le
+choix est assumé — il évite huit courriels quand une agence dépose huit besoins dans l'après-midi —
+mais « annoncée tant qu'elle n'est pas pourvue » demanderait un vrai changement de logique.
+
+**Les autres moments sont couverts par les automatisations.** L'alerte pour une mission urgente, la
+clôture quand une mission est pourvue ou annulée, et la confirmation au candidat retenu passent
+désormais par les événements émis vers n8n, qui décide et déclenche. Les gabarits existent des deux
+côtés — backend et nœuds n8n — ce qui est le prix de ce découpage : un changement de mention légale
+doit être fait deux fois.
 
 L'interrupteur « Notifications par e-mail » du canvas existe désormais dans « Mon compte » et
 commande quelque chose de réel (`Utilisateur.notificationsEmail`). Il ne coupe que les courriels de
