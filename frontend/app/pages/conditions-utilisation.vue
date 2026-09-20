@@ -23,8 +23,9 @@ useHead({
     <section>
       <h2>1. Objet</h2>
       <p>
-        Relève est une plateforme de mise en relation entre des intervenants de l'aide à domicile et
-        des services d'aide et d'accompagnement à domicile (SAAD) qui cherchent un remplacement.
+        Relève est une plateforme de mise en relation entre des professionnels du soin aux personnes
+        âgées et des établissements d'hébergement pour personnes âgées dépendantes (EHPAD) qui
+        cherchent un remplacement.
         L'agence intervient comme entreprise de travail temporaire : c'est elle qui emploie
         l'intérimaire et le met à disposition de l'établissement.
       </p>

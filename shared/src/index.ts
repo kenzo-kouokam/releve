@@ -11,6 +11,7 @@ export * from './lieu';
 export * from './habilitation';
 export * from './client';
 export * from './qualification';
+export * from './competences';
 export * from './utilisateur';
 export * from './inscription';
 export * from './verification';

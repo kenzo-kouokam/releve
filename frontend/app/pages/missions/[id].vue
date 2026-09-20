@@ -29,10 +29,11 @@ const mission = computed(() => {
     },
     urgente: ["Aujourd'hui", 'Demain'].includes(jourCourt(detail.dateDebut)),
     // La categorie du Figma etait un type d'etablissement. Le perimetre etant
-    // reduit aux SAAD, c'est le diplome exige qui porte l'information utile.
+    // reduit aux EHPAD, c'est le diplome exige qui porte l'information utile.
     categorie: detail.qualificationRequise.code,
     description: detail.description ?? detail.motifRecours,
     prerequis: detail.prerequis,
+    competences: detail.competences,
     dejaPostule: detail.dejaPostule,
     distanceKm: detail.distanceKm,
     horsRayon: detail.horsRayon === true,
@@ -178,6 +179,31 @@ async function partager(): Promise<void> {
             {{ prerequis.libelle }}
           </span>
         </div>
+
+        <!--
+          Séparé des prérequis, et ce n'est pas un détail de mise en page : un
+          prérequis est vérifié et conditionne l'accès à la mission, une
+          compétence est déclarée et ne fait que peser sur le classement. Les
+          mélanger laisserait croire qu'une case non cochée ferme la porte.
+        -->
+        <template v-if="mission.competences.length">
+          <h2>Compétences attendues</h2>
+          <div class="prerequis">
+            <span
+              v-for="competence in mission.competences"
+              :key="competence.id"
+              class="exigence"
+              :class="{ indispensable: competence.indispensable }"
+            >
+              {{ competence.libelle
+              }}<template v-if="competence.indispensable"> · indispensable</template>
+            </span>
+          </div>
+          <p class="note-competences">
+            Déclarez les vôtres depuis votre espace : elles comptent dans le classement, sans
+            jamais conditionner l'accès à la mission.
+          </p>
+        </template>
       </article>
 
       <aside class="candidature">
@@ -218,6 +244,20 @@ async function partager(): Promise<void> {
 </template>
 
 <style scoped>
+.exigence.indispensable {
+  color: var(--eta);
+  background: var(--eta-soft);
+  border-color: var(--eta-soft);
+  font-weight: 600;
+}
+
+.note-competences {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .detail {
   max-width: 1000px;
 }

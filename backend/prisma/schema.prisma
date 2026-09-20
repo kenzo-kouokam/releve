@@ -1,13 +1,13 @@
 // Schema Relève - voir docs/analyse-de-marche.html
 //
 // Trois invariants portes par ce schema :
-//  1. le CLIENT contractuel n'est pas le LIEU d'intervention : un SAAD signe la
-//     mission, l'intervention a lieu chez le beneficiaire ;
+//  1. le CLIENT contractuel n'est pas le LIEU d'intervention : un gestionnaire
+//     signe pour l'ensemble de ses EHPAD, le remplacement se fait dans une unite ;
 //  2. la convention collective est portee par le CLIENT (principe d'egalite de
 //     traitement avec les salaries de l'entreprise utilisatrice), pas par le candidat ;
-//  3. le statut reglementaire du CLIENT est saisi sur piece par l'agence : il
-//     decide de ce que la structure a le droit de faire, et rien dans le SIRET
-//     ne le dit.
+//  3. l'autorisation du CLIENT est saisie sur piece par l'agence : un EHPAD
+//     n'ouvre qu'apres un arrete conjoint ARS / conseil departemental, et rien
+//     dans le SIRET ne le dit.
 
 generator client {
   provider        = "prisma-client-js"
@@ -15,8 +15,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
   // L'image postgis/postgis installe ces quatre extensions a la creation de la
   // base. Les declarer toutes evite que `prisma migrate dev` les voie comme une
   // derive et propose de reinitialiser la base a chaque migration.
@@ -40,24 +40,31 @@ enum StatutCandidat {
   ARCHIVE
 }
 
-// Un seul type de client : l'agence ne place que dans des services d'aide et
-// d'accompagnement a domicile. L'enum survit a la reduction parce qu'il porte
-// une information juridique : un SAAD releve de l'article L. 312-1 du CASF.
-/// Voir `shared/src/habilitation.ts` pour ce que chaque regime autorise.
-enum StatutReglementaire {
-  DECLARE_SAP
-  AGREE_SAP
-  AUTORISE_SAD_ESMS
-  PRESTATAIRE_CLASSIQUE
+/// Statut juridique du gestionnaire de l'EHPAD.
+///
+/// Il ne dit pas ce que l'etablissement a le droit de faire — l'arrete
+/// d'autorisation s'en charge, et tout EHPAD en a un — mais sous quel cadre
+/// salarial il remunere, donc a quoi se compare le salaire de reference de
+/// l'interimaire.
+enum StatutJuridique {
+  PUBLIC_HOSPITALIER
+  PUBLIC_TERRITORIAL
+  PRIVE_NON_LUCRATIF
+  PRIVE_COMMERCIAL
 }
 
+// Un seul type de client : l'agence ne place que dans des etablissements
+// d'hebergement pour personnes agees dependantes. L'enum survit a la reduction
+// parce qu'il porte une information juridique : un EHPAD releve de l'article
+// L. 312-1 du CASF, donc la duree minimale d'exercice prealable a l'interim
+// s'applique a toutes ses mises a disposition.
 enum TypeClient {
-  SAAD
+  EHPAD
 }
 
 enum TypeLieu {
-  DOMICILE_BENEFICIAIRE
   ETABLISSEMENT
+  UNITE_PROTEGEE
 }
 
 /// Finesse du point calcule a partir d'une adresse postale.
@@ -128,20 +135,20 @@ model Agence {
 }
 
 model Utilisateur {
-  id           String          @id @default(uuid()) @db.Uuid
-  email        String          @unique
-  motDePasse   String
-  role         RoleUtilisateur
-  actif        Boolean         @default(true)
-  derniereCnx  DateTime?
+  id          String          @id @default(uuid()) @db.Uuid
+  email       String          @unique
+  motDePasse  String
+  role        RoleUtilisateur
+  actif       Boolean         @default(true)
+  derniereCnx DateTime?
 
   /// Date de confirmation de l'adresse, par clic sur le lien recu. Tant qu'elle
   /// est nulle, la connexion est refusee : l'adresse n'a pas ete prouvee, et
   /// c'est elle qui sert d'identifiant. Nullable plutot que booleen, parce que
   /// « quand » se demande toujours apres « si » — support, litige, RGPD.
   emailVerifieLe DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Compteur d'echecs consecutifs. Il alimente un ralentissement progressif de la
   // reponse, pas un verrouillage : bloquer un compte donnerait a un attaquant le
@@ -195,19 +202,19 @@ model Utilisateur {
 /// couper. Seule une empreinte SHA-256 est stockee - une fuite de la table ne
 /// donne aucun jeton utilisable.
 model JetonRafraichissement {
-  id            String   @id @default(uuid()) @db.Uuid
-  utilisateurId String   @db.Uuid
+  id            String      @id @default(uuid()) @db.Uuid
+  utilisateurId String      @db.Uuid
   utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
 
   empreinte String   @unique
   expireLe  DateTime
   createdAt DateTime @default(now())
 
-  utiliseLe  DateTime?
-  revoqueLe  DateTime?
+  utiliseLe   DateTime?
+  revoqueLe   DateTime?
   /// Rotation : chaque usage emet un successeur. Rejouer un jeton deja utilise
   /// signale un vol, et fait tomber toute la chaine (voir auth.service).
-  remplacePar String? @db.Uuid
+  remplacePar String?   @db.Uuid
 
   /// Racine de la chaine de rotation, pour revoquer une session d'un seul coup.
   familleId String @db.Uuid
@@ -227,13 +234,11 @@ enum UsageJeton {
 
 /**
  * Lien envoye par courriel, a usage unique.
- *
  * Une seule table pour les deux parcours — confirmer une adresse, reprendre la
  * main sur un compte — parce que leurs proprietes de securite sont exactement
  * les memes : empreinte SHA-256 et jamais la valeur, peremption, consommation
  * unique, invalidation des liens precedents. Les ecrire deux fois les ferait
  * diverger, et c'est toujours la copie oubliee qui reste exploitable.
- *
  * Meme traitement que le jeton de rafraichissement, et pour la meme raison :
  * une fuite de la table ne donne aucun lien utilisable, alors que ces liens
  * ouvrent une session ou changent un mot de passe.
@@ -270,18 +275,18 @@ model Candidat {
   telephone String
   statut    StatutCandidat @default(BROUILLON)
 
-  adresse    String
-  codePostal String
-  ville      String
+  adresse          String
+  codePostal       String
+  ville            String
   // Calculees par `GeocodageService` a partir de l'adresse, jamais saisies.
   // Nulles tant que l'adresse n'a pas pu etre situee : le matching ecarte alors
   // la fiche en le disant, plutot que de mesurer une distance inventee.
-  latitude   Float?
-  longitude  Float?
+  latitude         Float?
+  longitude        Float?
   // Colonne PostGIS, ecrite en SQL brut : le client Prisma la declare
   // `Unsupported` et refuse de l'ecrire. Elle bouge toujours avec les deux
   // colonnes ci-dessus, dans la meme instruction.
-  geom       Unsupported("geography(Point, 4326)")?
+  geom             Unsupported("geography(Point, 4326)")?
   /// Date du dernier geocodage reussi. Nulle quand la fiche n'est pas situee.
   geocodeLe        DateTime?
   geocodePrecision PrecisionGeocodage?
@@ -290,8 +295,8 @@ model Candidat {
   permisB  Boolean @default(false)
   vehicule Boolean @default(false)
 
-  visiteMedicaleLe  DateTime? @db.Date
-  vaccinationVerifiee Boolean @default(false)
+  visiteMedicaleLe    DateTime? @db.Date
+  vaccinationVerifiee Boolean   @default(false)
 
   /// Derniere fois que le candidat a ete averti de missions correspondantes.
   ///
@@ -309,6 +314,7 @@ model Candidat {
   disponibilites   Disponibilite[]
   indisponibilites Indisponibilite[]
   documents        DocumentCandidat[]
+  competences      CompetenceCandidat[]
   propositions     Proposition[]
   contrats         Contrat[]
   missions         Mission[]
@@ -351,11 +357,11 @@ model DocumentCandidat {
   type       TypeDocument
 
   /// Nom tel que la personne l'a televerse. Sert a l'affichage, jamais au disque.
-  nomOrigine String
+  nomOrigine     String
   /// Type MIME constate a la reception, restreint a la liste blanche du service.
-  typeMime   String
+  typeMime       String
   /// Taille en octets, plafonnee a la reception.
-  taille     Int
+  taille         Int
   /// Identifiant opaque du fichier dans le stockage.
   cheminStockage String @unique
 
@@ -366,8 +372,8 @@ model DocumentCandidat {
   /// Date a laquelle l'agence a constate la piece. Nulle tant qu'elle ne l'a pas
   /// fait : une piece deposee n'est pas une piece verifiee, exactement comme
   /// pour un diplome declare.
-  verifieLe     DateTime?
-  verifieParId  String?   @db.Uuid
+  verifieLe    DateTime?
+  verifieParId String?   @db.Uuid
 
   /// Date de peremption, pour les pieces qui en ont une (titre de sejour,
   /// carte d'identite). Nulle sinon.
@@ -402,19 +408,126 @@ model DocumentCandidat {
   @@map("document_candidat")
 }
 
+/// Competence metier, agregee depuis les offres France Travail.
+///
+/// Le referentiel n'est pas ecrit a la main et ne doit pas l'etre : ce qu'un
+/// EHPAD attend reellement d'un aide-soignant s'apprend en lisant ce que les
+/// EHPAD ecrivent dans leurs annonces, pas en imaginant une liste. C'est le
+/// second usage des donnees publiques, a cote du barometre — et c'est celui qui
+/// sert le plus souvent, puisqu'il est sollicite a chaque depot de besoin.
+///
+/// Les lignes sont reconstruites par `pnpm cli competences`, jamais saisies.
+/// Une competence qui disparait du marche n'est pas supprimee : elle garde ses
+/// rattachements vers les missions passees et les profils qui l'ont declaree,
+/// et c'est `occurrences` qui tombe a zero. Supprimer reecrirait l'histoire.
+model Competence {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Libelle normalise — minuscules, sans accents, espaces reduits. C'est la
+  /// cle de dedoublonnage : les employeurs ecrivent « Aide a la toilette »,
+  /// « aide à la toilette » et « Aide  à la  toilette » pour la meme chose.
+  cle String @unique
+
+  /// Le libelle tel que la source le formule, dans sa forme la plus frequente.
+  /// C'est lui qui s'affiche : une compétence rendue en minuscules sans accents
+  /// se lit comme une faute.
+  libelle String
+
+  /// Code du referentiel de competences quand la source le fournit. Souvent
+  /// absent : l'API laisse les employeurs saisir en clair.
+  code String?
+
+  /// Date du dernier passage de l'agregation qui l'a vue.
+  vueLe DateTime @default(now())
+
+  metiers   CompetenceMetier[]
+  missions  CompetenceMission[]
+  candidats CompetenceCandidat[]
+
+  @@map("competence")
+}
+
+/// Frequence d'une competence sur un metier donne.
+///
+/// La table existe parce qu'une competence n'appartient pas a un metier : « Aide
+/// a la toilette » se lit sur les annonces d'aide-soignant comme sur celles
+/// d'accompagnant. Porter le code ROME sur la competence elle-meme creerait deux
+/// lignes pour la meme chose, et un profil declarant l'une ne matcherait pas une
+/// mission exigeant l'autre.
+///
+/// `occurrences` est ce qui permet de classer : proposer a l'etablissement les
+/// trente competences les plus demandees sur son metier a du sens, lui en
+/// proposer trois cents n'en a aucun.
+model CompetenceMetier {
+  competenceId String     @db.Uuid
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+
+  /// Code ROME, parmi `ROMES_SECTEUR`.
+  romeCode String
+
+  /// Nombre d'offres actives ou la competence apparait pour ce metier, au
+  /// dernier passage de l'agregation.
+  occurrences Int @default(0)
+
+  @@id([competenceId, romeCode])
+  // Le classement par metier est la requete de loin la plus frequente.
+  @@index([romeCode, occurrences])
+  @@map("competence_metier")
+}
+
+/// Competence attendue sur une mission.
+///
+/// `indispensable` separe ce qui ecarte de ce qui departage. Une competence
+/// indispensable non detenue ne devrait pas rendre le candidat inclassable —
+/// l'eligibilite reste portee par le diplome, la zone et les disponibilites —
+/// mais elle pese beaucoup plus lourd dans le score qu'une competence souhaitee.
+model CompetenceMission {
+  missionId String  @db.Uuid
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  competenceId String     @db.Uuid
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Restrict)
+
+  indispensable Boolean @default(false)
+
+  @@id([missionId, competenceId])
+  @@index([competenceId])
+  @@map("competence_mission")
+}
+
+/// Competence declaree par un candidat.
+///
+/// Declaree, et non verifiee : contrairement au diplome, aucune piece ne
+/// l'etablit. C'est pourquoi elle departage sans jamais ouvrir de porte — un
+/// candidat ne devient pas eligible parce qu'il a coche une case.
+model CompetenceCandidat {
+  candidatId String   @db.Uuid
+  candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
+
+  competenceId String     @db.Uuid
+  competence   Competence @relation(fields: [competenceId], references: [id], onDelete: Restrict)
+
+  declareeLe DateTime @default(now())
+
+  @@id([candidatId, competenceId])
+  // La recherche par mots-cles part de la competence et remonte aux candidats.
+  @@index([competenceId])
+  @@map("competence_candidat")
+}
+
 model Qualification {
-  id       String    @id @default(uuid()) @db.Uuid
-  code     String    @unique
-  libelle  String
+  id      String @id @default(uuid()) @db.Uuid
+  code    String @unique
+  libelle String
 
   // Code ROME du metier correspondant. C'est le pont vers les offres collectees
   // sur France Travail : il permet de proposer a l'etablissement le taux median
   // du marche au moment ou il fixe sa remuneration.
   romeCode String?
 
-  candidats    QualificationCandidat[]
-  experiences  ExperienceProfessionnelle[]
-  missions     Mission[]
+  candidats   QualificationCandidat[]
+  experiences ExperienceProfessionnelle[]
+  missions    Mission[]
 
   @@map("qualification")
 }
@@ -438,13 +551,11 @@ model QualificationCandidat {
 
 /**
  * Un poste occupe, declare par l'intervenant.
- *
  * Le bareme mesurait jusqu'ici l'« experience » par l'anciennete du diplome.
  * C'est un mauvais substitut : un DEAS obtenu en 2014 et jamais exerce comptait
  * autant que dix ans de terrain, et une personne qui reprend apres quinze ans
  * d'interruption partait devant celle qui n'a jamais quitte le metier. Ce
  * modele porte ce que le diplome ne dit pas.
- *
  * Meme invariant que pour les qualifications : la ligne nait non verifiee et ne
  * rapporte rien tant que l'agence ne l'a pas controlee. Sans cela, le score se
  * declarerait tout seul, et l'etablissement classerait sur de la parole.
@@ -529,20 +640,22 @@ model Client {
   agence        Agence     @relation(fields: [agenceId], references: [id], onDelete: Restrict)
   raisonSociale String
   siret         String     @unique
-  type          TypeClient @default(SAAD)
+  type          TypeClient @default(EHPAD)
 
-  /// Regime sous lequel la structure intervient, et la piece qui l'etablit.
+  /// Statut juridique du gestionnaire, et pieces de l'autorisation.
   ///
   /// Nullable a dessein : les fiches creees avant l'introduction de la regle
   /// n'ont pas de statut, et leur en inventer un serait pire que l'absence. Le
   /// champ n'est pas pour autant facultatif — une fiche sans statut ne peut
   /// pas etre activee, donc ne recoit aucune mise a disposition.
-  statutReglementaire StatutReglementaire?
-  numeroSap           String?
-  numeroAgrement      String?
-  numeroFiness        String?
-  arreteReference     String?
-  arreteDate          DateTime?
+  ///
+  /// Le FINESS attendu est le FINESS geographique, celui du site. Un groupe qui
+  /// exploite douze EHPAD n'a qu'un FINESS juridique, et l'arrete se lit site
+  /// par site.
+  statutJuridique StatutJuridique?
+  numeroFiness    String?
+  arreteReference String?
+  arreteDate      DateTime?
 
   // Sert a calculer le salaire de reference de l'interimaire : c'est la
   // convention de l'entreprise utilisatrice qui s'applique, pas celle du candidat.
@@ -573,23 +686,21 @@ model LieuIntervention {
   type     TypeLieu
   libelle  String
 
-  adresse    String
-  codePostal String
-  ville      String
+  adresse          String
+  codePostal       String
+  ville            String
   // Meme regle que pour le candidat : calculees, jamais saisies. Une mission
   // dont le lieu n'est pas situe n'a aucun candidat retenu, puisque la distance
   // n'est mesurable pour personne.
-  latitude   Float?
-  longitude  Float?
-  geom       Unsupported("geography(Point, 4326)")?
+  latitude         Float?
+  longitude        Float?
+  geom             Unsupported("geography(Point, 4326)")?
   geocodeLe        DateTime?
   geocodePrecision PrecisionGeocodage?
 
   etage     String?
   codeAcces String?
   consignes String?
-  // Aucune donnee de sante : uniquement une reference pseudonymisee.
-  beneficiaireRef String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -635,6 +746,7 @@ model Mission {
   updatedAt DateTime @updatedAt
 
   propositions Proposition[]
+  competences  CompetenceMission[]
   contrat      Contrat?
   releves      ReleveHeures[]
   evenements   EvenementMission[]
@@ -652,7 +764,7 @@ model Proposition {
   candidatId String   @db.Uuid
   candidat   Candidat @relation(fields: [candidatId], references: [id], onDelete: Cascade)
 
-  score Decimal? @db.Decimal(5, 2)
+  score       Decimal? @db.Decimal(5, 2)
   // Detail des composantes du score : le charge de recrutement doit pouvoir
   // comprendre pourquoi un candidat est troisieme et pas premier.
   detailScore Json?
@@ -730,11 +842,11 @@ model Facture {
   clientId String @db.Uuid
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  periodeDebut DateTime @db.Date
-  periodeFin   DateTime @db.Date
-  montantHT    Decimal  @default(0) @db.Decimal(10, 2)
-  tauxTva      Decimal  @default(20) @db.Decimal(5, 2)
-  montantTTC   Decimal  @default(0) @db.Decimal(10, 2)
+  periodeDebut DateTime  @db.Date
+  periodeFin   DateTime  @db.Date
+  montantHT    Decimal   @default(0) @db.Decimal(10, 2)
+  tauxTva      Decimal   @default(20) @db.Decimal(5, 2)
+  montantTTC   Decimal   @default(0) @db.Decimal(10, 2)
   emiseLe      DateTime?
   payeeLe      DateTime?
 
@@ -841,27 +953,27 @@ model OffreCollectee {
 
   /// Tel que saisi par l'employeur ("AIDE-SOIGNANT(E) - Interim (H/F)").
   /// C'est ce qui s'affiche, sans retouche.
-  intitule String
+  intitule          String
   /// Ramene a l'appellation du referentiel ROME, pour pouvoir regrouper.
   /// Usage statistique uniquement : ne jamais l'afficher a la place du titre.
   intituleNormalise String
   /// Le corps de l'annonce. La licence demande de restituer le contenu mis a
   /// disposition, pas un resume.
-  description String?
+  description       String?
 
   entreprise            String?
   entrepriseDescription String?
 
   /// Null quand le lieu n'est pas situable ("France entiere").
-  departement String?
+  departement        String?
   /// Nom lisible, tire du libelle du lieu : "74 - Thenes" donne "Thenes".
-  communeNom  String?
+  communeNom         String?
   /// Code INSEE, que l'API range sous `lieuTravail.commune`. Ce n'est pas un
   /// nom de ville, et l'afficher tel quel montrerait "74280" a l'utilisateur.
-  communeCode String?
-  codePostal  String?
-  latitude    Float?
-  longitude   Float?
+  communeCode        String?
+  codePostal         String?
+  latitude           Float?
+  longitude          Float?
   /// Null tant que l'offre n'est pas situee. Voir `OrigineCoordonnees` : une
   /// coordonnee deduite de la commune ne vaut pas une coordonnee de la source,
   /// et l'affichage doit pouvoir le dire.
@@ -869,7 +981,7 @@ model OffreCollectee {
 
   /// Ramene a l'heure, quelle que soit la base annoncee. Null quand le libelle
   /// n'est pas exploitable : mieux vaut une absence qu'un chiffre invente.
-  tauxHoraire  Decimal? @db.Decimal(8, 4)
+  tauxHoraire    Decimal? @db.Decimal(8, 4)
   /// Libelle d'origine, conserve pour l'audit de la conversion et pour
   /// l'affichage : c'est lui que lit le visiteur, pas la valeur convertie.
   salaireLibelle String?
@@ -880,9 +992,9 @@ model OffreCollectee {
   secteurActiviteLibelle String?
   /// Listes telles que la source les structure. Json plutot que des tables
   /// filles : rien ne les interroge, elles ne servent qu'a etre reaffichees.
-  competences        Json @default("[]")
-  horaires           Json @default("[]")
-  conditionsExercice Json @default("[]")
+  competences            Json    @default("[]")
+  horaires               Json    @default("[]")
+  conditionsExercice     Json    @default("[]")
 
   dureeTravailLibelle String?
   natureContrat       String?
@@ -891,7 +1003,7 @@ model OffreCollectee {
   alternance          Boolean @default(false)
   nombrePostes        Int     @default(1)
 
-  publieeLe   DateTime
+  publieeLe    DateTime
   /// Date de derniere modification chez la source. La licence impose de
   /// l'afficher au visiteur.
   actualiseeLe DateTime?

@@ -43,7 +43,7 @@ export class ReinitialisationService {
    *
    * Ne dit jamais si l'adresse existe : ce formulaire est public, et repondre
    * differemment en ferait un annuaire des inscrits — particulierement genant
-   * ici, ou etre inscrit revele qu'on cherche des missions d'aide a domicile.
+   * ici, ou etre inscrit revele qu'on cherche des missions en EHPAD.
    * L'appelant recoit toujours la meme chose, compte inconnu ou non.
    *
    * Retourne le lien, dont seuls les tests se servent.

@@ -121,7 +121,7 @@ export class AuthController {
    *
    * 204 systematiquement, adresse connue ou non : repondre differemment ferait
    * de ce formulaire public un annuaire des inscrits — et ici, etre inscrit
-   * revele qu'on cherche des missions d'aide a domicile. Plafond tres serre
+   * revele qu'on cherche des missions en EHPAD. Plafond tres serre
    * pour la meme raison : trois essais par minute ne genent personne de bonne
    * foi, et rendent le balayage d'adresses impraticable.
    */

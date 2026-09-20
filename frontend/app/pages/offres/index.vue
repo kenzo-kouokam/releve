@@ -18,7 +18,7 @@ useHead({
     {
       name: 'description',
       content:
-        "Les missions d'intérim en aide à domicile et en établissement proposées par Relève : aide-soignant, auxiliaire de vie.",
+        "Les missions d'intérim en EHPAD proposées par Relève : aide-soignant, accompagnant éducatif et social.",
     },
   ],
 });
@@ -28,7 +28,24 @@ const { requete } = useApi();
 const departement = ref('');
 const ville = ref('');
 const metier = ref('');
-const page = ref(1);
+
+/**
+ * Chargement progressif plutôt que pagination numérotée.
+ *
+ * Trois offres d'abord, puis trois de plus à chaque clic. La liste publique
+ * n'est pas un catalogue à parcourir : elle doit donner envie de créer un
+ * compte, et une première page courte le fait mieux qu'un mur de vingt cartes.
+ * « Page 2 sur 4 » posait en plus une question que le visiteur n'a pas — il ne
+ * cherche pas une page, il cherche à en voir un peu plus.
+ *
+ * Le nombre visible sert directement de `limite`, et la requête repart toujours
+ * de la première page. Le résultat est donc reconstruit en entier à chaque
+ * clic : quelques dizaines de lignes, aucune accumulation à gérer côté client,
+ * et pas de risque de doublon si une mission est publiée entre deux clics.
+ */
+const PAR_FOURNEE = 3;
+
+const visibles = ref(PAR_FOURNEE);
 
 const { data: options } = await useAsyncData('offres-options', () =>
   requete<OptionsVitrine>('/offres/options'),
@@ -39,19 +56,24 @@ const { data, pending, error, refresh } = await useAsyncData(
   () =>
     requete<PageResultat<MissionVitrine>>('/offres', {
       query: {
-        page: page.value,
-        limite: 20,
+        page: 1,
+        limite: visibles.value,
         ...(departement.value ? { departement: departement.value } : {}),
         ...(ville.value ? { ville: ville.value } : {}),
         ...(metier.value ? { metier: metier.value } : {}),
       },
     }),
-  { watch: [page] },
+  { watch: [visibles] },
 );
 
 const missions = computed(() => data.value?.donnees ?? []);
 const total = computed(() => data.value?.total ?? 0);
-const pages = computed(() => Math.max(1, Math.ceil(total.value / (data.value?.limite || 20))));
+
+/** Reste-t-il quelque chose à montrer ? Sinon le bouton n'a pas lieu d'être. */
+const encore = computed(() => missions.value.length < total.value);
+
+/** Ce que le bouton annonce : « Voir les 4 offres suivantes », pas « Suivant ». */
+const restantes = computed(() => Math.min(PAR_FOURNEE, total.value - missions.value.length));
 
 /**
  * Les villes proposées suivent le département choisi. Sans ce filtrage, le menu
@@ -73,11 +95,18 @@ watch(departement, () => {
   }
 });
 
-/** Un changement de filtre repart de la première page : sinon la liste s'ouvre
- * sur une page qui n'existe plus dans le nouveau résultat. */
+/** Un changement de filtre repart d'une fournée : sinon la liste garderait la
+ * hauteur qu'elle avait pour un résultat qui n'a plus rien à voir. */
 function filtrer() {
-  page.value = 1;
-  refresh();
+  if (visibles.value === PAR_FOURNEE) {
+    // `watch` ne se déclenche pas sur une valeur inchangée, et un filtre
+    // appliqué depuis la première fournée ne rendrait alors rien de nouveau.
+    refresh();
+
+    return;
+  }
+
+  visibles.value = PAR_FOURNEE;
 }
 
 function reinitialiser() {
@@ -89,8 +118,8 @@ function reinitialiser() {
 
 const filtresActifs = computed(() => Boolean(departement.value || ville.value || metier.value));
 
-function allerA(cible: number) {
-  page.value = Math.min(pages.value, Math.max(1, cible));
+function voirPlus() {
+  visibles.value += PAR_FOURNEE;
 }
 
 const jourCourt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
@@ -166,7 +195,7 @@ function taux(mission: MissionVitrine): string {
       Les offres sont momentanément indisponibles. Réessayer dans un instant.
     </p>
 
-    <p v-else-if="pending" class="vide">Chargement des offres…</p>
+    <p v-else-if="pending && !missions.length" class="vide">Chargement des offres…</p>
 
     <p v-else-if="!missions.length" class="vide">
       <template v-if="filtresActifs">
@@ -203,8 +232,8 @@ function taux(mission: MissionVitrine): string {
           <ul class="attributs">
             <li>{{ mission.heureDebut }} – {{ mission.heureFin }}</li>
             <li v-if="mission.travailNuit">Travail de nuit</li>
-            <li v-if="mission.typeLieu === 'ETABLISSEMENT'">En établissement</li>
-            <li v-else>À domicile</li>
+            <li v-if="mission.typeLieu === 'UNITE_PROTEGEE'">Unité protégée</li>
+            <li v-else>Hébergement</li>
           </ul>
 
           <p v-if="mission.description" class="description">{{ mission.description }}</p>
@@ -218,16 +247,65 @@ function taux(mission: MissionVitrine): string {
         </li>
       </ul>
 
-      <nav v-if="pages > 1" class="pagination" aria-label="Pages d'offres">
-        <button type="button" :disabled="page <= 1" @click="allerA(page - 1)">Précédent</button>
-        <span>Page {{ page }} sur {{ pages }}</span>
-        <button type="button" :disabled="page >= pages" @click="allerA(page + 1)">Suivant</button>
-      </nav>
+      <!--
+        `aria-live` sur le compte plus haut ne suffirait pas : c'est la liste qui
+        s'allonge, et une personne au lecteur d'écran doit savoir combien de
+        lignes viennent d'apparaître sans avoir à la reparcourir.
+      -->
+      <div v-if="encore" class="voir-plus">
+        <button type="button" :disabled="pending" @click="voirPlus()">
+          {{ pending ? 'Chargement…' : `Voir ${restantes} offre${restantes > 1 ? 's' : ''} de plus` }}
+        </button>
+        <p class="reste">{{ missions.length }} sur {{ total }} affichées</p>
+      </div>
+
+      <p v-else-if="total > PAR_FOURNEE" class="reste fin">
+        Toutes les offres ouvertes sont affichées.
+      </p>
     </template>
   </main>
 </template>
 
 <style scoped>
+.voir-plus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  margin-top: 28px;
+}
+
+.voir-plus button {
+  padding: 11px 22px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.voir-plus button:hover:not(:disabled) {
+  border-color: var(--dom);
+}
+
+.voir-plus button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.reste {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.reste.fin {
+  margin-top: 28px;
+}
+
 .filtres {
   display: flex;
   flex-wrap: wrap;

@@ -28,10 +28,11 @@ import { paginationQuerySchema } from './pagination';
  * Mission Relève, telle qu'un visiteur la voit avant de se connecter.
  *
  * Volontairement pauvre en identités. Le nom de l'établissement client n'y
- * figure pas : publier sur le web ouvert quels services d'aide à domicile
- * passent par une agence d'intérim est une information commercialement
- * sensible pour eux, et ils ne l'ont pas autorisée en déposant un besoin. Le
- * candidat connecté, lui, le voit dans son espace.
+ * figure pas : publier sur le web ouvert quels EHPAD recourent à l'intérim est
+ * une information commercialement sensible pour eux — et, s'agissant du soin
+ * aux personnes âgées, une information que les familles liraient comme un
+ * signal sur la qualité de la prise en charge. Ils ne l'ont pas autorisée en
+ * déposant un besoin. Le candidat connecté, lui, le voit dans son espace.
  */
 export interface MissionVitrine {
   id: string;
@@ -40,8 +41,8 @@ export interface MissionVitrine {
   metier: string;
   /** Code de la qualification, pour le filtre. */
   metierCode: string;
-  typeLieu: 'DOMICILE_BENEFICIAIRE' | 'ETABLISSEMENT';
-  /** Secteur d'intervention, sans adresse : « Domicile - secteur Doulon ». */
+  typeLieu: 'ETABLISSEMENT' | 'UNITE_PROTEGEE';
+  /** Secteur d'intervention, sans adresse : « EHPAD - secteur Doulon ». */
   secteur: string;
   ville: string;
   codePostal: string;

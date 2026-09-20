@@ -9,25 +9,47 @@ import type { CandidatPropose } from './proposition';
  * remonte. Un nombre seul ne permet ni l'un ni l'autre, et il devient
  * indéfendable dès qu'on le conteste.
  */
-export const CLES_COMPOSANTES = ['experience', 'zone', 'disponibilite'] as const;
+export const CLES_COMPOSANTES = ['experience', 'zone', 'disponibilite', 'competences'] as const;
 
 export type CleComposante = (typeof CLES_COMPOSANTES)[number];
 
 /**
  * Poids de chaque composante. Leur somme fait 100 : le total est un pourcentage.
  *
- * `experience` a remplacé `competences`. L'ancienne composante mesurait la
- * détention d'un diplôme et son ancienneté — or la porte d'éligibilité exige
- * déjà le diplôme, donc tout candidat classé le possède : ces points-là étaient
- * une constante ajoutée à tout le monde, qui ne départageait personne. Ce qui
- * distingue deux titulaires du même diplôme, c'est le temps passé sur le
- * terrain, et c'est ce que mesure la nouvelle composante.
+ * `competences` est revenue, mais elle ne mesure plus ce que mesurait
+ * l'ancienne composante du même nom. Celle-là pesait la détention d'un diplôme
+ * et son ancienneté — or la porte d'éligibilité exige déjà le diplôme, donc
+ * tout candidat classé le possède : ces points-là étaient une constante ajoutée
+ * à tout le monde, qui ne départageait personne. La nouvelle compare deux
+ * listes puisées dans le même référentiel métier : ce que l'établissement a
+ * coché en déposant son besoin, et ce que l'intervenant a déclaré savoir faire.
+ * Entre deux titulaires du même diplôme, c'est une différence réelle.
  *
  * Les poids sont ici, en clair, et nulle part ailleurs. Ils devront passer en
  * base le jour où deux agences voudront des barèmes différents ; en attendant,
  * ce fichier est l'endroit où l'on en discute.
  */
 export const POIDS_COMPOSANTES: Record<CleComposante, number> = {
+  experience: 30,
+  zone: 30,
+  disponibilite: 20,
+  competences: 20,
+};
+
+/**
+ * Le barème appliqué quand la mission ne demande aucune compétence.
+ *
+ * Il fallait trancher, et neutraliser la composante ne suffisait pas : un
+ * candidat plafonnerait alors à 80 sur ces missions-là, et deux classements ne
+ * seraient plus comparables — un 78 deviendrait excellent ici et médiocre
+ * ailleurs, sans que rien ne le dise à l'écran.
+ *
+ * Les vingt points sont donc redistribués sur les trois autres composantes,
+ * dans les proportions qui étaient les leurs avant l'arrivée de celle-ci. Une
+ * mission sans compétences se note ainsi exactement comme elle se notait, et le
+ * total reste sur 100 dans tous les cas.
+ */
+export const POIDS_SANS_COMPETENCES: Record<Exclude<CleComposante, 'competences'>, number> = {
   experience: 40,
   zone: 35,
   disponibilite: 25,

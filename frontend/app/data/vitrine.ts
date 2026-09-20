@@ -50,9 +50,9 @@ export const CHIFFRES_CLES: readonly { valeur: string; libelle: string }[] = [];
  * explicitement etiquetes — c'est ce que fait l'encart, badge compris.
  */
 export const MISSIONS_EXEMPLE = [
-  { initiales: 'LT', nom: 'Les Tilleuls (SAAD)', lieu: 'Lyon 3e', taux: '13,50 €/h', horaires: '06:45-14:15' },
-  { initiales: 'DP', nom: 'Domicile Plus (SAAD)', lieu: 'Villeurbanne', taux: '12,20 €/h', horaires: '08:00-11:00' },
-  { initiales: 'MA', nom: "Maison d'Alix (SAAD)", lieu: 'Lyon 7e', taux: '13,90 €/h', horaires: '08:00-12:00' },
+  { initiales: 'LT', nom: 'EHPAD Les Tilleuls', lieu: 'Lyon 3e', taux: '13,50 €/h', horaires: '06:45-14:15' },
+  { initiales: 'SO', nom: 'EHPAD Les Sorinieres', lieu: 'Villeurbanne', taux: '12,20 €/h', horaires: '08:00-11:00' },
+  { initiales: 'MA', nom: "EHPAD Maison d'Alix", lieu: 'Lyon 7e', taux: '13,90 €/h', horaires: '08:00-12:00' },
 ] as const;
 
 /** Les trois etapes de l'accueil. */
@@ -146,7 +146,7 @@ export const VALEURS = [
   {
     titre: 'Un seul métier',
     corps:
-      "Nous ne plaçons que des profils de l'aide à domicile, ce qui permet de qualifier chaque mission sérieusement.",
+      "Nous ne plaçons qu'en EHPAD, ce qui permet de qualifier chaque mission sérieusement : on connaît les unités, les rythmes et les diplômes attendus.",
   },
   {
     titre: 'Réactivité',

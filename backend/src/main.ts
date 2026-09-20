@@ -15,7 +15,7 @@ async function bootstrap(): Promise<void> {
 
   const config = new DocumentBuilder()
     .setTitle('Relève API')
-    .setDescription("API de la plateforme d'interim aide a domicile")
+    .setDescription("API de la plateforme d'interim en EHPAD")
     .setVersion('0.1.0')
     .addBearerAuth()
     .build();

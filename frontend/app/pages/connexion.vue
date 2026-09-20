@@ -57,7 +57,7 @@ async function renvoyer(): Promise<void> {
     <!-- Le bloc de marque du canvas n'est pas repris : l'entete du site affiche
          deja « Relève » juste au-dessus. -->
     <p class="accroche">Le soin, sans attendre</p>
-    <h1>Ravi de vous revoir</h1>
+    <h1>Connectez-vous</h1>
     <p class="intro">Connectez-vous pour suivre vos candidatures et vos missions à venir.</p>
 
     <AppCarte class="formulaire">
@@ -117,10 +117,6 @@ async function renvoyer(): Promise<void> {
     <!-- Plus de phrase de consentement ici : on n'accepte rien en se
          connectant, l'engagement se prend a la creation du compte. Les deux
          textes restent accessibles depuis le pied de page. -->
-    <p class="aide">
-      Démonstration : <code>admin@releve.example</code> / <code>Releve2026!</code> après
-      <code>pnpm db:seed</code>.
-    </p>
   </section>
 </template>
 

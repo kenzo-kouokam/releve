@@ -267,7 +267,7 @@ describe('mon profil', () => {
    */
   describe('experience', () => {
     const poste = {
-      employeur: 'SAAD Les Glycines',
+      employeur: 'EHPAD Les Glycines',
       intitule: 'Auxiliaire de vie',
       debutLe: '2020-03-01',
       finLe: '2023-06-30',
@@ -281,7 +281,7 @@ describe('mon profil', () => {
         .expect(201);
 
       expect(reponse.body.experiences).toHaveLength(1);
-      expect(reponse.body.experiences[0].employeur).toBe('SAAD Les Glycines');
+      expect(reponse.body.experiences[0].employeur).toBe('EHPAD Les Glycines');
       expect(reponse.body.experiences[0].verifieeLe).toBeNull();
       // 40 mois a 80 % : la quotite est appliquee, pas seulement stockee.
       expect(reponse.body.experiences[0].dureeMois).toBeCloseTo(32, 0);

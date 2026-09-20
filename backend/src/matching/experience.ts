@@ -13,7 +13,7 @@ const JOURS_PAR_MOIS = 30.436875;
 
 /**
  * Cinq ans. Au-delà, l'écart entre deux professionnelles ne se lit plus dans la
- * durée : une aide à domicile avec huit ans de terrain et une avec quinze font
+ * durée : un aide-soignant avec huit ans de terrain et un autre avec quinze font
  * le même travail, et prétendre les départager sur ce critère reviendrait à
  * écarter mécaniquement les plus jeunes pour une différence que l'établissement
  * ne constatera jamais.

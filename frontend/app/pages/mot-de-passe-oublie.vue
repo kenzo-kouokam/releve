@@ -13,7 +13,7 @@ const demande = ref(false);
  * L'API ne dit jamais si l'adresse correspond à un compte, et la page ne doit
  * pas trahir ce qu'elle tait : afficher « adresse inconnue » ferait de ce
  * formulaire public un annuaire des inscrits — et ici, être inscrit révèle
- * qu'on cherche des missions d'aide à domicile. Même une panne réseau est donc
+ * qu'on cherche des missions en EHPAD. Même une panne réseau est donc
  * absorbée : mieux vaut une relance inutile qu'une fuite.
  */
 async function soumettre(): Promise<void> {

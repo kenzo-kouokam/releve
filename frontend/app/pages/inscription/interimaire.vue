@@ -305,7 +305,7 @@ async function soumettre(): Promise<void> {
     <!-- Reprise de l'ecran de choix supprime : c'est la seule information qu'il
          portait et qui n'existait nulle part ailleurs. -->
     <p v-if="!enAttente" class="note">
-      Vous représentez un service d'aide à domicile ? Votre structure est enregistrée par nos
+      Vous représentez un EHPAD ? Votre établissement est enregistré par nos
       équipes, après vérification de votre déclaration SAP ou de votre autorisation.
       <a href="mailto:contact@releve.example">Écrivez-nous</a>.
     </p>

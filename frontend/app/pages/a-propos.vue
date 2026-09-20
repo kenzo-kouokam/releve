@@ -7,7 +7,7 @@ useHead({
     {
       name: 'description',
       content:
-        "Relève est une agence d'intérim consacrée à l'aide à domicile : mise en relation des aides à domicile et des structures qui ont besoin d'un renfort rapide.",
+        "Relève est une agence d'intérim consacrée aux EHPAD : mise en relation des aides-soignants et accompagnants et des établissements qui ont besoin d'un renfort rapide.",
     },
   ],
 });
@@ -16,10 +16,10 @@ useHead({
 <template>
   <main class="vitrine">
     <p class="vitrine-accroche">À propos</p>
-    <h1 class="vitrine-titre">Une agence d'intérim qui ne fait que de l'aide à domicile</h1>
+    <h1 class="vitrine-titre">Une agence d'intérim qui ne fait que de l'EHPAD</h1>
 
     <p class="vitrine-chapeau">
-      Relève met en relation les aides à domicile et les structures qui ont besoin d'un renfort
+      Relève met en relation les soignants et les EHPAD qui ont besoin d'un renfort
       rapide. L'agence prend en charge le cadre administratif — déclaration d'embauche, contrat de
       mission, fiches de paie et assurance — pour que le remplacement se décide en heures plutôt
       qu'en jours.

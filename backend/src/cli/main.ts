@@ -13,6 +13,7 @@ import { AppModule } from '../app.module';
 import { FranceTravailClient } from '../donnees-publiques/france-travail.client';
 import { GeocodageOffresService } from '../donnees-publiques/geocodage-offres.service';
 import { OffresService, ROMES_SECTEUR } from '../donnees-publiques/offres.service';
+import { CompetencesService } from '../competences/competences.service';
 import { ConservationService } from '../documents/conservation.service';
 import { NotificationsMissionsService } from '../notifications/notifications-missions.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -150,6 +151,32 @@ programme
 
       await writeFile(options.sortie, JSON.stringify({ resultats: brutes }, null, 2), 'utf8');
       console.log(`\n${brutes.length} offres brutes ecrites dans ${options.sortie}\n`);
+    } finally {
+      await app.close();
+    }
+  });
+
+programme
+  .command('competences')
+  .description('Reconstruit le referentiel de competences depuis les offres collectees')
+  .action(async () => {
+    const app = await contexte();
+    const competences = app.get(CompetencesService);
+
+    try {
+      const rapport = await competences.reconstruire();
+
+      console.log('');
+      console.log(`Offres lues            ${rapport.offresLues}`);
+      console.log(`Mentions rencontrees   ${rapport.mentions}`);
+      console.log(`Competences            ${rapport.competences}`);
+      console.log(`Rattachements metier   ${rapport.rattachements}`);
+      console.log(`Dont nouvelles         ${rapport.nouvelles}`);
+      // Nommees et non tues : une competence qui retombe a zero garde sa ligne
+      // et ses rattachements. Le chiffre dit ce que le marche a cesse de
+      // demander, ce qui est une information et non un menage.
+      console.log(`Retombees a zero       ${rapport.retombeesAZero}`);
+      console.log('');
     } finally {
       await app.close();
     }

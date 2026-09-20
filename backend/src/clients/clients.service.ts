@@ -49,9 +49,7 @@ function versResume(client: ClientAvecComptes): ClientResume {
     contactEmail: client.contactEmail,
     contactTel: client.contactTel,
     actif: client.actif,
-    statutReglementaire: client.statutReglementaire,
-    numeroSap: client.numeroSap,
-    numeroAgrement: client.numeroAgrement,
+    statutJuridique: client.statutJuridique,
     numeroFiness: client.numeroFiness,
     arreteReference: client.arreteReference,
     // Date seule, sans heure : un arrete est date au jour, et renvoyer un
@@ -76,7 +74,6 @@ function versLieuResume(lieu: LieuAvecComptes): LieuResume {
     etage: lieu.etage,
     codeAcces: lieu.codeAcces,
     consignes: lieu.consignes,
-    beneficiaireRef: lieu.beneficiaireRef,
     nombreMissions: lieu._count.missions,
   };
 }
@@ -98,7 +95,7 @@ export class ClientsService {
               { raisonSociale: { contains: query.recherche, mode: 'insensitive' } },
               { siret: { startsWith: query.recherche.replace(/\s/g, '') } },
               // Le client n'a pas d'adresse : c'est le lieu d'intervention qui
-              // en porte une. Chercher "Reze" doit quand meme sortir le SAAD
+              // en porte une. Chercher "Reze" doit quand meme sortir l'EHPAD
               // qui y intervient.
               { lieux: { some: { ville: { contains: query.recherche, mode: 'insensitive' } } } },
             ],
@@ -146,18 +143,30 @@ export class ClientsService {
   async modifier(id: string, donnees: ClientUpdate, agenceId: string): Promise<ClientResume> {
     const existant = await this.exigerClient(id, agenceId, avecComptes);
 
-    // Une fiche sans statut reglementaire ne peut pas etre activee.
+    // Une fiche sans autorisation documentee ne peut pas etre activee.
     //
-    // C'est le seul endroit ou la regle mord vraiment. Le statut decide de ce
-    // que la structure a le droit de faire, et — si elle est autorisee au titre
-    // du CASF — de l'application de la duree minimale d'exercice prealable a
-    // l'interim. Activer sans l'avoir renseigne reviendrait a envoyer des
-    // intervenants sans savoir sous quel regime.
-    const statutApres = donnees.statutReglementaire ?? existant.statutReglementaire;
+    // C'est le seul endroit ou la regle mord vraiment. Un EHPAD n'ouvre
+    // qu'apres un arrete conjoint ARS / conseil departemental, et placer du
+    // personnel dans un etablissement dont on n'a pas lu l'arrete reviendrait a
+    // le faire travailler dans une structure dont on ignore si elle a le droit
+    // d'accueillir des residents.
+    //
+    // Le controle porte sur les trois champs, et non sur le seul statut : sous
+    // le regime precedent le statut suffisait, parce que c'etait lui qui variait.
+    // Ici il ne dit que la convention collective — c'est le FINESS et l'arrete
+    // qui etablissent le droit d'exercer.
+    const apres = {
+      statutJuridique: donnees.statutJuridique ?? existant.statutJuridique,
+      numeroFiness: donnees.numeroFiness ?? existant.numeroFiness,
+      arreteReference: donnees.arreteReference ?? existant.arreteReference,
+    };
 
-    if (donnees.actif === true && !statutApres) {
+    if (
+      donnees.actif === true &&
+      (!apres.statutJuridique || !apres.numeroFiness || !apres.arreteReference)
+    ) {
       throw new BadRequestException(
-        'Renseignez le statut reglementaire de la structure avant de l activer',
+        'Renseignez le statut juridique, le numero FINESS et la reference de l arrete avant d activer l etablissement',
       );
     }
 

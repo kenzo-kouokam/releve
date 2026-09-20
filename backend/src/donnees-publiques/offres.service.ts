@@ -12,11 +12,24 @@ import { preparerLot, type OffreBrute, type ResultatNettoyage } from './normalis
  * Ce sont eux qui definissent ce que « notre marche » veut dire : elargir la
  * liste elargit mecaniquement la tension mesuree, donc elle se decide, elle ne
  * se devine pas.
+ *
+ * Les deux codes retenus sont exactement ceux des deux diplomes du referentiel
+ * (voir `QUALIFICATIONS` dans le seed), et c'est la condition pour que les deux
+ * usages des offres collectees tiennent :
+ *
+ * - le barometre compare le taux propose par l'etablissement a celui du marche
+ *   pour le meme metier ;
+ * - le referentiel de competences propose a la redaction d'une mission les
+ *   competences que les employeurs attendent reellement sur ce metier.
+ *
+ * Un code sans diplome correspondant produirait des competences que personne ne
+ * peut exiger, et un diplome sans code priverait ses missions de reference de
+ * marche. K1304 « Services domestiques » a disparu avec l'aide a domicile : le
+ * menage chez un particulier ne dit rien du travail en unite d'hebergement.
  */
 export const ROMES_SECTEUR = [
   'J1501', // Soins d'hygiene, de confort du patient - aide-soignant
-  'K1302', // Assistance aupres d'adultes
-  'K1304', // Services domestiques
+  'K1302', // Assistance aupres d'adultes - accompagnant educatif et social
 ] as const;
 
 /** Duree de vie du barometre en cache : il ne change qu'apres un import. */

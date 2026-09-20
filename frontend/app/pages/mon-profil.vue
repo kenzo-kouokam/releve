@@ -79,6 +79,37 @@ function enregistrer(): Promise<void> {
   );
 }
 
+/* --------------------------------------------------------------- compétences */
+
+/**
+ * Ce que l'intervenant déclare savoir faire, puisé dans le même référentiel que
+ * celui qui sert à l'établissement pour rédiger son besoin.
+ *
+ * C'est cette communauté de référentiel qui rend les deux listes comparables :
+ * deux champs de texte libre ne l'auraient jamais été. Le sélecteur travaille
+ * avec des lignes `{ competenceId, indispensable }` côté mission ; ici seul
+ * l'identifiant compte, et la conversion se fait aux deux bords.
+ */
+const competences = ref<{ competenceId: string; indispensable: boolean }[]>([]);
+
+watchEffect(() => {
+  competences.value = (profil.value?.competences ?? []).map((competence) => ({
+    competenceId: competence.id,
+    indispensable: false,
+  }));
+});
+
+function enregistrerCompetences(): Promise<void> {
+  return appliquer(
+    () =>
+      requete<CandidatDetail>('/mon-profil', {
+        method: 'PATCH',
+        body: { competences: competences.value.map((ligne) => ligne.competenceId) },
+      }),
+    'Compétences enregistrées.',
+  );
+}
+
 /* --------------------------------------------------------------- disponibilités */
 
 const creneaux = ref<Disponibilite[]>([]);
@@ -332,6 +363,28 @@ function retirerPoste(id: string): Promise<void> {
           <AppBouton type="submit" :desactive="enCours">Enregistrer</AppBouton>
         </div>
       </form>
+    </section>
+
+    <section class="bloc">
+      <h2>Mes compétences</h2>
+      <p class="intro-bloc">
+        Cochez ce que vous savez faire. La liste vient des offres réellement publiées en EHPAD :
+        elle est classée par ce que les établissements demandent le plus.
+        <br />
+        Ces déclarations pèsent sur votre classement, mais elles n'ouvrent aucune porte : ce sont
+        vos diplômes vérifiés, votre secteur et vos disponibilités qui décident des missions
+        auxquelles vous pouvez prétendre.
+      </p>
+
+      <AppSelecteurCompetences
+        v-model="competences"
+        :max="30"
+        libelle-vide="Le référentiel de compétences n'est pas encore alimenté."
+      />
+
+      <div class="action large">
+        <AppBouton :desactive="enCours" @click="enregistrerCompetences()">Enregistrer</AppBouton>
+      </div>
     </section>
 
     <section class="bloc">

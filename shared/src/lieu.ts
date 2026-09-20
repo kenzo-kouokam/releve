@@ -4,12 +4,14 @@ import type { PrecisionGeocodage } from './geocodage';
 import { MOTIF_CODE_POSTAL } from './motifs';
 
 /**
- * Lieu d'intervention rattache a un client.
+ * Lieu d'intervention rattache a un client : un site d'EHPAD, ou une unite a
+ * l'interieur de ce site.
  *
  * Regle RGPD structurante : aucune donnee de sante, aucune identite de
- * beneficiaire. `beneficiaireRef` est une reference pseudonymisee (BEN-0147) qui
- * permet a l'agence de parler du bon domicile sans stocker qui y vit. Les
- * `consignes` servent a l'acces au logement, pas a decrire une pathologie.
+ * resident. La reference pseudonymisee du beneficiaire a disparu avec l'aide a
+ * domicile — elle designait un logement, elle n'a plus d'objet ici, ou l'on
+ * travaille pour une unite et non pour une personne. Les `consignes` servent a
+ * l'acces au batiment, jamais a decrire une pathologie.
  */
 export const lieuCreateSchema = z.object({
   type: typeLieuSchema,
@@ -26,7 +28,6 @@ export const lieuCreateSchema = z.object({
   etage: z.string().trim().max(80).optional(),
   codeAcces: z.string().trim().max(40).optional(),
   consignes: z.string().trim().max(500).optional(),
-  beneficiaireRef: z.string().trim().max(40).optional(),
 });
 
 export type LieuCreate = z.infer<typeof lieuCreateSchema>;
@@ -49,7 +50,6 @@ export interface LieuResume {
   etage: string | null;
   codeAcces: string | null;
   consignes: string | null;
-  beneficiaireRef: string | null;
   /** Un lieu utilise par des missions ne peut plus etre supprime. */
   nombreMissions: number;
 }

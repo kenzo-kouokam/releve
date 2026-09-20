@@ -10,7 +10,6 @@
     "declaration": false,
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./",
     "incremental": true,
     // Dans dist/ et pas a cote : nest-cli supprime dist a chaque build
     // (deleteOutDir). Un .tsbuildinfo qui survit a cette suppression fait croire

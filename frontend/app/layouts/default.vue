@@ -152,7 +152,7 @@ async function sortir(): Promise<void> {
             <span>Relève</span>
           </NuxtLink>
           <p class="accroche">Le soin, sans attendre</p>
-          <p class="baseline">Agence d'intérim spécialisée dans l'aide à domicile.</p>
+          <p class="baseline">Agence d'intérim spécialisée en EHPAD.</p>
         </div>
 
         <div v-for="colonne in colonnesPied" :key="colonne.titre">

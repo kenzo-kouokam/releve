@@ -143,7 +143,7 @@ describe('classement des candidats', () => {
         data: {
           candidatId: jeu.candidatA,
           qualificationId: jeu.qualification,
-          employeur: 'SAAD Les Glycines',
+          employeur: 'EHPAD Les Glycines',
           intitule: 'Auxiliaire de vie',
           debutLe: new Date('2018-01-01T00:00:00.000Z'),
           quotitePourcent: 100,

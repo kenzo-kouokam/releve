@@ -5,16 +5,32 @@ const { requete } = useApi();
 
 const recherche = ref('');
 
+/**
+ * Recherche par compétences, dans le référentiel tiré des offres France Travail.
+ *
+ * Conjonctive : cocher deux cases cherche quelqu'un qui sait faire les deux, pas
+ * la réunion de deux viviers. Élargir se fait en décochant — c'est le sens de
+ * ce que fait un chargé de recrutement, et l'inverse surprendrait.
+ *
+ * Le sélecteur porte des lignes `{ competenceId, indispensable }` parce qu'il
+ * sert aussi à rédiger une mission ; ici le second champ n'a pas d'objet.
+ */
+const competences = ref<{ competenceId: string; indispensable: boolean }[]>([]);
+const filtresOuverts = ref(false);
+
 const { data, status, error, refresh } = await useAsyncData<PageResultat<CandidatResume>>(
   'vivier',
   () =>
     requete<PageResultat<CandidatResume>>('/candidats', {
       query: {
         ...(recherche.value ? { recherche: recherche.value } : {}),
+        ...(competences.value.length
+          ? { competences: competences.value.map((ligne) => ligne.competenceId).join(',') }
+          : {}),
         limite: 20,
       },
     }),
-  { watch: [recherche] },
+  { watch: [recherche, competences] },
 );
 
 const candidats = computed(() => data.value?.donnees ?? []);
@@ -41,6 +57,25 @@ const chargement = computed(() => status.value === 'pending');
 
       <button type="submit">Filtrer</button>
     </form>
+
+    <div class="competences">
+      <button
+        type="button"
+        class="bascule"
+        :aria-expanded="filtresOuverts"
+        @click="filtresOuverts = !filtresOuverts"
+      >
+        Competences
+        <span v-if="competences.length" class="compteur">{{ competences.length }}</span>
+      </button>
+
+      <AppSelecteurCompetences
+        v-show="filtresOuverts"
+        v-model="competences"
+        :max="6"
+        libelle-vide="Le referentiel de competences n est pas encore alimente."
+      />
+    </div>
 
     <p v-if="error" class="alerte">
       API injoignable. Lancer <code>pnpm infra:up</code> puis <code>pnpm dev:backend</code>, et
@@ -81,6 +116,37 @@ const chargement = computed(() => status.value === 'pending');
 </template>
 
 <style scoped>
+.competences {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.bascule {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-start;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.compteur {
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dom-fonce);
+  background: var(--dom-soft);
+  border-radius: 999px;
+}
+
 .vivier {
   padding-block: 32px 0;
 }
