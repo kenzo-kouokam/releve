@@ -9,12 +9,12 @@ import {
 } from '~/data/vitrine';
 
 useHead({
-  title: "Relève — intérim en EHPAD",
+  title: "Relève — intérim en EHPAD, hôpital et clinique",
   meta: [
     {
       name: 'description',
       content:
-        "Relève est l'agence d'intérim dédiée aux EHPAD : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
+        "Relève est l'agence d'intérim dédiée aux EHPAD, hôpitaux et cliniques : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
     },
   ],
 });
@@ -25,9 +25,10 @@ useHead({
     <section class="heros">
       <div class="promesse">
         <p class="vitrine-accroche">{{ ACCROCHE }}</p>
-        <h1>Des missions en EHPAD près de chez vous, dès demain.</h1>
+        <h1>Des missions en EHPAD, hôpital et clinique près de chez vous, dès demain.</h1>
         <p class="chapeau">
-          Relève est l'agence d'intérim dédiée aux Aides soignants aux EHPAD. Créez votre dossier candidat une
+          Relève est l'agence d'intérim dédiée aux aides-soignants, en EHPAD comme à l'hôpital et
+          en clinique. Créez votre dossier candidat une
           fois, puis candidatez en un clic aux missions qui correspondent à votre secteur, à vos
           disponibilités et à vos diplômes.
         </p>
@@ -38,6 +39,18 @@ useHead({
             Comment ça marche
           </NuxtLink>
         </div>
+
+        <!--
+          Le deuxième public de la page. Il était absent, ce qui n'était pas
+          qu'un oubli de lien : un cadre de santé arrivant ici ne trouvait
+          aucune porte, et l'accroche ne s'adressait qu'aux soignants. Une ligne
+          discrète plutôt qu'un troisième bouton — la page reste celle des
+          candidats, qui sont le nombre.
+        -->
+        <p class="autre-public">
+          Vous êtes un EHPAD, un hôpital ou une clinique et cherchez un remplaçant ?
+          <NuxtLink to="/inscription/etablissement">Ouvrir un compte établissement</NuxtLink>.
+        </p>
 
         <!-- Bloc vide tant que l'agence n'a pas fourni ses chiffres : voir le
              commentaire de CHIFFRES_CLES dans app/data/vitrine.ts. -->
@@ -51,8 +64,7 @@ useHead({
 
       <div class="apercu">
         <div class="entete-apercu">
-          <p class="titre-apercu">Missions près de Lyon</p>
-          <span class="etiquette">Exemple fictif</span>
+          <p class="titre-apercu">Missions proches de chez vous</p>
         </div>
 
         <ul>
@@ -131,13 +143,20 @@ useHead({
           </p>
         </div>
 
-        <NuxtLink to="/inscription/interimaire" class="bouton-clair">Créer mon compte</NuxtLink>
+        <NuxtLink to="/inscription" class="bouton-clair">Créer mon compte</NuxtLink>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
+.autre-public {
+  margin: 18px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
 /* L'accueil deborde de la colonne de contenu du layout : ses bandes occupent
  * toute la largeur. D'ou les marges negatives, seule facon de sortir d'un
  * conteneur centre sans deplacer le conteneur lui-meme. */

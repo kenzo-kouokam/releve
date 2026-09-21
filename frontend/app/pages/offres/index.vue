@@ -18,7 +18,7 @@ useHead({
     {
       name: 'description',
       content:
-        "Les missions d'intérim en EHPAD proposées par Relève : aide-soignant, accompagnant éducatif et social.",
+        "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.",
     },
   ],
 });

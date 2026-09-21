@@ -15,11 +15,6 @@ export default defineNuxtConfig({
   // le fait qu'elle, elle ait toujours repondu.
   devServer: { port: 3000, host: '::' },
   css: ['~/assets/css/main.css', '~/assets/css/vitrine.css', '~/assets/css/legal.css'],
-  routeRules: {
-    // L'ecran de choix a disparu : il n'y a qu'un parcours public, celui du
-    // candidat. L'ancienne adresse reste valable pour les liens deja partages.
-    '/inscription': { redirect: { to: '/inscription/interimaire', statusCode: 301 } },
-  },
   runtimeConfig: {
     // Prive, donc jamais serialise vers le navigateur : depuis le passage au
     // relais /bff, seul Nitro appelle l'API. Une valeur publique inviterait a

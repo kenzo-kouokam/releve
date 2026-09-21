@@ -1,23 +1,34 @@
 import { z } from 'zod';
+import { TYPE_CLIENT_COURT, type TypeClient } from './enums';
 
 /**
- * L'autorisation d'un EHPAD, et le statut juridique de son gestionnaire.
+ * L'autorisation d'un etablissement, et le statut juridique de son
+ * gestionnaire.
  *
  * Deux informations distinctes vivent ici, et il ne faut pas les confondre.
  *
- * **L'autorisation** ne varie pas. Un EHPAD est un etablissement social et
- * medico-social au sens de l'article L. 312-1 du CASF : il ne peut ouvrir
- * qu'apres un arrete conjoint du directeur general de l'ARS et du president du
- * conseil departemental (art. L. 313-1 du CASF), delivre pour quinze ans, et il
- * porte un numero FINESS. Il n'existe pas d'EHPAD non autorise. C'est pourquoi
- * le FINESS et la reference de l'arrete sont exiges de tous, sans condition.
+ * **L'autorisation** existe pour les trois familles, mais elle ne vient pas de
+ * la meme autorite. Un EHPAD est un etablissement social et medico-social au
+ * sens de l'article L. 312-1 du CASF : il ouvre sur un arrete conjoint du
+ * directeur general de l'ARS et du president du conseil departemental
+ * (art. L. 313-1), delivre pour quinze ans. Un hopital ou une clinique sont des
+ * etablissements de sante : ils exercent sur une autorisation d'activite de
+ * soins delivree par l'ARS seule (art. L. 6122-1 du CSP). Reclamer l'arrete
+ * conjoint a une clinique, c'est reclamer une piece qui n'existe pas — et
+ * obtenir n'importe quoi en retour.
+ *
+ * Ce qui ne varie pas : les trois portent un numero FINESS geographique, et
+ * aucun des trois n'exerce sans autorisation. Le controle porte donc toujours
+ * sur deux valeurs, quelle que soit la famille ; c'est leur libelle qui change,
+ * pas leur nombre.
  *
  * C'est aussi ce qui rend la loi Valletoux (loi 2023-1268, art. 8) applicable a
  * toutes nos mises a disposition : la duree minimale d'exercice prealable a
- * l'interim vise les professionnels de sante exercant en ESMS. Sous le regime
- * precedent — l'aide a domicile — elle ne mordait que sur une partie des
- * structures, et il fallait un champ pour savoir lesquelles. Ici la regle est
- * generale, et le code n'a plus a la conditionner.
+ * l'interim vise les professionnels de sante exercant en etablissement de sante
+ * comme en ESMS. Sous le regime precedent — l'aide a domicile — elle ne mordait
+ * que sur une partie des structures, et il fallait un champ pour savoir
+ * lesquelles. Ici la regle couvre les trois types, et le code n'a plus a la
+ * conditionner.
  *
  * **Le statut juridique**, lui, varie, et c'est la seule chose qui varie. Il ne
  * decide pas de ce que l'etablissement a le droit de faire — l'arrete s'en
@@ -62,10 +73,10 @@ export const STATUT_JURIDIQUE_CADRE_SALARIAL: Record<StatutJuridique, string> = 
  * reels — un faux negatif coute ici bien plus cher qu'un faux positif, que la
  * lecture de l'arrete rattrape de toute facon.
  *
- * C'est le FINESS geographique qui est attendu, celui du site ou les residents
- * sont accueillis, et non le FINESS juridique du gestionnaire : un groupe qui
- * exploite douze EHPAD n'a qu'un FINESS juridique, et l'autorisation se lit site
- * par site.
+ * C'est le FINESS geographique qui est attendu, celui du site ou les patients
+ * ou residents sont accueillis, et non le FINESS juridique du gestionnaire : un
+ * groupe qui exploite douze etablissements n'a qu'un FINESS juridique, et
+ * l'autorisation se lit site par site.
  */
 const numeroFinessSchema = z
   .string()
@@ -86,18 +97,46 @@ const MESSAGES: Record<string, string> = {
   arreteReference: "La reference de l'arrete d'autorisation est obligatoire",
 };
 
-/** La piece qui etablit l'autorisation, identique pour tous les statuts. */
-export const JUSTIFICATIF_AUTORISATION =
-  "Numero FINESS geographique et reference de l'arrete d'autorisation";
+/**
+ * La piece a lire, par famille d'etablissement.
+ *
+ * Elle depend du type et non du statut juridique : c'est le regime qui decide
+ * de l'autorite, pas la nature du gestionnaire. Un EHPAD commercial et un
+ * EHPAD associatif produisent le meme arrete conjoint ; une clinique
+ * commerciale produit une autorisation d'activite de soins.
+ */
+export const AUTORISATION_PAR_TYPE: Record<TypeClient, { piece: string; fondement: string }> = {
+  EHPAD: {
+    piece: "Arrete conjoint ARS / conseil departemental",
+    fondement: 'art. L. 313-1 du CASF',
+  },
+  HOPITAL: {
+    piece: "Autorisation d'activite de soins delivree par l'ARS",
+    fondement: 'art. L. 6122-1 du CSP',
+  },
+  CLINIQUE: {
+    piece: "Autorisation d'activite de soins delivree par l'ARS",
+    fondement: 'art. L. 6122-1 du CSP',
+  },
+};
+
+/** Le justificatif complet, tel qu'il se demande a un etablissement donne. */
+export function justificatifAutorisation(type: TypeClient): string {
+  const { piece, fondement } = AUTORISATION_PAR_TYPE[type];
+
+  return `${TYPE_CLIENT_COURT[type]} : numero FINESS geographique et reference de l'${piece.toLowerCase()} (${fondement})`;
+}
 
 /**
  * Verifie que l'autorisation est documentee des lors qu'un statut est declare.
  *
- * Le controle ne depend plus du statut, et c'est le point : sous le regime
- * precedent chaque statut appelait une piece differente, ce qui laissait passer
- * une structure qui se presentait sous un regime en produisant le justificatif
- * d'un autre. Ici il n'y a qu'un regime, donc qu'une piece — un EHPAD sans
- * arrete n'est pas un EHPAD.
+ * Le controle ne depend pas du statut juridique, et c'est le point : sous le
+ * regime precedent chaque statut appelait une piece differente, ce qui laissait
+ * passer une structure qui se presentait sous un regime en produisant le
+ * justificatif d'un autre. Ici les deux valeurs sont les memes pour tous —
+ * FINESS et reference d'autorisation — et c'est `AUTORISATION_PAR_TYPE` qui dit
+ * a l'agence quelle piece ouvrir pour les lire. Un etablissement sans
+ * autorisation n'est pas un etablissement.
  */
 export function verifierHabilitation(
   valeur: Partial<Record<keyof typeof champsHabilitation, unknown>>,

@@ -3,6 +3,16 @@ packages:
   - frontend
   - shared
 
+# Version imposee a une dependance transitive.
+#
+# multer arrive par @nestjs/platform-express, qui pointe encore une version
+# vulnerable : quatre avis ouverts sur la 2.2.0, dont trois denis de service
+# declenchables par un depot de fichier forge. La route de depot de pieces est
+# authentifiee, mais un compte candidat legitime suffirait a faire tomber l API.
+# A retirer quand @nestjs/platform-express aura releve sa borne lui-meme.
+overrides:
+  multer: '>=2.3.0'
+
 # pnpm bloque les scripts d'installation par defaut : on autorise
 # explicitement ceux dont on a besoin (moteurs Prisma, binaire esbuild).
 allowBuilds:

@@ -146,7 +146,7 @@ export const VALEURS = [
   {
     titre: 'Un seul métier',
     corps:
-      "Nous ne plaçons qu'en EHPAD, ce qui permet de qualifier chaque mission sérieusement : on connaît les unités, les rythmes et les diplômes attendus.",
+      "Nous ne plaçons qu'en établissement de soin — EHPAD, hôpital, clinique — ce qui permet de qualifier chaque mission sérieusement : on connaît les unités, les rythmes et les diplômes attendus.",
   },
   {
     titre: 'Réactivité',

@@ -6,7 +6,7 @@ import type { CompetenceResume } from '@releve/shared';
  *
  * La liste est ordonnée par ce que le marché demande le plus, et l'ordre porte
  * autant d'information que le contenu : un établissement qui hésite voit
- * d'abord ce que les autres EHPAD exigent réellement sur ce métier. C'est
+ * d'abord ce que les autres établissements exigent réellement sur ce métier. C'est
  * pourquoi le compte d'offres s'affiche à côté de chaque ligne au lieu de
  * rester une clé de tri invisible.
  *

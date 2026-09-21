@@ -145,16 +145,18 @@ export class ClientsService {
 
     // Une fiche sans autorisation documentee ne peut pas etre activee.
     //
-    // C'est le seul endroit ou la regle mord vraiment. Un EHPAD n'ouvre
-    // qu'apres un arrete conjoint ARS / conseil departemental, et placer du
-    // personnel dans un etablissement dont on n'a pas lu l'arrete reviendrait a
-    // le faire travailler dans une structure dont on ignore si elle a le droit
-    // d'accueillir des residents.
+    // C'est le seul endroit ou la regle mord vraiment, et c'est voulu : le
+    // formulaire d'inscription publique ne demande plus ces valeurs, parce que
+    // rien ne les y verifiait. Ici quelqu'un a la piece sous les yeux — arrete
+    // conjoint ARS / conseil departemental pour un EHPAD, autorisation
+    // d'activite de soins pour un hopital ou une clinique — et placer du
+    // personnel dans un etablissement dont on n'a lu aucune des deux
+    // reviendrait a ignorer s'il a le droit d'accueillir qui que ce soit.
     //
     // Le controle porte sur les trois champs, et non sur le seul statut : sous
     // le regime precedent le statut suffisait, parce que c'etait lui qui variait.
-    // Ici il ne dit que la convention collective — c'est le FINESS et l'arrete
-    // qui etablissent le droit d'exercer.
+    // Ici il ne dit que la convention collective — c'est le FINESS et la
+    // reference d'autorisation qui etablissent le droit d'exercer.
     const apres = {
       statutJuridique: donnees.statutJuridique ?? existant.statutJuridique,
       numeroFiness: donnees.numeroFiness ?? existant.numeroFiness,
@@ -166,7 +168,7 @@ export class ClientsService {
       (!apres.statutJuridique || !apres.numeroFiness || !apres.arreteReference)
     ) {
       throw new BadRequestException(
-        'Renseignez le statut juridique, le numero FINESS et la reference de l arrete avant d activer l etablissement',
+        'Renseignez le statut juridique, le numero FINESS et la reference de l autorisation avant d activer l etablissement',
       );
     }
 

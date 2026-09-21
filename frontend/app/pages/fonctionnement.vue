@@ -7,7 +7,7 @@ useHead({
     {
       name: 'description',
       content:
-        "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée EHPAD.",
+        "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée dans le soin — EHPAD, hôpitaux, cliniques.",
     },
   ],
 });

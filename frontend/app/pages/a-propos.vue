@@ -7,7 +7,7 @@ useHead({
     {
       name: 'description',
       content:
-        "Relève est une agence d'intérim consacrée aux EHPAD : mise en relation des aides-soignants et accompagnants et des établissements qui ont besoin d'un renfort rapide.",
+        "Relève est une agence d'intérim consacrée au soin : mise en relation des aides-soignants et accompagnants et des EHPAD, hôpitaux et cliniques qui ont besoin d'un renfort rapide.",
     },
   ],
 });
@@ -16,12 +16,12 @@ useHead({
 <template>
   <main class="vitrine">
     <p class="vitrine-accroche">À propos</p>
-    <h1 class="vitrine-titre">Une agence d'intérim qui ne fait que de l'EHPAD</h1>
+    <h1 class="vitrine-titre">Une agence d'intérim qui ne fait que du soin</h1>
 
     <p class="vitrine-chapeau">
-      Relève met en relation les soignants et les EHPAD qui ont besoin d'un renfort
-      rapide. L'agence prend en charge le cadre administratif — déclaration d'embauche, contrat de
-      mission, fiches de paie et assurance — pour que le remplacement se décide en heures plutôt
+      Relève met en relation les soignants et les EHPAD, hôpitaux et cliniques qui ont besoin d'un renfort
+      rapide. L'agence prend en charge le cadre administratif, la déclaration d'embauche, contrat de
+      mission, fiches de paie et assurance pendant la mission pour que le remplacement se décide en heures plutôt
       qu'en jours.
     </p>
 
@@ -37,7 +37,7 @@ useHead({
       <p>
         C'est le principe qui structure la plateforme. Un candidat déclare ses diplômes et son
         expérience ; l'agence les contrôle sur justificatif avant qu'ils ne comptent. Tant qu'un
-        diplôme n'est pas vérifié, il ne rend éligible à aucune mission — ce qui protège autant la
+        diplôme n'est pas vérifié, il ne rend éligible à aucune mission. C'est le princice qui protège autant la
         personne accompagnée que la personne qui intervient.
       </p>
       <p>

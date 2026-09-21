@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ClientDetail } from '@releve/shared';
 import {
+  AUTORISATION_PAR_TYPE,
+  STATUT_JURIDIQUE_CADRE_SALARIAL,
   STATUT_JURIDIQUE_LIBELLES,
   TYPE_CLIENT_LIBELLES,
   TYPE_LIEU_LIBELLES,
@@ -48,11 +50,13 @@ const introuvable = computed(
           <dd>{{ client.siret }}</dd>
         </div>
         <!--
-          Le justificatif ne change plus de nature : tout EHPAD tient son droit
-          d'accueillir d'un arrete d'autorisation, et porte un FINESS. Ce qui
-          varie, c'est le statut juridique du gestionnaire, qui dit sous quelle
-          convention il remunere. L'absence est nommee plutot que laissee vide —
-          c'est elle qui bloque l'activation de la fiche.
+          Deux valeurs pour tous — FINESS et reference d'autorisation — mais pas
+          la meme piece : un EHPAD tient son droit d'accueillir d'un arrete
+          conjoint, un hopital ou une clinique d'une autorisation d'activite de
+          soins. Nommer la bonne evite de reclamer a une clinique un document
+          qui n'existe pas, et de prendre ce qu'elle repondrait pour une
+          verification. L'absence est nommee plutot que laissee vide — c'est
+          elle qui bloque l'activation de la fiche.
         -->
         <div>
           <dt>Statut et autorisation</dt>
@@ -76,6 +80,17 @@ const introuvable = computed(
             <template v-if="client.conventionCollective">
               {{ client.conventionCollective }}
               <template v-if="client.idcc"> (IDCC {{ client.idcc }})</template>
+            </template>
+            <!--
+              Tant qu elle manque, le statut juridique en dit le cadre probable.
+              Indicatif et presente comme tel : deux etablissements de meme
+              statut peuvent relever de conventions differentes, et c est la
+              fiche qui fait foi. Le montrer ici evite d aller chercher ailleurs
+              ce que la fiche sait deja.
+            -->
+            <template v-else-if="client.statutJuridique">
+              <span class="manquant">a renseigner</span>
+              &middot; cadre probable : {{ STATUT_JURIDIQUE_CADRE_SALARIAL[client.statutJuridique] }}
             </template>
             <span v-else class="manquant">a renseigner</span>
           </dd>
@@ -103,10 +118,13 @@ const introuvable = computed(
         class="note avertissement"
       >
         L autorisation n est pas documentee : il manque le statut juridique du gestionnaire, le
-        numero FINESS geographique ou la reference de l arrete conjoint ARS / conseil
-        departemental. Cela se saisit sur piece, et tant qu il manque l etablissement ne peut pas
-        etre active — placer du personnel dans un EHPAD dont on n a pas lu l arrete reviendrait a
-        ignorer s il a le droit d accueillir des residents.
+        numero FINESS geographique ou la reference de l autorisation. Piece a reclamer pour ce
+        type d etablissement :
+        <strong>{{ AUTORISATION_PAR_TYPE[client.type].piece }}</strong>
+        ({{ AUTORISATION_PAR_TYPE[client.type].fondement }}). Cela se saisit sur piece, et tant qu
+        il manque l etablissement ne peut pas etre active — placer du personnel dans une structure
+        dont on n a lu aucune autorisation reviendrait a ignorer si elle a le droit d accueillir
+        qui que ce soit.
       </p>
 
       <h2>

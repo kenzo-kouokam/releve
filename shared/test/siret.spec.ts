@@ -28,6 +28,7 @@ describe('clientCreateSchema', () => {
   // l'activation : une fiche sans elle n'est plus une fiche valide.
   const base = {
     raisonSociale: 'EHPAD Test',
+    type: 'EHPAD',
     statutJuridique: 'PRIVE_NON_LUCRATIF',
     numeroFiness: '440000123',
     arreteReference: 'ARR-2025-114',
@@ -46,13 +47,29 @@ describe('clientCreateSchema', () => {
     ).toBe(false);
   });
 
-  // Le perimetre est reduit aux EHPAD : le type n'est plus a saisir, et un type
-  // hors perimetre doit etre refuse plutot qu'ignore en silence.
-  it('retient EHPAD quand le type est omis', () => {
-    const resultat = clientCreateSchema.safeParse({ ...base, siret: '73282932000074' });
+  /**
+   * Le type n'a plus de valeur par defaut depuis qu'il y en a trois.
+   *
+   * Tant que l'EHPAD etait seul, le deviner etait sans consequence. Ce n'est
+   * plus vrai : le type decide de la piece que l'agence doit lire avant
+   * d'activer — arrete conjoint pour un EHPAD, autorisation d'activite de soins
+   * pour un etablissement de sante — et une fiche typee au hasard ferait
+   * reclamer un document qui n'existe pas.
+   */
+  it('exige le type d etablissement', () => {
+    const { type: _type, ...sansType } = base;
 
-    expect(resultat.success).toBe(true);
-    expect(resultat.data?.type).toBe('EHPAD');
+    expect(
+      clientCreateSchema.safeParse({ ...sansType, siret: '73282932000074' }).success,
+    ).toBe(false);
+  });
+
+  it('accepte les trois familles', () => {
+    for (const type of ['EHPAD', 'HOPITAL', 'CLINIQUE']) {
+      expect(
+        clientCreateSchema.safeParse({ ...base, siret: '73282932000074', type }).success,
+      ).toBe(true);
+    }
   });
 
   it('refuse un type hors perimetre', () => {
@@ -65,15 +82,17 @@ describe('clientCreateSchema', () => {
    * Le statut juridique et les pieces de l'autorisation.
    *
    * Ce que ces tests protegent n'est pas la presence d'un champ, mais le fait
-   * qu'on ne puisse pas declarer un gestionnaire sans produire l'arrete qui
-   * autorise son etablissement a accueillir des residents. Sous le regime
-   * precedent — l'aide a domicile — la piece attendue dependait du statut ; ici
-   * il n'y en a qu'une, parce qu'il n'existe pas d'EHPAD sans autorisation.
+   * qu'on ne puisse pas declarer un gestionnaire sans produire l'autorisation
+   * qui permet a son etablissement d'accueillir. Sous le regime precedent —
+   * l'aide a domicile — la piece attendue dependait du statut juridique ; ici
+   * elle depend du type d'etablissement, et les deux valeurs a saisir sont les
+   * memes pour les trois familles.
    */
   describe('statut juridique et autorisation', () => {
     const fiche = (surcharge: Record<string, unknown>) =>
       clientCreateSchema.safeParse({
         raisonSociale: 'EHPAD Test',
+        type: 'EHPAD',
         siret: '73282932000074',
         ...surcharge,
       });
@@ -135,7 +154,7 @@ describe('clientCreateSchema', () => {
 
     /**
      * L'ancienne nomenclature relevait du code du travail applicable aux
-     * services a la personne. Un EHPAD n'en releve pas.
+     * services a la personne. Aucun de ces etablissements n'en releve.
      */
     it('refuse un statut hors nomenclature', () => {
       expect(

@@ -19,7 +19,7 @@ function echapper(valeur: string): string {
     .replace(/"/g, '&quot;');
 }
 
-const PIED = `Releve — mise a disposition de personnel soignant en EHPAD`;
+const PIED = `Releve — mise a disposition de personnel soignant en EHPAD, hopital et clinique`;
 
 function enveloppe(titre: string, corps: string): string {
   return `<!doctype html>

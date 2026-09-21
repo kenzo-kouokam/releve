@@ -53,15 +53,25 @@ enum StatutJuridique {
   PRIVE_COMMERCIAL
 }
 
-// Un seul type de client : l'agence ne place que dans des etablissements
-// d'hebergement pour personnes agees dependantes. L'enum survit a la reduction
-// parce qu'il porte une information juridique : un EHPAD releve de l'article
-// L. 312-1 du CASF, donc la duree minimale d'exercice prealable a l'interim
-// s'applique a toutes ses mises a disposition.
+// Les trois familles d'etablissements ou l'agence place. Le type n'est pas
+// decoratif : il decide de la piece d'autorisation a lire avant d'activer la
+// fiche. Un EHPAD est un ESMS (art. L. 312-1 du CASF) et ouvre sur un arrete
+// conjoint ARS / conseil departemental ; un hopital et une clinique sont des
+// etablissements de sante et exercent sur une autorisation d'activite de soins
+// delivree par l'ARS seule (art. L. 6122-1 du CSP).
+//
+// Ce qui ne depend pas du type : la duree minimale d'exercice prealable a
+// l'interim (loi 2023-1268, art. 8) couvre les trois.
 enum TypeClient {
   EHPAD
+  HOPITAL
+  CLINIQUE
 }
 
+// Deux valeurs, quel que soit le type d'etablissement : ce qu'elles separent,
+// c'est l'intervention qui suppose une formation particuliere — unite protegee
+// d'EHPAD, service specialise d'hopital — de celle qui n'en suppose pas. Le nom
+// du service se met dans le libelle du lieu.
 enum TypeLieu {
   ETABLISSEMENT
   UNITE_PROTEGEE
@@ -640,6 +650,8 @@ model Client {
   agence        Agence     @relation(fields: [agenceId], references: [id], onDelete: Restrict)
   raisonSociale String
   siret         String     @unique
+  /// Le defaut sert les fiches ecrites avant l'ouverture aux etablissements de
+  /// sante ; le contrat d'API, lui, exige le type a la creation.
   type          TypeClient @default(EHPAD)
 
   /// Statut juridique du gestionnaire, et pieces de l'autorisation.
@@ -650,8 +662,14 @@ model Client {
   /// pas etre activee, donc ne recoit aucune mise a disposition.
   ///
   /// Le FINESS attendu est le FINESS geographique, celui du site. Un groupe qui
-  /// exploite douze EHPAD n'a qu'un FINESS juridique, et l'arrete se lit site
-  /// par site.
+  /// exploite douze etablissements n'a qu'un FINESS juridique, et l'autorisation
+  /// se lit site par site.
+  ///
+  /// `arreteReference` porte la reference de l'autorisation quelle que soit sa
+  /// nature : arrete conjoint pour un EHPAD, autorisation d'activite de soins
+  /// pour un etablissement de sante. Le nom du champ vient du premier regime
+  /// couvert ; le rebaptiser couterait une migration pour une exactitude que le
+  /// type de client donne deja.
   statutJuridique StatutJuridique?
   numeroFiness    String?
   arreteReference String?

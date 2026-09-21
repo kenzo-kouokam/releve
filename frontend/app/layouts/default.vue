@@ -82,7 +82,7 @@ const colonnesPied = [
     liens: [
       { to: '/fonctionnement', label: 'Comment ça marche' },
       { to: '/offres', label: "Nos offres d'emploi" },
-      { to: '/inscription/interimaire', label: 'Créer un compte' },
+      { to: '/inscription', label: 'Créer un compte' },
       { to: '/connexion', label: 'Se connecter' },
     ],
   },
@@ -135,7 +135,7 @@ async function sortir(): Promise<void> {
 
         <div class="acces">
           <NuxtLink to="/connexion" class="lien-bouton secondaire">Se connecter</NuxtLink>
-          <NuxtLink to="/inscription/interimaire" class="lien-bouton primaire">S'inscrire</NuxtLink>
+          <NuxtLink to="/inscription" class="lien-bouton primaire">S'inscrire</NuxtLink>
         </div>
       </div>
     </header>
@@ -413,11 +413,33 @@ async function sortir(): Promise<void> {
   min-height: 100vh;
 }
 
+/* La barre reste à l'écran pendant qu'on parcourt la page.
+ *
+ * Sans cela elle suivait la hauteur du contenu — comportement par défaut d'une
+ * colonne de grille, qui s'étire sur toute la rangée. Sur « Mon profil », qui
+ * fait plusieurs écrans, il fallait descendre jusqu'en bas pour retrouver la
+ * carte d'avancement et le bouton de déconnexion. Or ce sont précisément les
+ * deux éléments qu'on cherche à mi-parcours : l'un pour savoir ce qu'il reste à
+ * remplir, l'autre pour partir.
+ *
+ * `align-self: start` est indispensable : une colonne de grille étirée occupe
+ * déjà toute la rangée, donc `position: sticky` n'aurait rien à faire coller.
+ * La hauteur repasse ensuite à celle de la fenêtre, et `overflow-y` prend le
+ * relais dans le cas où la barre serait plus haute qu'elle — écran court, ou
+ * menu qui s'allongerait.
+ *
+ * `100dvh` plutôt que `100vh` : sur mobile, `vh` ignore la barre d'adresse du
+ * navigateur, et le bas de la colonne se retrouve dessous. */
 .laterale {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 28px;
+  align-self: start;
+  height: 100dvh;
   padding: 22px 18px;
+  overflow-y: auto;
   background: var(--surface);
   border-right: 1px solid var(--line);
 }
@@ -427,9 +449,13 @@ async function sortir(): Promise<void> {
   font-size: 19px;
 }
 
+/* `1 0 auto` et non `1` : le menu prend l'espace libre pour pousser la carte
+ * d'avancement et la session vers le bas, mais ne se comprime jamais sous son
+ * propre contenu. Avec `flex: 1`, sa base vaut zéro — sur un écran court, les
+ * liens auraient débordé de leur boîte au lieu de faire défiler la barre. */
 .laterale nav {
   display: flex;
-  flex: 1;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 4px;
   align-content: start;
@@ -550,11 +576,17 @@ async function sortir(): Promise<void> {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* En bandeau horizontal, la barre reprend sa hauteur naturelle et cesse de
+   * coller : figée en haut, elle mangerait une part conséquente d'un écran de
+   * téléphone alors que le contenu, lui, en a besoin. */
   .laterale {
+    position: static;
     flex-wrap: wrap;
     flex-direction: row;
     gap: 12px 20px;
     align-items: center;
+    height: auto;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
@@ -564,6 +596,7 @@ async function sortir(): Promise<void> {
     flex-direction: row;
     flex-wrap: wrap;
   }
+
 
   .avancement {
     flex: none;

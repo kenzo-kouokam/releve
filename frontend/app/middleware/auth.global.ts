@@ -10,6 +10,7 @@ const PAGES_OUVERTES = new Set([
   '/connexion',
   '/inscription',
   '/inscription/interimaire',
+  '/inscription/etablissement',
   // Ouvertes par necessite : on y arrive depuis un courriel, donc sans
   // session. La premiere en cree meme une.
   '/verification',

@@ -325,7 +325,7 @@ async function publier(): Promise<void> {
         <fieldset class="competences">
           <legend>Competences attendues <span class="facultatif">facultatif</span></legend>
           <p class="aide">
-            Classees par ce que les EHPAD demandent le plus sur ce metier, d apres les offres
+            Classees par ce que les etablissements demandent le plus sur ce metier, d apres les offres
             France Travail. Une competence marquee indispensable pese le double au classement —
             elle n ecarte personne pour autant, puisque rien ne la verifie.
           </p>

@@ -15,8 +15,10 @@ import type {
   OptionsAnnonces,
   OptionsVitrine,
   PageResultat,
+  TypeClient,
   TypeLieu,
 } from '@releve/shared';
+import { TYPE_CLIENT_COURT } from '@releve/shared';
 import { distanceKm } from '../matching/score';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -73,18 +75,26 @@ const NOMS_DEPARTEMENTS: Record<string, string> = {
  * hebergement » — le lieu et le client sont la meme chose, donc afficher l'un
  * revient a publier l'autre.
  *
- * Or publier sur le web ouvert quels EHPAD recourent a l'interim est une
- * information commercialement sensible pour eux, et, s'agissant du soin aux
- * personnes agees, une information que les familles liraient comme un signal
- * sur la qualite de la prise en charge. Ils ne l'ont pas autorisee en deposant
- * un besoin.
+ * Or publier sur le web ouvert quels etablissements recourent a l'interim est
+ * une information commercialement sensible pour eux, et, s'agissant du soin,
+ * une information que les familles liraient comme un signal sur la qualite de
+ * la prise en charge. Ils ne l'ont pas autorisee en deposant un besoin.
  *
- * Le remplacement se compose donc de deux informations que le candidat peut
- * avoir sans identifier l'etablissement : la nature du poste et la commune. Le
- * candidat connecte, lui, voit le nom dans son espace.
+ * Le remplacement se compose donc de trois informations que le candidat peut
+ * avoir sans identifier l'etablissement : la famille — EHPAD, hopital,
+ * clinique —, la nature du poste et la commune. La famille compte pour lui : un
+ * aide-soignant ne postule pas de la meme facon a un service hospitalier et a
+ * un hebergement pour personnes agees. Elle n'identifie personne tant qu'une
+ * commune en compte plus d'un, et c'est le cas partout ou l'agence opere.
+ *
+ * Le candidat connecte, lui, voit le nom dans son espace.
  */
-function secteurAnonyme(type: TypeLieu, ville: string): string {
-  return type === 'UNITE_PROTEGEE' ? `Unite protegee - ${ville}` : `EHPAD - ${ville}`;
+function secteurAnonyme(typeClient: TypeClient, typeLieu: TypeLieu, ville: string): string {
+  const famille = TYPE_CLIENT_COURT[typeClient];
+
+  return typeLieu === 'UNITE_PROTEGEE'
+    ? `${famille} - unite protegee - ${ville}`
+    : `${famille} - ${ville}`;
 }
 
 @Injectable()
@@ -111,8 +121,11 @@ export class VitrineService {
       this.prisma.mission.findMany({
         where,
         include: {
-          // `libelle` est volontairement absent : voir `secteurAnonyme`.
+          // `libelle` est volontairement absent : voir `secteurAnonyme`. La
+          // raison sociale du client l'est aussi, pour la meme raison — seul
+          // son type est projete.
           lieu: { select: { type: true, ville: true, codePostal: true } },
+          client: { select: { type: true } },
           qualificationRequise: { select: { code: true, libelle: true } },
         },
         // La plus proche dans le temps d'abord : un candidat cherche a remplir
@@ -130,7 +143,7 @@ export class VitrineService {
         metier: mission.qualificationRequise.libelle,
         metierCode: mission.qualificationRequise.code,
         typeLieu: mission.lieu.type as MissionVitrine['typeLieu'],
-        secteur: secteurAnonyme(mission.lieu.type, mission.lieu.ville),
+        secteur: secteurAnonyme(mission.client.type, mission.lieu.type, mission.lieu.ville),
         ville: mission.lieu.ville,
         codePostal: mission.lieu.codePostal,
         departement: departementDepuisCodePostal(mission.lieu.codePostal),

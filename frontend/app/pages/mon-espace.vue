@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  AUTORISATION_PAR_TYPE,
   STATUT_CANDIDAT_LIBELLES,
   TYPE_CLIENT_LIBELLES,
   type EspacePersonnel,
@@ -26,10 +27,17 @@ const { data: espace, error } = await useAsyncData('mon-espace', () =>
         </span>
       </div>
 
+<!--
+        Ce que le compte peut et ne peut pas faire, dit dans cet ordre. Une
+        formulation qui commencerait par le refus laisserait croire que le
+        compte ne sert a rien avant l'activation.
+      -->
       <p v-if="!espace.valideParLAgence" class="encart">
-        Votre compte est actif : vous pouvez vous connecter et completer votre fiche. L'agence
-        verifie l'etablissement et renseigne la convention collective applicable avant votre premier
-        depot de besoin.
+        Votre compte est ouvert : vous pouvez completer votre fiche et ajouter vos sites. Nous
+        allons vous demander votre autorisation — {{ AUTORISATION_PAR_TYPE[espace.client.type].piece
+        }} — puis nous renseignons votre convention collective.
+        <strong>Le depot de besoins s'ouvrira a ce moment-la.</strong> Comptez un jour ouvre ; nous
+        vous ecrivons des que c'est fait.
       </p>
 
       <dl class="fiche">

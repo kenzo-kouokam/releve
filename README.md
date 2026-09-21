@@ -1,18 +1,26 @@
 # Relève
 
-Agence d'intérim numérique pour les EHPAD.
+Agence d'intérim numérique pour le soin : EHPAD, hôpitaux, cliniques.
 
-L'agence place des intérimaires — aides-soignants, accompagnants éducatifs et sociaux — dans des
-**établissements d'hébergement pour personnes âgées dépendantes (EHPAD)** qui ont un besoin de
-remplacement, souvent à très court terme. La plateforme remplace le tableur et le téléphone :
-vivier de candidats, référentiel client, dépôt de besoin, matching — puis, au schéma mais pas
-encore au code, contractualisation et relevés d'heures (voir « État d'avancement »).
+L'agence place des intérimaires — aides-soignants, accompagnants éducatifs et sociaux — dans les
+**EHPAD**, les **hôpitaux** et les **cliniques** qui ont un besoin de remplacement, souvent à très
+court terme. La plateforme remplace le tableur et le téléphone : vivier de candidats, référentiel
+client, dépôt de besoin, matching — puis, au schéma mais pas encore au code, contractualisation et
+relevés d'heures (voir « État d'avancement »).
 
-L'EHPAD est le **seul** type de client : `TypeClient` ne porte qu'une valeur. Un établissement est
-enregistré par l'agence, jamais par auto-inscription — il n'ouvre qu'après un **arrêté conjoint
-ARS / conseil départemental** (art. L. 313-1 du CASF), et cet arrêté se vérifie sur pièce. Comme
-tout EHPAD relève de l'article L. 312-1 du CASF, la durée minimale d'exercice préalable à l'intérim
-de la loi Valletoux s'applique à **toutes** nos mises à disposition, sans condition. Face à Hublo,
+`TypeClient` porte ces **trois familles**, et la distinction n'est pas décorative : elle décide de
+la pièce que l'agence doit lire avant d'activer une fiche. Un EHPAD est un établissement social et
+médico-social (art. L. 312-1 du CASF) et ouvre sur un **arrêté conjoint ARS / conseil
+départemental** (art. L. 313-1) ; un hôpital ou une clinique sont des établissements de santé et
+exercent sur une **autorisation d'activité de soins délivrée par l'ARS** seule (art. L. 6122-1 du
+CSP). Réclamer un arrêté conjoint à une clinique reviendrait à réclamer un document qui n'existe
+pas — et à prendre ce qu'elle répondrait pour une vérification.
+
+Un établissement ouvre son compte lui-même et **arrive inactif** : aucun des trois n'exerce sans
+autorisation, et celle-ci se vérifie sur pièce avant toute mise à disposition. Ce qui ne dépend pas
+du type : la durée minimale d'exercice préalable à l'intérim de la loi Valletoux (loi 2023-1268,
+art. 8) vise les professionnels de santé en établissement de santé **comme** en ESMS, donc elle
+s'applique à **toutes** nos mises à disposition, sans condition. Face à Hublo,
 qui vend un outil de recrutement, et à Mediflash, qui contourne le salariat, la différenciation
 tient dans un vrai contrat de mission d'intérim — l'analyse concurrentielle est dans
 [`docs/analyse-de-marche.html`](docs/analyse-de-marche.html).
@@ -29,10 +37,10 @@ Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
 | **J3–J5 — Comptes, mission, profil**         | Inscription des deux profils, dépôt de besoin, candidature, validation, espace personnel de l'intérimaire | **Livré**                     |
 | **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, référentiel de compétences, moteur de matching à score explicable | **Livré**                     |
 | J7–J9 — Tableau de bord, vitrine, conformité | Tableau de bord candidat, pages publiques, n8n, RGAA / RGESN / RGPD                                       | **Partiel** — voir ci-dessous |
-| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **Côté API livré** — workflows partiels |
+| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **API livrée** — 1 workflow sur 3 commencé, aucun activé |
 | J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | À faire · 4 j·dev             |
 
-**483 tests au vert** : 435 sur l'API, 48 sur les règles partagées. Le front n'en a aucun.
+**505 tests au vert** : 456 sur l'API, 49 sur les règles partagées. Le front n'en a aucun.
 
 Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
 fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
@@ -103,14 +111,15 @@ navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, c
 dérouler une inscription complète sans écrire à une vraie adresse.
 
 ```bash
-pnpm test                    # 483 tests : règles partagées + intégration API
+pnpm test                    # 505 tests : règles partagées + intégration API
 ```
 
 La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
 premier lancement, puis vidée à chaque suite. Elle est distincte de la base de
 développement.
 
-Documentation de l'API générée : <http://localhost:3001/api/docs>.
+Documentation de l'API générée : <http://localhost:3001/api/docs>. Elle se ferme d'elle-même
+quand `NODE_ENV=production` ; `API_DOCS=true` la rouvre explicitement, par exemple sur une recette.
 
 Les ports **5434** et **6380** sont décalés volontairement : 5432, 5433 et 6379 sont souvent déjà
 pris sur un poste de développement (Postgres local, WSL).
@@ -119,6 +128,14 @@ pris sur un poste de développement (Postgres local, WSL).
 
 Mot de passe commun : `Releve2026!`. Relancer `pnpm db:seed` réécrit les mots de passe, c'est
 le moyen le plus simple de récupérer un accès en local.
+
+Le seed **converge** : il réécrit ce qu'il pose au lieu de se contenter de le créer. Une base semée
+avant un changement gardait sinon ses anciennes valeurs, et la vitrine a longtemps annoncé
+« 3e sans ascenseur » sur une mission qui se déroule en unité protégée.
+
+Ses six missions portent le préfixe `DEMO-`, hors de l'espace de références que l'API attribue
+(`M-<année>-NNNN`). Ce n'est pas cosmétique : avec des références communes, un reseed réécrivait de
+fond en comble une mission créée pendant une démonstration. Le cas s'est produit.
 
 | Adresse                        | Rôle                    | Rattachement             |
 | ------------------------------ | ----------------------- | ------------------------ |
@@ -257,8 +274,9 @@ dise, plutôt que d'afficher un chiffre qui aurait l'air complet.
 ### Référentiel de compétences
 
 Second usage des mêmes offres, à côté du baromètre. Le baromètre répond à « combien payer », le
-référentiel à « **que demander** » : ce qu'un EHPAD attend d'un aide-soignant s'apprend en lisant ce
-que les EHPAD écrivent dans leurs annonces, pas en imaginant une liste en réunion.
+référentiel à « **que demander** » : ce qu'un établissement attend d'un aide-soignant s'apprend en
+lisant ce que les établissements écrivent dans leurs annonces, pas en imaginant une liste en
+réunion.
 
 Aucune collecte supplémentaire : les compétences dormaient déjà dans `offre_collectee`. Une commande
 les réveille.
@@ -536,11 +554,13 @@ La **liste publique de missions** du canvas existe désormais, sous `/offres` : 
 missions ouvertes de l'agence, sans session, avec trois menus déroulants — département, ville,
 métier — construits sur les missions réellement ouvertes plutôt que sur une liste figée des cent une
 divisions françaises. Elle ne nomme pas l'établissement client : publier sur le web ouvert quels
-EHPAD recourent à l'intérim est commercialement sensible pour eux — et, s'agissant du soin aux
-personnes âgées, une information que les familles liraient comme un signal sur la qualité de la
-prise en charge. Ils ne l'ont pas autorisé en déposant un besoin. Le secteur affiché est donc
-recomposé (« EHPAD — Nantes », « Unité protégée — Rezé ») et non recopié du libellé du lieu : dans
-un EHPAD, le lieu **est** le client, donc afficher l'un revient à publier l'autre.
+établissements recourent à l'intérim est commercialement sensible pour eux — et, s'agissant du
+soin, une information que les familles liraient comme un signal sur la qualité de la prise en
+charge. Ils ne l'ont pas autorisé en déposant un besoin. Le secteur affiché est donc recomposé
+(« EHPAD — Nantes », « Clinique — unité protégée — Rezé ») et non recopié du libellé du lieu : dans
+un établissement, le lieu **est** le client, donc afficher l'un revient à publier l'autre. La
+famille — EHPAD, hôpital, clinique — y figure parce qu'elle change la façon dont un aide-soignant
+lit l'offre, et qu'elle n'identifie personne tant qu'une commune en compte plus d'un.
 
 `GET /missions` reste réservé à une session : c'est la vue du candidat sur son agence, avec son
 classement et ses candidatures, et elle n'a pas le même contenu.
@@ -566,8 +586,8 @@ backend/                          API NestJS
     offres-echantillon.json       102 offres réelles, rejouables sans réseau
   prisma/
     schema.prisma                 modèle complet du produit + 3 invariants métier
-    migrations/                   … pivot EHPAD, référentiel de compétences, conservation
-    seed.ts                       agence, deux diplômes, deux EHPAD, candidats, comptes ; amorce le marché
+    migrations/                   … pivot EHPAD, établissements de santé, compétences, conservation
+    seed.ts                       agence, deux diplômes, six établissements (EHPAD, clinique, CH), candidats ; amorce le marché
   src/
     auth/                         authentification, rôles, sessions, mots de passe
       auth.decorateurs.ts         @Public, @Roles, @UtilisateurCourant, @AgenceCourante
@@ -580,9 +600,10 @@ backend/                          API NestJS
       inscriptions.service.ts     auto-inscription entreprise et intérimaire
       mots-de-passe.ts            Argon2id
     candidats/                    vivier : fiche, qualifications, disponibilités
-    clients/                      EHPAD clients et lieux d'intervention
+    clients/                      etablissements clients et lieux d'intervention
     contact/                      formulaire public de la vitrine, relayé par courriel
     notifications/                annonce quotidienne des missions correspondantes
+      annonce-planifiee.service.ts  7 h, sous ANNONCE_MISSIONS_AUTOMATIQUE
     evenements/                   journal des transitions, webhooks signés, routes de service
       evenements.service.ts       consigne puis émet — le journal d'abord, toujours
       webhooks.service.ts         émission signée HMAC, non bloquante
@@ -642,7 +663,7 @@ backend/                          API NestJS
     normalisation.spec.ts         salaires et empreintes, sans base ni réseau
     comptes.spec.ts               garde-fous d'administration
     sessions.spec.ts              rotation, rejeu, révocation
-    debit.spec.ts                 limitation de débit
+    debit.spec.ts                 limitation de débit, compteurs partagés
 
 frontend/                         Front Nuxt
   server/                         Nitro : le navigateur ne voit jamais l'API
@@ -685,7 +706,9 @@ frontend/                         Front Nuxt
       politique-confidentialite.vue  traitements réels, durée de conservation, ce qui reste à préciser
       conservation.vue            cible du lien de relance : garder les pièces un an de plus, ou les effacer
       connexion.vue
-      inscription/interimaire.vue le seul parcours public ; /inscription y redirige (301)
+      inscription/index.vue       l'ecran de choix entre les deux parcours
+      inscription/interimaire.vue dossier candidat
+      inscription/etablissement.vue compte etablissement, inactif jusqu'a verification
       verification.vue            cible du lien reçu : confirme, puis redirige selon le rôle
       mot-de-passe-oublie.vue     demande d'un lien, réponse identique dans tous les cas
       reinitialisation.vue        choix du nouveau mot de passe depuis le lien
@@ -741,36 +764,44 @@ docker-compose.yml                PostgreSQL + PostGIS, Redis
 Le schéma porte trois décisions structurantes, commentées dans `schema.prisma`.
 
 **1. Le client contractuel n'est pas le lieu d'intervention.** Un gestionnaire signe pour
-l'ensemble de ses EHPAD ; le remplacement se fait dans une unité précise de l'un d'eux. `Client` et
+l'ensemble de ses établissements ; le remplacement se fait dans une unité précise de l'un d'eux. `Client` et
 `LieuIntervention` sont deux modèles distincts, et le client n'a pas d'adresse propre.
 
 **2. La convention collective est portée par le client.** Principe d'égalité de traitement avec les
 salariés de l'entreprise utilisatrice : c'est sa convention qui fixe le salaire de référence de
 l'intérimaire, pas celle du candidat.
 
-**3. L'autorisation du client est saisie sur pièce.** Un EHPAD n'ouvre qu'après un arrêté conjoint
-ARS / conseil départemental (art. L. 313-1 du CASF), délivré pour quinze ans, et rien dans le SIRET
-ne le dit. Les champs sont **nullables** — les fiches antérieures à la règle n'ont pas d'arrêté
-connu, et leur en inventer un ferait dire à la base ce que personne n'a vérifié. L'absence est ici
-l'information juste, et c'est l'**activation** qui la refuse.
+**3. L'autorisation du client est saisie sur pièce.** Aucun de ces établissements n'exerce sans
+autorisation, et rien dans le SIRET ne la dit. Les champs sont **nullables** — les fiches
+antérieures à la règle n'ont pas d'autorisation connue, et celles qui viennent de l'inscription
+publique non plus, puisque ce formulaire ne la demande pas. Leur en inventer une ferait dire à la
+base ce que personne n'a vérifié. L'absence est ici l'information juste, et c'est l'**activation**
+qui la refuse.
 
 ### L'autorisation, et le statut juridique
 
 Deux informations distinctes, qu'il ne faut pas confondre.
 
-**L'autorisation ne varie pas.** Il n'existe pas d'EHPAD non autorisé : le numéro FINESS
-géographique et la référence de l'arrêté sont donc exigés de tous, sans condition. C'est aussi ce
-qui rend la loi Valletoux (loi 2023-1268, art. 8) applicable à **toutes** nos mises à disposition —
-la durée minimale d'exercice préalable à l'intérim vise les professionnels de santé exerçant en
-ESMS, et un EHPAD en est un.
+**L'autorisation existe toujours, mais la pièce dépend du type.** Les deux valeurs à saisir sont
+les mêmes pour les trois familles — numéro FINESS géographique et référence de l'autorisation — et
+c'est le document à ouvrir pour les lire qui change. `AUTORISATION_PAR_TYPE` le dit, et l'écran de
+fiche client le rappelle à qui instruit le dossier :
 
-C'est une simplification réelle par rapport au régime précédent. Sous l'aide à domicile, la règle ne
-mordait que sur une partie des structures, et il fallait un champ pour savoir lesquelles ; ici elle
-est générale, et le code n'a plus à la conditionner.
+| Type                    | Pièce à lire                                  | Fondement            |
+| ----------------------- | --------------------------------------------- | -------------------- |
+| **EHPAD**               | Arrêté conjoint ARS / conseil départemental   | art. L. 313-1 CASF   |
+| **Hôpital**             | Autorisation d'activité de soins (ARS)        | art. L. 6122-1 CSP   |
+| **Clinique**            | Autorisation d'activité de soins (ARS)        | art. L. 6122-1 CSP   |
 
-**Le statut juridique varie**, et c'est la seule chose qui varie. Il ne décide pas de ce que
-l'établissement a le droit de faire — l'arrêté s'en charge — mais de la convention collective
-applicable, donc du salaire de référence de l'intérimaire.
+La loi Valletoux (loi 2023-1268, art. 8), elle, ne fait pas cette distinction : la durée minimale
+d'exercice préalable à l'intérim vise les professionnels de santé en établissement de santé comme
+en ESMS. Elle s'applique donc à **toutes** nos mises à disposition, et le code n'a pas à la
+conditionner au type — c'est une simplification réelle par rapport au régime précédent, où, sous
+l'aide à domicile, la règle ne mordait que sur une partie des structures.
+
+**Le statut juridique est une autre question.** Il ne décide pas de ce que l'établissement a le
+droit de faire — l'autorisation s'en charge — mais de la convention collective applicable, donc du
+salaire de référence de l'intérimaire.
 
 | Statut juridique          | Cadre salarial indicatif                       |
 | ------------------------- | ---------------------------------------------- |
@@ -782,9 +813,12 @@ applicable, donc du salaire de référence de l'intérimaire.
 La clé de contrôle du FINESS n'est **pas** vérifiée, contrairement à celle du SIRET : l'algorithme
 varie selon les référentiels, et une implémentation approximative refuserait des établissements
 parfaitement réels. Ici, un faux négatif coûte bien plus cher qu'un faux positif — que la lecture de
-l'arrêté rattrape de toute façon. C'est le FINESS **géographique** qui est attendu, celui du site :
-un groupe qui exploite douze EHPAD n'a qu'un FINESS juridique, et l'autorisation se lit site par
-site. Le barème vit dans `shared/src/habilitation.ts`.
+l'autorisation rattrape de toute façon. C'est le FINESS **géographique** qui est attendu, celui du
+site : un groupe qui exploite douze établissements n'a qu'un FINESS juridique, et l'autorisation se
+lit site par site. Le barème vit dans `shared/src/habilitation.ts`.
+
+La colonne s'appelle toujours `arreteReference`, du nom du premier régime couvert. La rebaptiser
+coûterait une migration pour une exactitude que le type de client donne déjà.
 
 ### RGPD
 
@@ -848,7 +882,7 @@ Un `usage` porté par chaque lien empêche qu'un jeton serve à l'autre parcours
 
 Le formulaire de demande répond **204 dans tous les cas**, adresse connue ou non, et il est plafonné
 à trois essais par minute : répondre différemment en ferait un annuaire des inscrits — et ici, être
-inscrit révèle qu'on cherche des missions en EHPAD. Une réinitialisation réussie ferme
+inscrit révèle qu'on cherche des missions dans le soin. Une réinitialisation réussie ferme
 **toutes** les sessions en cours : elle sert aussi après un vol, et laisser vivre les sessions
 laisserait le voleur connecté après la reprise de main.
 
@@ -858,6 +892,28 @@ quand tout va bien : quelqu'un qui prend un compte commence par en changer le mo
 cet avertissement le propriétaire ne l'apprend qu'en se retrouvant dehors, sans savoir ni pourquoi
 ni quand. Le message ne contient jamais de mot de passe, ni l'ancien ni le nouveau : un courriel
 traverse des serveurs qu'on ne maîtrise pas et reste dans une boîte pour toujours.
+
+**Le secret de signature est vérifié au démarrage.** `JWT_SECRET` absent, plus court que 32
+caractères, ou portant encore une valeur d'exemple : l'API refuse de démarrer. Le cas qui motive ce
+contrôle n'est pas l'oubli — une absence échoue bruyamment et se corrige dans la minute — mais la
+valeur `"a-remplacer-en-production"` du fichier d'exemple, **publiée dans ce dépôt**. Un
+déploiement qui copie `.env.example` sans le relire démarrait avec un secret que tout le monde
+connaît, et n'importe qui pouvait alors forger un jeton d'administrateur, sans mot de passe et sans
+trace. Ça échouait en silence, donc c'est traité plus sévèrement que l'oubli.
+`backend/src/auth/secret-jwt.ts`, sept tests.
+
+**En-têtes de sécurité.** `helmet` côté API ; un middleware Nitro côté front, qui couvre les pages
+et le relais `/bff` d'un seul endroit. Ce qui compte vraiment ici : `X-Content-Type-Options:
+nosniff`, qui empêche un navigateur de requalifier une pièce téléversée en HTML ; `frame-ancestors`
+et `X-Frame-Options`, contre le détournement de clic ; `Referrer-Policy`, parce que le lien de
+confirmation porte un jeton dans sa requête ; et une politique de contenu qui bloque le chargement
+d'un script tiers et l'exfiltration vers un domaine tiers.
+
+Cette politique dit `'unsafe-inline'` sur les scripts, et il faut le savoir : Nuxt injecte sa charge
+utile d'hydratation en ligne, et s'en passer demanderait un nonce propagé dans tout le rendu. Elle
+arrête donc le XSS qui charge son code ailleurs, pas celui qui l'écrit sur place. En développement,
+ni politique de contenu ni HSTS : la première casserait le rechargement à chaud de Vite, la seconde
+forcerait `localhost` en HTTPS pour tous les projets du poste, bien après l'arrêt de ce serveur.
 
 **Cloisonnement multi-agence.** Le décorateur `@AgenceCourante()` extrait l'agence du jeton ; les
 services la reçoivent en paramètre obligatoire. Un enregistrement d'une autre agence répond **404 et
@@ -929,10 +985,32 @@ Base : `http://localhost:3001/api`. Toutes les routes sauf mention contraire exi
 
 ### Authentification
 
+Deux parcours d'inscription publics, et le même principe des deux côtés : **une inscription ouvre
+un compte, elle ne rend personne opérationnel.** L'intérimaire arrive `EN_VERIFICATION`, se déclarer
+aide-soignant ne suffisant pas à être envoyé chez quelqu'un ; l'établissement arrive **inactif**, et
+`missions.creer()` refuse un client inactif — ce contrôle existait déjà pour les fiches que l'agence
+désactive, donc ouvrir l'inscription n'a rien relâché.
+
+**Le formulaire d'établissement ne demande pas l'autorisation**, et c'est un retour en arrière
+assumé. Une première version réclamait le FINESS et la référence de l'arrêté dès la saisie, au
+motif que l'agence en aurait besoin pour activer. L'argument ne tenait pas : rien ne vérifie ces
+valeurs à ce moment-là, donc les saisir ne prouve rien — un numéro tapé au clavier n'est pas une
+pièce lue. Elles n'ajoutaient que deux champs administratifs devant quelqu'un qui cherche un
+remplaçant pour demain matin, et elles étaient rédigées pour le seul EHPAD.
+
+Le contrôle n'a pas disparu, il a retrouvé l'endroit où il mord : `PATCH /clients/:id` refuse
+`actif: true` tant que le statut juridique, le FINESS et la référence d'autorisation ne sont pas
+tous les trois renseignés, et c'est l'agence qui les saisit en ouvrant la pièce. Deux tests
+d'intégration tiennent ce verrou de bout en bout.
+
+Le **type d'établissement** reste demandé au formulaire, lui, parce qu'il décide de la pièce à
+réclamer ensuite — et qu'on y répond sans avoir de documents devant soi.
+
 | Méthode | Route                              | Accès                                          |
 | ------- | ---------------------------------- | ---------------------------------------------- |
 | `POST`  | `/auth/connexion`                  | public                                         |
-| `POST`  | `/auth/inscription/interimaire`    | public — le seul parcours d'inscription        |
+| `POST`  | `/auth/inscription/interimaire`    | public — dossier candidat                      |
+| `POST`  | `/auth/inscription/etablissement`  | public — EHPAD / hôpital / clinique, inactif   |
 | `POST`  | `/auth/verification/confirmer`     | public — le lien du courriel, ouvre la session |
 | `POST`  | `/auth/verification/renvoyer`      | public — toujours 204                          |
 | `POST`  | `/auth/mot-de-passe/oublie`        | public — toujours 204                          |
@@ -1116,9 +1194,21 @@ Les deux routes ouvertes servent **les missions de Relève**, jamais les offres 
 alimente les menus déroulants à partir des missions réellement ouvertes. Le nom de l'établissement
 client n'est pas projeté.
 
+La page consomme cette pagination en **chargement progressif** : trois offres, puis trois de plus à
+chaque clic sur « Voir N offres de plus ». La liste publique n'est pas un catalogue à parcourir,
+elle doit donner envie de créer un compte — et « Page 2 sur 4 » posait une question que le visiteur
+ne se pose pas. Le nombre visible sert directement de `limite`, la requête repart toujours de la
+première page : rien à accumuler côté client, et pas de doublon si une mission est publiée entre
+deux clics.
+
+Les menus se construisant sur les missions ouvertes, ils ne valent que ce que vaut le jeu de
+données : avec deux missions dans la même agglomération, le menu des départements n'en offrait
+qu'un. Le seed couvre donc quatre départements et six communes, de quoi éprouver le chaînage
+département → ville.
+
 `/offres/suggestions` est la seule route qui rende des offres France Travail, et elle exige une
 session candidat. Le rapprochement se fait sur le **code ROME de la qualification** du candidat
-(DEAS → `J1501`, AVS → `K1304`) croisé avec son **rayon de déplacement**, filtré en base par une
+(DEAS → `J1501`, DEAES → `K1302`) croisé avec son **rayon de déplacement**, filtré en base par une
 boîte englobante puis tranché à la distance à vol d'oiseau. Chaque suggestion porte sa source et son
 `urlOrigine`.
 
@@ -1185,6 +1275,46 @@ journalisées, rien ne sort. C'est l'état normal d'un poste qui ne fait pas tou
 Le détail du contrat, et ce qui sort ou non vers Slack, sont dans `docs/automatisations-api.md`. Les
 workflows exportés vivent dans `n8n/`.
 
+#### Où en sont les workflows
+
+Le versant API est complet et testé. Le versant n8n ne l'est pas, et il faut le dire précisément
+plutôt que globalement : **un workflow sur trois est commencé, aucun ne tourne de bout en bout.**
+
+| Workflow                           | État                                                              |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| **WF1** — alertes et clôture       | 18 nœuds, **4 encore `noOp`** ; workflow non activé (`active: false`) |
+| **WF2** — relance et escalade      | Pas commencé — les deux routes qu'il appelle existent et sont testées |
+| **WF3** — confirmation de mission  | Pas commencé — la route et le gabarit légal existent                |
+
+Ce qui fonctionne dans WF1 : vérification de la signature HMAC, rejet d'un envoi non signé,
+aiguillage par type d'événement, compteur Redis du plafond de trois alertes par jour, e-mail
+d'alerte urgente et e-mail de clôture. Ce qui manque : les trois messages Slack vers l'agence et
+l'écriture Airtable de l'acceptation — c'est-à-dire tout ce qui demande un credential extérieur.
+
+Le sujet Epitech exige **au moins deux automatisations no-code**. En l'état il en manque deux, et
+WF2 est le moins coûteux : les routes existent, le contrat est documenté, il ne reste que les nœuds.
+
+#### L'annonce quotidienne, elle, n'attend plus personne
+
+`ANNONCE_MISSIONS_AUTOMATIQUE="true"` déclenche à 7 h le balayage qui écrit à chaque intérimaire les
+missions publiées depuis son dernier message et pour lesquelles il est éligible.
+
+Le balayage existait, testé, mais rien ne l'appelait : il attendait une crontab ou le workflow WF2,
+qui n'est pas écrit. Un dossier valide ne sert à rien si personne n'apprend qu'une mission s'est
+ouverte, et la fonctionnalité paraissait absente alors qu'elle était faite.
+
+Le drapeau répond à l'objection qui avait fait écarter la planification : une tâche cachée dans le
+processus web s'exécute autant de fois qu'il y a d'instances. Même règle que pour l'import, avec un
+enjeu plus sérieux — un import de trop ne fait que consommer du quota, un balayage de trop écrit
+deux fois à de vraies personnes. **À poser sur le serveur qui sert le site, et sur lui seul.**
+
+Les deux autres voies restent valables : `pnpm cli notifier:missions` dans une crontab, ou
+`POST /api/interne/notifications/missions` depuis n8n.
+
+Toujours un **balayage** et non un envoi à la publication : une agence qui dépose huit besoins dans
+l'après-midi ferait sinon huit courriels à la même personne, et c'est ainsi qu'on se fait classer en
+indésirable.
+
 « back-office » = `ADMIN_AGENCE` ou `CHARGE_RECRUTEMENT`.
 
 ---
@@ -1196,7 +1326,7 @@ workflows exportés vivent dans `n8n/`.
 | `pnpm dev`                               | Contracts compilés, puis API et front en parallèle  |
 | `pnpm dev:backend` / `pnpm dev:frontend` | Un seul des deux                                    |
 | `pnpm build`                             | Contracts, puis API, puis front                     |
-| `pnpm test`                              | Règles partagées (48) puis intégration API (435)    |
+| `pnpm test`                              | Règles partagées (49) puis intégration API (456)    |
 | `pnpm test:shared`                       | Règles partagées seules, sans base                  |
 | `pnpm test:backend`                      | Intégration API seule                               |
 | `pnpm typecheck`                         | TypeScript sur les trois paquets, tests compris     |
@@ -1210,9 +1340,12 @@ workflows exportés vivent dans `n8n/`.
 ### Commandes d'exploitation
 
 Elles tournent hors HTTP, sur le même contexte Nest que l'API — mêmes services, mêmes règles.
-**Trois sont à appeler une fois par jour par l'ordonnanceur** : les deux de conservation, dans cet
+**Deux sont à appeler une fois par jour par l'ordonnanceur** : les deux de conservation, dans cet
 ordre et jamais fondues en une seule (la relance du matin effacerait sinon ce qu'elle vient
-d'annoncer), et l'annonce des missions. `--sec` montre ce qui se passerait sans rien écrire.
+d'annoncer). L'annonce des missions, elle, a désormais sa tâche planifiée dans l'API sous
+`ANNONCE_MISSIONS_AUTOMATIQUE` ; la commande reste utile pour la déclencher à la main ou pour un
+déploiement qui préfère son propre ordonnanceur. `--sec` montre ce qui se passerait sans rien
+écrire.
 
 | Commande                         | Effet                                                                       |
 | -------------------------------- | --------------------------------------------------------------------------- |
@@ -1229,14 +1362,21 @@ d'annoncer), et l'annonce des missions. `--sec` montre ce qui se passerait sans 
 
 ## Limites connues
 
+**Les documents ne sont pas chiffrés au repos.** Pièces d'identité et diplômes vivent en clair sur
+le disque, sous un nom aléatoire et hors de toute racine servie statiquement, mais en clair. Le type
+MIME est par ailleurs celui que déclare le navigateur : ni signature de fichier vérifiée, ni analyse
+antivirale. C'est dit aussi dans `documents.service.ts`, à l'endroit où ça se corrigerait.
+
+**Les adresses e-mail apparaissent en clair dans les journaux.** Une dizaine d'endroits. Utile pour
+suivre un parcours d'inscription en développement, à pseudonymiser avant un usage réel.
+
+**Ni double facteur, ni journal d'audit.** Qui a activé quel établissement, qui a téléchargé quelle
+pièce d'identité : rien ne le trace aujourd'hui.
+
 **Le jeton d'accès survit jusqu'à 15 minutes à une révocation.** La session ne peut plus être
 prolongée dès qu'elle est coupée, mais le JWT en cours reste accepté jusqu'à son expiration. Le
 réduire supposerait une vérification en base à chaque requête — arbitrage entre latence et délai de
 coupure, à poser si le contexte l'exige.
-
-**La limitation de débit est en mémoire du processus.** Elle se remet à zéro à chaque redémarrage et
-ne se partage pas entre instances. Dès que l'API tournera sur plus d'une instance, il faudra la
-faire passer par Redis, déjà présent dans le `docker-compose`.
 
 **La colonne PostGIS `geom` est alimentée, mais encore inutilisée par le classement.** Elle est
 écrite à chaque géocodage et son index GiST existe ; en revanche `classer()` charge toujours tout le
@@ -1262,11 +1402,11 @@ d'identité et diplôme compris : le code ne branche nulle part sur le type de p
 [`docs/conservation-documents.md`](docs/conservation-documents.md).
 
 **Les notifications métier s'arrêtent à la candidature.** Le candidat est averti quand son dossier
-est validé, et une fois par jour des missions publiées qui lui correspondent
-(`pnpm cli notifier:missions`). En revanche, un candidat retenu ne
-l'apprend qu'en ouvrant son suivi, un établissement qu'en ouvrant son accueil. La sortie courriel
-existe (`backend/src/mail/`), il reste à y brancher les événements — c'est ce que les
-automatisations n8n du jalon suivant doivent couvrir.
+est validé, et chaque matin à 7 h des missions publiées qui lui correspondent. En revanche, un
+candidat retenu ne l'apprend qu'en ouvrant son suivi, un établissement qu'en ouvrant son accueil.
+La sortie courriel existe (`backend/src/mail/`) et les gabarits sont écrits — y compris celui,
+juridiquement formulé, de la confirmation de mission. Ce qui manque est le déclencheur : c'est WF3
+qui doit l'appeler, et WF3 n'est pas commencé.
 
 **Aucune limite par compte sur les liens émis.** Le plafond de trois demandes par minute est posé
 par adresse IP. Quelqu'un qui change d'adresse à chaque essai peut donc inonder une boîte mail de
@@ -1283,7 +1423,7 @@ mais à revoir si la suite s'allonge.
 le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
 travail. Sans conséquence technique, mais visible en soutenance.
 
-**Aucun test ne couvre le front.** Les 483 tests portent sur l'API et les règles partagées ; les
+**Aucun test ne couvre le front.** Les 505 tests portent sur l'API et les règles partagées ; les
 35 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
 
 **La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le

@@ -110,7 +110,7 @@ async function renvoyer(): Promise<void> {
           {{ envoi ? 'Connexion...' : 'Se connecter' }}
         </AppBouton>
 
-        <AppBouton variante="secondaire" to="/inscription/interimaire">S'inscrire</AppBouton>
+        <AppBouton variante="secondaire" to="/inscription">S'inscrire</AppBouton>
       </form>
     </AppCarte>
 
