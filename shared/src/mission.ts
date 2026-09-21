@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { competencesMissionSchema, type CompetenceLiee } from './competences';
 import { statutMissionSchema, type StatutMission } from './enums';
 import { MOTIF_DATE_ISO, MOTIF_HEURE } from './motifs';
 import { paginationQuerySchema } from './pagination';
@@ -8,8 +9,8 @@ import { paginationQuerySchema } from './pagination';
  *
  * Trois rattachements distincts, et c'est voulu : le `client` signe, le `lieu`
  * est l'endroit ou l'on travaille, la `qualification` dit qui peut y aller. Les
- * confondre serait l'erreur classique du domaine - un SAAD signe pour une
- * intervention au domicile d'un beneficiaire, jamais dans ses propres murs.
+ * confondre serait l'erreur classique du domaine - un gestionnaire signe pour
+ * l'ensemble de ses etablissements, le remplacement se fait dans une unite.
  */
 export const missionCreateSchema = z
   .object({
@@ -28,6 +29,17 @@ export const missionCreateSchema = z
 
     tauxHoraire: z.coerce.number().min(8, 'Taux horaire trop bas').max(120).optional(),
     coefficient: z.coerce.number().min(1).max(9.999).optional(),
+
+    /**
+     * Compétences attendues, choisies dans le référentiel agrégé depuis les
+     * offres France Travail.
+     *
+     * Facultatif, et il faut que ça le reste : un établissement qui dépose un
+     * besoin pour demain ne doit pas être retenu par un formulaire. Sans
+     * compétences, la composante correspondante du score est neutralisée et le
+     * classement se joue comme avant.
+     */
+    competences: competencesMissionSchema.optional(),
 
     // Renseigne par le back-office seulement : un client publie toujours pour
     // lui-meme, et le service ignore ce champ dans ce cas.
@@ -56,6 +68,11 @@ export const missionUpdateSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   tauxHoraire: z.coerce.number().min(8).max(120).optional(),
   coefficient: z.coerce.number().min(1).max(9.999).optional(),
+  // Remplace la liste entière plutôt que de la compléter : une modification
+  // partielle demanderait de distinguer « je n'y touche pas » de « je les
+  // retire toutes », ce qu'un tableau ne sait pas dire. L'omettre ne change
+  // rien, le passer vide efface.
+  competences: competencesMissionSchema.optional(),
 });
 
 export type MissionUpdate = z.infer<typeof missionUpdateSchema>;
@@ -131,6 +148,8 @@ export interface MissionDetail extends MissionResume {
   /** Uniquement pour qui a le droit de la voir : agence, client, candidat retenu. */
   consignes: string | null;
   prerequis: PrerequisMission[];
+  /** Compétences attendues, l'indispensable d'abord. */
+  competences: CompetenceLiee[];
   /** Renseigne pour un candidat connecte : a-t-il deja postule ? */
   dejaPostule: boolean;
 }

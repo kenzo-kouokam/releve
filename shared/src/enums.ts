@@ -24,27 +24,36 @@ export const STATUT_CANDIDAT_LIBELLES: Record<StatutCandidat, string> = {
 };
 
 /**
- * Un seul type de client : le SAAD.
+ * Un seul type de client : l'EHPAD.
  *
- * L'agence ne place que dans des services d'aide et d'accompagnement a
- * domicile. L'enum est conserve plutot que supprime parce qu'il porte une
- * information juridique exploitee ailleurs : un SAAD releve de l'article
+ * L'agence ne place que dans des etablissements d'hebergement pour personnes
+ * agees dependantes. L'enum est conserve plutot que supprime parce qu'il porte
+ * une information juridique exploitee ailleurs : un EHPAD releve de l'article
  * L. 312-1 du CASF, donc la duree minimale d'exercice prealable a l'interim
- * s'applique a ses mises a disposition.
+ * s'applique a toutes ses mises a disposition, sans exception.
  */
-export const typeClientSchema = z.enum(['SAAD']);
+export const typeClientSchema = z.enum(['EHPAD']);
 export type TypeClient = z.infer<typeof typeClientSchema>;
 
 export const TYPE_CLIENT_LIBELLES: Record<TypeClient, string> = {
-  SAAD: "Service d'aide et d'accompagnement a domicile (SAAD)",
+  EHPAD: "Etablissement d'hebergement pour personnes agees dependantes (EHPAD)",
 };
 
-export const typeLieuSchema = z.enum(['DOMICILE_BENEFICIAIRE', 'ETABLISSEMENT']);
+/**
+ * Ou se deroule l'intervention, a l'interieur de l'etablissement.
+ *
+ * La distinction n'est pas decorative. Une unite protegee — unite Alzheimer,
+ * UHR, PASA — accueille des residents atteints de troubles cognitifs, et y
+ * intervenir suppose une formation que tout titulaire du diplome n'a pas. Le
+ * type de lieu est donc ce qui permet d'exiger cette formation la ou elle est
+ * requise, et de ne pas l'exiger ailleurs.
+ */
+export const typeLieuSchema = z.enum(['ETABLISSEMENT', 'UNITE_PROTEGEE']);
 export type TypeLieu = z.infer<typeof typeLieuSchema>;
 
 export const TYPE_LIEU_LIBELLES: Record<TypeLieu, string> = {
-  DOMICILE_BENEFICIAIRE: 'Domicile du beneficiaire',
-  ETABLISSEMENT: 'Etablissement',
+  ETABLISSEMENT: 'Hebergement classique',
+  UNITE_PROTEGEE: 'Unite protegee (Alzheimer, UHR, PASA)',
 };
 
 export const statutMissionSchema = z.enum([

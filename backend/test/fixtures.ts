@@ -65,7 +65,7 @@ export async function reinitialiser(): Promise<Jeu> {
       qualification_candidat, experience_professionnelle, disponibilite,
       indisponibilite, proposition, contrat, releve_heures, evenement_mission,
       mission, facture, lieu_intervention, client, candidat, qualification, agence,
-      commune_geocodee
+      commune_geocodee, competence, competence_metier
     RESTART IDENTITY CASCADE
   `);
 
@@ -122,14 +122,14 @@ export async function reinitialiser(): Promise<Jeu> {
   const clientA = await prisma.client.create({
     data: {
       agenceId: agenceA.id,
-      raisonSociale: 'SAAD A',
+      raisonSociale: 'EHPAD A',
       siret: '48291736500017',
-      type: 'SAAD',
+      type: 'EHPAD',
       lieux: {
         create: [
           {
-            type: 'DOMICILE_BENEFICIAIRE',
-            libelle: 'Domicile A',
+            type: 'ETABLISSEMENT',
+            libelle: 'EHPAD A - hebergement',
             adresse: '2 rue A',
             codePostal: '44000',
             ville: 'Nantes',
@@ -148,9 +148,9 @@ export async function reinitialiser(): Promise<Jeu> {
   const clientB = await prisma.client.create({
     data: {
       agenceId: agenceB.id,
-      raisonSociale: 'SAAD B',
+      raisonSociale: 'EHPAD B',
       siret: '73282932000074',
-      type: 'SAAD',
+      type: 'EHPAD',
     },
   });
 

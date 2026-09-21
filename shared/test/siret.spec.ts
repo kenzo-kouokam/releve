@@ -24,12 +24,13 @@ describe('siretValide', () => {
 });
 
 describe('clientCreateSchema', () => {
-  // Le statut reglementaire fait partie du socle depuis qu'il conditionne
-  // l'activation : une fiche sans lui n'est plus une fiche valide.
+  // L'autorisation fait partie du socle depuis qu'elle conditionne
+  // l'activation : une fiche sans elle n'est plus une fiche valide.
   const base = {
-    raisonSociale: 'SAAD Test',
-    statutReglementaire: 'DECLARE_SAP',
-    numeroSap: 'SAP732829320',
+    raisonSociale: 'EHPAD Test',
+    statutJuridique: 'PRIVE_NON_LUCRATIF',
+    numeroFiness: '440000123',
+    arreteReference: 'ARR-2025-114',
   };
 
   it('normalise un SIRET saisi avec des espaces', () => {
@@ -45,34 +46,34 @@ describe('clientCreateSchema', () => {
     ).toBe(false);
   });
 
-  // Le perimetre est reduit aux SAAD : le type n'est plus a saisir, et un type
+  // Le perimetre est reduit aux EHPAD : le type n'est plus a saisir, et un type
   // hors perimetre doit etre refuse plutot qu'ignore en silence.
-  it('retient SAAD quand le type est omis', () => {
+  it('retient EHPAD quand le type est omis', () => {
     const resultat = clientCreateSchema.safeParse({ ...base, siret: '73282932000074' });
 
     expect(resultat.success).toBe(true);
-    expect(resultat.data?.type).toBe('SAAD');
+    expect(resultat.data?.type).toBe('EHPAD');
   });
 
   it('refuse un type hors perimetre', () => {
     expect(
-      clientCreateSchema.safeParse({ ...base, siret: '73282932000074', type: 'EHPAD' }).success,
+      clientCreateSchema.safeParse({ ...base, siret: '73282932000074', type: 'SAAD' }).success,
     ).toBe(false);
   });
 
   /**
-   * Le statut reglementaire et sa piece justificative.
+   * Le statut juridique et les pieces de l'autorisation.
    *
-   * Ce que ces tests protegent n'est pas la presence d'un champ, mais sa
-   * coherence : declarer une autorisation departementale en ne fournissant
-   * qu'un numero SAP ferait passer une structure pour ce qu'elle n'est pas — et
-   * c'est ce statut qui determine si la duree minimale d'exercice prealable a
-   * l'interim s'applique a ses missions.
+   * Ce que ces tests protegent n'est pas la presence d'un champ, mais le fait
+   * qu'on ne puisse pas declarer un gestionnaire sans produire l'arrete qui
+   * autorise son etablissement a accueillir des residents. Sous le regime
+   * precedent — l'aide a domicile — la piece attendue dependait du statut ; ici
+   * il n'y en a qu'une, parce qu'il n'existe pas d'EHPAD sans autorisation.
    */
-  describe('statut reglementaire', () => {
+  describe('statut juridique et autorisation', () => {
     const fiche = (surcharge: Record<string, unknown>) =>
       clientCreateSchema.safeParse({
-        raisonSociale: 'SAAD Test',
+        raisonSociale: 'EHPAD Test',
         siret: '73282932000074',
         ...surcharge,
       });
@@ -81,73 +82,69 @@ describe('clientCreateSchema', () => {
       expect(fiche({}).success).toBe(false);
     });
 
-    it('accepte une declaration accompagnee de son numero SAP', () => {
-      expect(fiche({ statutReglementaire: 'DECLARE_SAP', numeroSap: 'SAP732829320' }).success).toBe(
-        true,
-      );
-    });
-
-    it('normalise un numero SAP saisi avec des separateurs', () => {
-      const resultat = fiche({
-        statutReglementaire: 'PRESTATAIRE_CLASSIQUE',
-        numeroSap: 'sap 732-829-320',
-      });
-
-      expect(resultat.data?.numeroSap).toBe('SAP732829320');
-    });
-
-    it('refuse un numero SAP qui ne porte pas 9 chiffres', () => {
-      expect(fiche({ statutReglementaire: 'DECLARE_SAP', numeroSap: 'SAP7328' }).success).toBe(
-        false,
-      );
-    });
-
-    it('refuse une declaration sans numero', () => {
-      const resultat = fiche({ statutReglementaire: 'DECLARE_SAP' });
-
-      expect(resultat.success).toBe(false);
-      expect(resultat.error?.issues[0]?.path).toEqual(['numeroSap']);
-    });
-
-    it('exige un numero d agrement, et pas un numero SAP, pour un agree', () => {
-      expect(fiche({ statutReglementaire: 'AGREE_SAP', numeroSap: 'SAP732829320' }).success).toBe(
-        false,
-      );
-
-      expect(
-        fiche({ statutReglementaire: 'AGREE_SAP', numeroAgrement: 'SAP732829320' }).success,
-      ).toBe(true);
-    });
-
-    /** Une autorisation se prouve par deux pieces : le FINESS ne suffit pas seul. */
-    it('exige le FINESS et l arrete pour une structure autorisee', () => {
-      expect(
-        fiche({ statutReglementaire: 'AUTORISE_SAD_ESMS', numeroFiness: '440000123' }).success,
-      ).toBe(false);
-
+    it('accepte un statut accompagne de son arrete', () => {
       expect(
         fiche({
-          statutReglementaire: 'AUTORISE_SAD_ESMS',
+          statutJuridique: 'PUBLIC_HOSPITALIER',
           numeroFiness: '440000123',
           arreteReference: 'ARR-2025-114',
         }).success,
       ).toBe(true);
     });
 
+    it('normalise un FINESS saisi avec des separateurs', () => {
+      const resultat = fiche({
+        statutJuridique: 'PRIVE_COMMERCIAL',
+        numeroFiness: '44 000-01.23',
+        arreteReference: 'ARR-2025-114',
+      });
+
+      expect(resultat.data?.numeroFiness).toBe('440000123');
+    });
+
     it('refuse un FINESS qui ne fait pas 9 chiffres', () => {
       expect(
         fiche({
-          statutReglementaire: 'AUTORISE_SAD_ESMS',
+          statutJuridique: 'PRIVE_COMMERCIAL',
           numeroFiness: '4400',
           arreteReference: 'ARR-2025-114',
         }).success,
       ).toBe(false);
     });
 
+    /** Une autorisation se prouve par deux pieces : le FINESS ne suffit pas seul. */
+    it('exige l arrete en plus du FINESS', () => {
+      const resultat = fiche({
+        statutJuridique: 'PRIVE_NON_LUCRATIF',
+        numeroFiness: '440000123',
+      });
+
+      expect(resultat.success).toBe(false);
+      expect(resultat.error?.issues[0]?.path).toEqual(['arreteReference']);
+    });
+
+    it('exige le FINESS en plus de l arrete', () => {
+      const resultat = fiche({
+        statutJuridique: 'PRIVE_NON_LUCRATIF',
+        arreteReference: 'ARR-2025-114',
+      });
+
+      expect(resultat.success).toBe(false);
+      expect(resultat.error?.issues[0]?.path).toEqual(['numeroFiness']);
+    });
+
+    /**
+     * L'ancienne nomenclature relevait du code du travail applicable aux
+     * services a la personne. Un EHPAD n'en releve pas.
+     */
     it('refuse un statut hors nomenclature', () => {
-      expect(fiche({ statutReglementaire: 'AUTRE', numeroSap: 'SAP732829320' }).success).toBe(
-        false,
-      );
+      expect(
+        fiche({
+          statutJuridique: 'DECLARE_SAP',
+          numeroFiness: '440000123',
+          arreteReference: 'ARR-2025-114',
+        }).success,
+      ).toBe(false);
     });
   });
 });

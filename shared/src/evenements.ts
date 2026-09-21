@@ -98,17 +98,44 @@ export interface PropositionEvenement {
   score: number | null;
 }
 
+// Rien de nominatif ici, volontairement : cette liste finit dans un salon
+// Slack. Voir {@link CandidatVise} pour la frontière.
+
 /**
- * Un candidat que l'événement désigne, sans le nommer.
+ * Un candidat que l'événement désigne, avec de quoi lui écrire.
  *
- * La référence seule, et rien d'autre. C'est tout ce dont une automatisation a
- * besoin : compter, dédupliquer, appliquer un plafond d'envoi. Quand il faut
- * réellement écrire à la personne, elle rappelle l'API — qui, elle, sait à qui
- * elle parle. Faire transiter l'adresse ferait sortir une donnée personnelle
- * pour un envoi que la plateforme sait faire elle-même.
+ * Le prénom et l'adresse sortent, et c'est un choix assumé : l'automatisation
+ * est hébergée avec l'application, sur la même machine, dans le même
+ * `docker-compose`. Lui transmettre une adresse n'est pas un transfert vers un
+ * tiers — contrairement à Slack et Airtable, hébergés hors UE, vers lesquels
+ * rien de nominatif ne part jamais.
+ *
+ * La frontière passe donc à l'intérieur de l'événement, et il faut la tenir :
+ * ces listes-ci servent à écrire aux candidats, {@link PropositionEvenement}
+ * sert à alimenter Slack. La première porte des adresses, la seconde reste
+ * pseudonyme. Les confondre ferait fuiter un nom dans un salon d'équipe.
+ *
+ * Le strict nécessaire à un envoi, et rien de plus : ni nom de famille, ni
+ * téléphone, ni adresse postale, ni date de naissance.
  */
 export interface CandidatVise {
   candidatRef: string;
+  prenom: string;
+  email: string;
+
+  /**
+   * Préférence de notification de la personne.
+   *
+   * Renseignée sur les seuls candidats éligibles, où elle vaut toujours `true`
+   * — l'API a déjà écarté ceux qui ont coupé leurs alertes. Le champ est
+   * conservé parce que le workflow filtre dessus : le retirer casserait un
+   * nœud qui, sinon, fonctionne.
+   *
+   * Absente des listes de clôture, et c'est voulu : apprendre que la mission
+   * pour laquelle on s'est porté candidat est pourvue n'est pas un service
+   * rendu mais la suite de sa propre démarche. Ce message part toujours.
+   */
+  notificationsEmail?: boolean;
 }
 
 /** Ce que reçoit l'automatisation, quel que soit l'événement. */

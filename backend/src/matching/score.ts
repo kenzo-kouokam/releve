@@ -1,5 +1,6 @@
 import {
   POIDS_COMPOSANTES,
+  POIDS_SANS_COMPETENCES,
   type ComposanteScore,
   type MotifExclusion,
   type ScoreDetail,
@@ -43,6 +44,15 @@ export interface ProfilAEvaluer {
    * score se déclare lui-même.
    */
   experiences: ExperienceEvaluee[];
+  /**
+   * Compétences déclarées, par identifiant du référentiel.
+   *
+   * Déclarées et non vérifiées, contrairement aux expériences : aucune pièce
+   * ne les établit. C'est pourquoi elles départagent sans jamais rendre
+   * éligible — la porte reste tenue par le diplôme, la zone et les
+   * disponibilités.
+   */
+  competences: string[];
   creneaux: CreneauCandidat[];
   /** Périodes d'absence déclarées, bornes incluses. */
   absences: { du: Date; au: Date }[];
@@ -57,6 +67,12 @@ export interface BesoinAPourvoir {
   heureFin: string;
   latitude: number | null;
   longitude: number | null;
+  /**
+   * Compétences attendues. Vide est un cas courant et parfaitement valide :
+   * un établissement qui dépose un besoin pour demain n'a pas à remplir un
+   * formulaire de plus. Le barème s'y adapte — voir `POIDS_SANS_COMPETENCES`.
+   */
+  competences: { id: string; indispensable: boolean }[];
 }
 
 export function enMinutes(heure: string): number {
@@ -313,6 +329,12 @@ function explicationExperience(bilan: BilanExperience): string {
 export function calculerScore(profil: ProfilAEvaluer, besoin: BesoinAPourvoir): ScoreDetail {
   const composantes: ComposanteScore[] = [];
 
+  // Sans compétence attendue, les vingt points de la composante sont
+  // redistribués sur les trois autres : voir `POIDS_SANS_COMPETENCES`. Le
+  // total reste sur 100 dans les deux cas, donc deux missions restent
+  // comparables même quand l'une décrit ses attentes et l'autre non.
+  const poids = besoin.competences.length ? POIDS_COMPOSANTES : POIDS_SANS_COMPETENCES;
+
   // --- Expérience : des mois de terrain vérifiés, plus l'âge du diplôme.
   //
   // Le diplôme ne rapporte plus rien ici, et c'est délibéré. La porte
@@ -320,7 +342,7 @@ export function calculerScore(profil: ProfilAEvaluer, besoin: BesoinAPourvoir): 
   // classé le possède, donc lui attribuer des points revient à ajouter la même
   // constante à tout le monde. Une constante ne départage personne — elle gonfle
   // les scores et fait paraître serré un classement qui ne l'est pas.
-  const maxExperience = POIDS_COMPOSANTES.experience;
+  const maxExperience = poids.experience;
   const bilan = bilanExperience(profil.experiences);
   const part = Math.min(bilan.moisRetenus / PLAFOND_EXPERIENCE_MOIS, 1);
 
@@ -333,7 +355,7 @@ export function calculerScore(profil: ProfilAEvaluer, besoin: BesoinAPourvoir): 
   });
 
   // --- Zone : décroissance linéaire jusqu'au rayon déclaré.
-  const maxZone = POIDS_COMPOSANTES.zone;
+  const maxZone = poids.zone;
   const distance = distanceKm(profil.latitude, profil.longitude, besoin.latitude, besoin.longitude);
 
   const pointsZone =
@@ -353,7 +375,7 @@ export function calculerScore(profil: ProfilAEvaluer, besoin: BesoinAPourvoir): 
   });
 
   // --- Disponibilité : part de la vacation réellement couverte.
-  const maxDispo = POIDS_COMPOSANTES.disponibilite;
+  const maxDispo = poids.disponibilite;
   const couverture = couvertureDisponibilite(profil, besoin);
 
   composantes.push({
@@ -366,8 +388,68 @@ export function calculerScore(profil: ProfilAEvaluer, besoin: BesoinAPourvoir): 
       : 'Aucune disponibilite declaree',
   });
 
+  // --- Compétences : ce qui a été coché face à ce qui a été déclaré.
+  //
+  // Les deux listes puisent dans le même référentiel, agrégé depuis les offres
+  // France Travail. C'est ce qui rend la comparaison possible : deux champs de
+  // texte libre n'auraient jamais pu être rapprochés sans deviner.
+  //
+  // Une compétence indispensable pèse le double d'une compétence souhaitée.
+  // Elle n'écarte pas pour autant : l'éligibilité est établie ailleurs, sur des
+  // faits vérifiés, et une case cochée par le candidat ne prouve rien. En faire
+  // un motif d'exclusion reviendrait à laisser un profil se disqualifier — ou
+  // s'auto-sélectionner — sur sa seule parole.
+  if (besoin.competences.length) {
+    const detenues = new Set(profil.competences);
+    const pese = (competence: { indispensable: boolean }) => (competence.indispensable ? 2 : 1);
+
+    const total = besoin.competences.reduce((somme, attendue) => somme + pese(attendue), 0);
+    const acquis = besoin.competences
+      .filter((attendue) => detenues.has(attendue.id))
+      .reduce((somme, attendue) => somme + pese(attendue), 0);
+
+    const indispensables = besoin.competences.filter((attendue) => attendue.indispensable);
+    const indispensablesTenues = indispensables.filter((attendue) => detenues.has(attendue.id));
+
+    composantes.push({
+      cle: 'competences',
+      libelle: 'Competences',
+      points: Math.round(POIDS_COMPOSANTES.competences * (acquis / total)),
+      sur: POIDS_COMPOSANTES.competences,
+      explication: explicationCompetences(
+        besoin.competences.filter((attendue) => detenues.has(attendue.id)).length,
+        besoin.competences.length,
+        indispensablesTenues.length,
+        indispensables.length,
+      ),
+    });
+  }
+
   return {
     total: composantes.reduce((somme, composante) => somme + composante.points, 0),
     composantes,
   };
+}
+
+/**
+ * La phrase qui accompagne la composante « compétences ».
+ *
+ * Le compte des indispensables est rendu séparément, et il le faut : « 4 sur 6 »
+ * ne dit pas si les deux manquantes étaient accessoires ou centrales, alors que
+ * c'est précisément ce qu'un chargé de recrutement doit voir avant de décrocher
+ * son téléphone.
+ */
+function explicationCompetences(
+  tenues: number,
+  attendues: number,
+  indispensablesTenues: number,
+  indispensables: number,
+): string {
+  const base = `${tenues} competence(s) sur ${attendues} attendue(s)`;
+
+  if (!indispensables) {
+    return base;
+  }
+
+  return `${base}, dont ${indispensablesTenues} sur ${indispensables} indispensable(s)`;
 }

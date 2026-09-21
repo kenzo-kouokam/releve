@@ -28,6 +28,9 @@ function besoin(surcharge: Partial<BesoinAPourvoir> = {}): BesoinAPourvoir {
     heureFin: '14:00',
     latitude: 47.2184,
     longitude: -1.5536,
+    // Sans compétence attendue par défaut : c'est le cas le plus courant, et
+    // celui où le barème se rabat sur `POIDS_SANS_COMPETENCES`.
+    competences: [],
     ...surcharge,
   };
 }
@@ -60,6 +63,7 @@ function profil(surcharge: Partial<ProfilAEvaluer> = {}): ProfilAEvaluer {
     longitude: -1.5536,
     diplomeValide: true,
     experiences: [],
+    competences: [],
     creneaux: [
       { jourSemaine: 1, heureDebut: '07:00', heureFin: '14:00', valideDu: null, valideAu: null },
     ],
@@ -237,7 +241,7 @@ describe('score', () => {
     expect(score.composantes).toHaveLength(3);
   });
 
-  it('decompose toujours le total en trois lignes explicables', () => {
+  it('decompose toujours le total en lignes explicables', () => {
     const score = calculerScore(profil(), besoin());
 
     expect(score.composantes.map((c) => c.cle)).toEqual(['experience', 'zone', 'disponibilite']);
@@ -333,6 +337,130 @@ describe('score', () => {
     expect(points(horsMetier)).toBeCloseTo(points(metier) / 2, 0);
     expect(horsMetier.composantes.find((c) => c.cle === 'experience')?.explication).toMatch(
       /moitie/,
+    );
+  });
+});
+
+/**
+ * La composante « compétences ».
+ *
+ * Elle compare deux listes puisées dans le même référentiel : ce que
+ * l'établissement a coché en déposant son besoin, et ce que l'intervenant a
+ * déclaré savoir faire. C'est la seule composante dont le poids se déplace —
+ * quand la mission ne demande rien, ses vingt points retournent aux trois
+ * autres.
+ */
+describe('competences', () => {
+  const TOILETTE = '11111111-1111-4111-8111-111111111111';
+  const LEVE_PERSONNE = '22222222-2222-4222-8222-222222222222';
+  const UNITE_PROTEGEE = '33333333-3333-4333-8333-333333333333';
+
+  /** Le même profil, la même mission, seules les compétences changent. */
+  function avec(
+    attendues: { id: string; indispensable: boolean }[],
+    detenues: string[],
+  ): ReturnType<typeof calculerScore> {
+    return calculerScore(profil({ competences: detenues }), besoin({ competences: attendues }));
+  }
+
+  it('ne rend aucune ligne quand la mission ne demande rien', () => {
+    const score = calculerScore(profil(), besoin());
+
+    expect(score.composantes.map((c) => c.cle)).not.toContain('competences');
+  });
+
+  /**
+   * Le point qui justifie `POIDS_SANS_COMPETENCES`. Sans redistribution, un
+   * profil parfait plafonnerait à 80 sur une mission muette, et deux
+   * classements cesseraient d'être comparables sans que rien ne le dise.
+   */
+  it('redistribue ses points quand la mission ne demande rien', () => {
+    const muette = calculerScore(profil({ experiences: [poste()] }), besoin());
+    const exigeante = avec([{ id: TOILETTE, indispensable: false }], [TOILETTE]);
+
+    const zoneMuette = muette.composantes.find((c) => c.cle === 'zone')!;
+    const zoneExigeante = exigeante.composantes.find((c) => c.cle === 'zone')!;
+
+    expect(zoneMuette.sur).toBe(35);
+    expect(zoneExigeante.sur).toBe(30);
+
+    // Les deux totaux restent sur 100 : c'est tout l'objet de la manoeuvre.
+    expect(muette.composantes.reduce((somme, c) => somme + c.sur, 0)).toBe(100);
+    expect(exigeante.composantes.reduce((somme, c) => somme + c.sur, 0)).toBe(100);
+  });
+
+  it('donne tous les points a qui detient tout', () => {
+    const score = avec(
+      [
+        { id: TOILETTE, indispensable: true },
+        { id: LEVE_PERSONNE, indispensable: false },
+      ],
+      [TOILETTE, LEVE_PERSONNE, UNITE_PROTEGEE],
+    );
+
+    const ligne = score.composantes.find((c) => c.cle === 'competences')!;
+
+    expect(ligne.points).toBe(20);
+    expect(ligne.sur).toBe(20);
+  });
+
+  it('n en donne aucun a qui n en detient aucune', () => {
+    const score = avec([{ id: TOILETTE, indispensable: false }], []);
+
+    expect(score.composantes.find((c) => c.cle === 'competences')!.points).toBe(0);
+  });
+
+  /**
+   * Une indispensable pese le double d'une souhaitee. Les deux profils
+   * detiennent une competence sur deux : c'est laquelle qui les departage.
+   */
+  it('fait peser une indispensable le double d une souhaitee', () => {
+    const attendues = [
+      { id: TOILETTE, indispensable: true },
+      { id: LEVE_PERSONNE, indispensable: false },
+    ];
+
+    const tientLIndispensable = avec(attendues, [TOILETTE]);
+    const tientLAccessoire = avec(attendues, [LEVE_PERSONNE]);
+
+    const points = (score: ReturnType<typeof calculerScore>) =>
+      score.composantes.find((c) => c.cle === 'competences')!.points;
+
+    expect(points(tientLIndispensable)).toBe(13);
+    expect(points(tientLAccessoire)).toBe(7);
+  });
+
+  /**
+   * Une competence est declarative : personne ne la verifie. Elle ne doit donc
+   * jamais fermer une porte que la verification de l'agence laisse ouverte.
+   */
+  it('n ecarte jamais personne, meme sur une indispensable manquante', () => {
+    const score = avec([{ id: TOILETTE, indispensable: true }], []);
+
+    expect(motifsExclusion(profil({ competences: [] }), besoin({ competences: [{ id: TOILETTE, indispensable: true }] }))).toEqual([]);
+    expect(score.total).toBeGreaterThan(0);
+  });
+
+  it('dit combien d indispensables sont tenues', () => {
+    const score = avec(
+      [
+        { id: TOILETTE, indispensable: true },
+        { id: UNITE_PROTEGEE, indispensable: true },
+        { id: LEVE_PERSONNE, indispensable: false },
+      ],
+      [TOILETTE, LEVE_PERSONNE],
+    );
+
+    const ligne = score.composantes.find((c) => c.cle === 'competences')!;
+
+    expect(ligne.explication).toBe('2 competence(s) sur 3 attendue(s), dont 1 sur 2 indispensable(s)');
+  });
+
+  it('ne parle pas d indispensables quand il n y en a pas', () => {
+    const score = avec([{ id: TOILETTE, indispensable: false }], [TOILETTE]);
+
+    expect(score.composantes.find((c) => c.cle === 'competences')!.explication).toBe(
+      '1 competence(s) sur 1 attendue(s)',
     );
   });
 });

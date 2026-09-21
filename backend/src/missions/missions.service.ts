@@ -21,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { dansLeRayon, distanceKm } from '../matching/score';
 import { GeocodageService } from '../geocodage/geocodage.service';
 import { EvenementsService } from '../evenements/evenements.service';
+import { CompetencesService } from '../competences/competences.service';
 
 /** Etats dans lesquels une mission cherche encore quelqu'un. */
 const ETATS_OUVERTS = [
@@ -48,6 +49,12 @@ const avecRelations = Prisma.validator<Prisma.MissionDefaultArgs>()({
       },
     },
     qualificationRequise: { select: { id: true, code: true, libelle: true } },
+    competences: {
+      include: { competence: { select: { id: true, libelle: true } } },
+      // L'indispensable d'abord : c'est ce qu'un candidat doit lire en premier
+      // pour savoir s'il a sa place, et ce que l'agence regarde en priorite.
+      orderBy: [{ indispensable: 'desc' }, { competence: { libelle: 'asc' } }],
+    },
     _count: { select: { propositions: { where: { statut: 'ACCEPTEE_CANDIDAT' } } } },
   },
 });
@@ -146,6 +153,7 @@ export class MissionsService {
     private readonly prisma: PrismaService,
     private readonly geocodage: GeocodageService,
     private readonly evenements: EvenementsService,
+    private readonly competences: CompetencesService,
   ) {}
 
   private resume(mission: MissionChargee, depuis?: PointCandidat): MissionResume {
@@ -375,6 +383,11 @@ export class MissionsService {
       adresse: `${mission.lieu.adresse}, ${mission.lieu.codePostal} ${mission.lieu.ville}`,
       consignes: peutVoirConsignes ? mission.lieu.consignes : null,
       prerequis: await this.prerequis(mission, candidatId),
+      competences: mission.competences.map((attendue) => ({
+        id: attendue.competence.id,
+        libelle: attendue.competence.libelle,
+        indispensable: attendue.indispensable,
+      })),
       dejaPostule,
     };
   }
@@ -445,7 +458,31 @@ export class MissionsService {
     );
   }
 
+  /**
+   * Refuse des competences qui ne sont pas au referentiel.
+   *
+   * Sans ce controle, la cle etrangere leverait une P2003 que Nest rendrait en
+   * 500 : une faute de saisie de l'appelant serait annoncee comme une panne du
+   * serveur. Le message nomme les identifiants fautifs, parce qu'un client
+   * d'API qui recoit « competence invalide » sur une liste de douze n'a aucun
+   * moyen de savoir laquelle reprendre.
+   */
+  private async exigerCompetences(ids: string[]): Promise<void> {
+    if (!ids.length) {
+      return;
+    }
+
+    const connues = await this.competences.existantes(ids);
+    const inconnues = ids.filter((id) => !connues.has(id));
+
+    if (inconnues.length) {
+      throw new BadRequestException(`Competences inconnues du referentiel : ${inconnues.join(', ')}`);
+    }
+  }
+
   async creer(donnees: MissionCreate, session: UtilisateurSession): Promise<MissionResume> {
+    await this.exigerCompetences((donnees.competences ?? []).map((c) => c.competenceId));
+
     // Un client publie toujours pour lui-meme : son identifiant vient du jeton,
     // jamais du corps de la requete, sinon il publierait chez un concurrent.
     const clientId = session.clientId ?? donnees.clientId;
@@ -522,6 +559,9 @@ export class MissionsService {
           description: donnees.description ?? null,
           tauxHoraire: donnees.tauxHoraire ?? null,
           coefficient: donnees.coefficient ?? null,
+          ...(donnees.competences?.length
+            ? { competences: { createMany: { data: donnees.competences } } }
+            : {}),
         },
         ...avecRelations,
       });
@@ -558,6 +598,8 @@ export class MissionsService {
       );
     }
 
+    await this.exigerCompetences((donnees.competences ?? []).map((c) => c.competenceId));
+
     const heureDebut = donnees.heureDebut;
     const heureFin = donnees.heureFin;
 
@@ -577,6 +619,17 @@ export class MissionsService {
         ...(donnees.description === undefined ? {} : { description: donnees.description }),
         ...(donnees.tauxHoraire === undefined ? {} : { tauxHoraire: donnees.tauxHoraire }),
         ...(donnees.coefficient === undefined ? {} : { coefficient: donnees.coefficient }),
+        // Remplacement, pas complement : l'omettre n'y touche pas, le passer
+        // vide efface. Un tableau ne sait pas exprimer les deux intentions, et
+        // c'est l'absence du champ qui porte la premiere.
+        ...(donnees.competences === undefined
+          ? {}
+          : {
+              competences: {
+                deleteMany: {},
+                createMany: { data: donnees.competences },
+              },
+            }),
       },
       ...avecRelations,
     });

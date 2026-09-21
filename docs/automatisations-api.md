@@ -100,7 +100,14 @@ le nœud Webhook doit donc être en `rawBody: true` — ce qui est déjà le cas
     "lienApp": "http://localhost:3000/missions/…"
   },
   "propositions": [{ "id": "…", "candidatRef": "CAN-7F3A2C", "score": 87.5 }],
-  "candidatsEligibles": [],
+  "candidatsEligibles": [
+    {
+      "candidatRef": "CAN-19B0E4",
+      "prenom": "Sophie",
+      "email": "sophie@exemple.fr",
+      "notificationsEmail": true
+    }
+  ],
   "candidatRetenu": null,
   "candidatsAPrevenir": []
 }
@@ -120,28 +127,45 @@ Trois listes désignent des personnes, toujours par référence seule :
 | `candidatRetenu` | `mission.pourvue` | Le candidat retenu |
 | `candidatsAPrevenir` | `mission.pourvue`, `mission.annulee` | Ceux dont la candidature en cours vient de tomber, le retenu excepté |
 
-Ailleurs, les listes sont vides et `candidatRetenu` est nul : la forme ne change
-pas d'un événement à l'autre.
+Chacune porte `candidatRef`, `prenom` et `email` — de quoi écrire à la personne
+depuis n8n. `notificationsEmail` n'apparaît que sur `candidatsEligibles`, où il
+vaut toujours `true` : l'API a déjà écarté ceux qui ont coupé leurs alertes, et
+le champ n'est conservé que pour que le nœud de filtre existant continue de
+fonctionner. Il est absent des listes de clôture, où la préférence ne s'applique
+pas.
 
-La forme ne change pas selon l'événement : `propositions` est simplement vide
-quand l'événement n'en concerne aucune. Un workflow peut donc lire le même
-chemin partout.
+**La forme ne change jamais d'un événement à l'autre** : ailleurs, ces listes
+sont vides et `candidatRetenu` est nul, comme `propositions` l'est pour les
+événements qui ne concernent aucune candidature. Un workflow peut donc lire le
+même chemin partout, sans tester l'existence du champ.
 
 ### Données personnelles
 
-Rien qui désigne quelqu'un ne sort : ni nom, ni adresse, ni courriel, ni même
-l'identifiant du candidat. La personne est désignée par `candidatRef`, dérivée
-de son identifiant par HMAC avec `N8N_WEBHOOK_SECRET` :
+**La frontière passe à l'intérieur de l'événement**, et c'est le point à ne pas
+perdre de vue :
 
-- **stable** — la même personne porte la même référence d'un message à l'autre,
-  on peut donc suivre un dossier dans Slack ;
-- **non réversible** sans le secret.
+| Bloc | Contenu | Destination |
+|---|---|---|
+| `propositions` | `candidatRef` seul | Message Slack de l'agence — **hors UE** |
+| `candidatsEligibles`, `candidatRetenu`, `candidatsAPrevenir` | `candidatRef`, `prenom`, `email` | Envoi des courriels par n8n — **même machine** |
 
-C'est cette propriété qui rend acceptable l'envoi vers Slack et Airtable,
-hébergés hors UE. Un test le vérifie explicitement : `n emet aucune donnee
-personnelle`.
+n8n est hébergé avec l'application, dans le même `docker-compose` : lui
+transmettre une adresse n'est pas un transfert vers un tiers. Slack et Airtable
+le sont, et rien de nominatif ne part vers eux — d'où `propositions` qui reste
+pseudonyme, puisque c'est lui qui alimente le salon d'équipe. Confondre les deux
+ferait fuiter un nom dans Slack.
 
-Côté lieu, seuls la commune et le département sortent — jamais l'adresse.
+Ce qui sort se limite au strict nécessaire à un envoi : **ni nom de famille, ni
+téléphone, ni adresse postale, ni identifiant technique**. Deux tests le
+vérifient — `garde pseudonyme la liste qui alimente Slack` et `ne fait sortir
+que le prenom et l adresse, jamais plus`.
+
+`candidatRef` reste dérivée par HMAC avec `N8N_WEBHOOK_SECRET` : stable d'un
+message à l'autre — on suit un dossier dans Slack — et non réversible sans le
+secret.
+
+Côté lieu, seuls la commune et le département sortent : jamais l'adresse
+d'intervention.
 
 ---
 
@@ -206,10 +230,15 @@ arrive quand le workflow lit une liste et que l'établissement valide entre-temp
 
 ### `POST /api/interne/missions/:id/alertes`
 
-C'est la pièce qui permet d'écrire aux candidats **sans qu'aucune adresse ne
-sorte**. L'événement désigne les personnes par référence ; le workflow applique
-son plafond anti-spam, sa déduplication, son horaire ; puis il rend la main avec
-les seules références retenues, et l'API expédie.
+> **Optionnelle depuis que n8n expédie lui-même.** Les événements portent
+> désormais `prenom` et `email`, et le workflow envoie directement par SMTP.
+> Cette route reste en place et testée : elle évite de réécrire un gabarit dans
+> un nœud n8n, ce qui vaut surtout pour la **confirmation de mission**, qui
+> porte des mentions obligatoires et a meilleure place dans le backend.
+
+L'événement désigne les personnes par référence ; le workflow applique son
+plafond anti-spam, sa déduplication, son horaire ; puis il rend la main avec les
+seules références retenues, et l'API expédie.
 
 ```json
 { "type": "urgente", "candidatRefs": ["CAN-7F3A2C", "CAN-19B0E4"] }
@@ -285,31 +314,19 @@ Trois choix à connaître :
 | `mission.filiere` dans le payload          | **Retiré.** Le modèle n'a pas ce champ, et `TypeClient` ne porte qu'une valeur — la filière serait une constante. |
 | Seuil de relance côté API                  | **Côté appelant.** `seuilMinutes` est un paramètre de requête : la démo tourne à 1 minute, l'exploitation à 1440, et ce n'est pas à l'API d'arbitrer. `RELANCE_SEUIL_MIN` reste donc une variable n8n. |
 | Airtable comme base tampon                 | **Rien côté API.** Aucune route ne lui est dédiée ; si un besoin apparaît, il passera par une route interne comme les autres. |
-| `candidatsEligibles` avec `prenom` et `email` | **Références seules.** Le brouillon prévoyait que l'API joigne les adresses pour que n8n expédie. C'est `POST /api/interne/missions/:id/alertes` qui joue ce rôle : n8n décide qui prévenir, l'API écrit. Voir ci-dessous. |
+| `candidatsEligibles` avec `prenom` et `email` | **Conforme au brouillon.** Les trois listes les portent. `POST /api/interne/missions/:id/alertes` existe en plus, pour les envois qu'on préfère garder côté backend. |
 | Route de déclenchement du balayage         | **Ajoutée**, elle n'était pas au brouillon. |
 
-### Pourquoi les adresses ne transitent pas
+### Deux points de vigilance, maintenant que n8n expédie
 
-Le brouillon prévoyait de joindre `prenom` et `email` aux événements, n8n se
-chargeant de l'envoi — en notant que n8n, auto-hébergé avec l'application, n'est
-pas Slack, et que la minimisation ne s'imposait donc pas de la même façon. Le
-raisonnement tient.
-
-Le choix retenu va néanmoins dans l'autre sens, pour deux raisons qui ne sont
-pas de conformité :
-
-- **Les gabarits restent à un seul endroit.** Les courriels de la plateforme
-  vivent déjà dans `gabarits.ts`, avec leur version texte et leur version HTML.
-  Les réécrire dans un nœud n8n en ferait une seconde version, qui dériverait de
-  la première au premier changement de pied de page.
-- **La porte d'éligibilité reste vraie.** L'ensemble des destinataires est
-  recalculé au moment de l'envoi, par le même code que le classement. Un
-  candidat devenu inéligible entre la publication et l'alerte ne reçoit rien,
-  alors qu'un envoi piloté par une liste figée l'aurait touché.
-
-Ce que n8n garde : le plafond de trois alertes par jour, la déduplication, le
-choix du moment, l'aiguillage. C'est-à-dire tout ce qui relève de
-l'orchestration — et rien de ce qui relève du métier.
+- **La liste des destinataires est figée à la publication.** Un candidat devenu
+  inéligible entre l'événement et l'envoi — il s'est engagé ailleurs, son
+  diplôme a expiré — recevra quand même l'alerte. La route
+  `POST /alertes` ne souffre pas de ça, elle revalide au moment d'expédier.
+- **Les gabarits existent en deux endroits.** Ceux du backend
+  (`backend/src/mail/gabarits.ts`) et ceux des nœuds n8n. Un changement de pied
+  de page ou de mention légale doit être fait des deux côtés, sans quoi ils
+  divergent silencieusement.
 
 ### Réponses aux trois points à trancher
 

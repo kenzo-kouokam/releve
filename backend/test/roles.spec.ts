@@ -65,8 +65,8 @@ describe('gardes de role', () => {
 
     it('reserve l ecriture du referentiel a l administrateur', async () => {
       const qualification = {
-        code: 'AVS',
-        libelle: 'Auxiliaire de vie sociale',
+        code: 'DEAES',
+        libelle: 'Accompagnant educatif et social',
       };
 
       await avec(app, charge).post('/api/qualifications').send(qualification).expect(403);

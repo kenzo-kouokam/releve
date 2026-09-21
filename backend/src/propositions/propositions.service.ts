@@ -565,6 +565,95 @@ export class PropositionsService {
   }
 
   /**
+   * Le candidat accepte une offre que l'agence lui a envoyee.
+   *
+   * La reponse qui manquait. Une candidature nee ENVOYEE n'engageait personne :
+   * le candidat n'avait aucun moyen de dire oui, et l'etablissement ne pouvait
+   * pas la valider — `valider()` exige ACCEPTEE_CANDIDAT. La ligne restait donc
+   * en suspens jusqu'a ce que quelqu'un la refuse.
+   *
+   * La porte d'eligibilite est rejouee au moment du oui, et c'est le point de
+   * cette methode. Entre l'envoi de l'offre et la reponse, il a pu se passer
+   * des jours : le candidat s'est engage ailleurs, son diplome a expire, il a
+   * pose une indisponibilite. Accepter sur la foi du classement d'hier
+   * mettrait l'agence en defaut le jour de la mission.
+   */
+  async accepter(id: string, session: UtilisateurSession): Promise<PropositionResume> {
+    if (!session.candidatId) {
+      throw new ForbiddenException('Seul le candidat concerne peut accepter une offre');
+    }
+
+    const existante = await this.prisma.proposition.findFirst({
+      where: { AND: [{ id }, porteeLecture(session)] },
+      select: {
+        id: true,
+        statut: true,
+        missionId: true,
+        candidatId: true,
+        mission: { select: { statut: true, candidatRetenuId: true } },
+      },
+    });
+
+    if (!existante) {
+      throw new NotFoundException('Candidature introuvable');
+    }
+
+    // Une candidature spontanee nait deja acceptee : la personne a dit oui en
+    // cliquant. Repasser par ici n'aurait aucun sens, et le dire est plus utile
+    // qu'un succes silencieux qui ne change rien.
+    if (existante.statut !== 'ENVOYEE') {
+      throw new BadRequestException(
+        existante.statut === 'ACCEPTEE_CANDIDAT'
+          ? 'Vous avez deja accepte cette mission'
+          : "Cette candidature n'est plus en attente de votre reponse",
+      );
+    }
+
+    if (
+      existante.mission.candidatRetenuId ||
+      !(ETATS_OUVERTS as readonly string[]).includes(existante.mission.statut)
+    ) {
+      throw new ForbiddenException('Cette mission a ete pourvue ou annulee entre-temps');
+    }
+
+    const evaluation = await this.matching.evaluer(existante.missionId, existante.candidatId);
+
+    if (!evaluation) {
+      throw new NotFoundException('Mission introuvable');
+    }
+
+    if (evaluation.motifs.length) {
+      // Le libelle du motif est repris tel quel : il chiffre l'ecart plutot que
+      // de dire non, et se corrige souvent tout seul — « Absence declaree sur
+      // la periode » se retire depuis « Mes disponibilites ».
+      throw new ForbiddenException(evaluation.motifs.map((motif) => motif.libelle).join(' · '));
+    }
+
+    const proposition = await this.prisma.proposition.update({
+      where: { id },
+      data: {
+        statut: 'ACCEPTEE_CANDIDAT',
+        repondueLe: new Date(),
+        // Le score est refige : il a ete calcule a l'envoi de l'offre, et le
+        // profil a pu bouger depuis. C'est celui du moment de l'accord que
+        // l'etablissement doit lire pour trancher.
+        score: evaluation.score.total,
+        detailScore: evaluation.score as unknown as Prisma.InputJsonValue,
+      },
+      ...avecRelations,
+    });
+
+    await this.evenements.consigner({
+      missionId: existante.missionId,
+      type: 'proposition.acceptee',
+      auteur: session,
+      propositionIds: [id],
+    });
+
+    return this.resume(proposition);
+  }
+
+  /**
    * Refus. Le sens depend de qui parle : le candidat se retire, le client ecarte.
    */
   async refuser(

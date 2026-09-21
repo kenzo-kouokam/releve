@@ -348,6 +348,178 @@ describe('evenements et routes internes', () => {
     });
   });
 
+  describe('le candidat repond a une offre de l agence', () => {
+    /** Envoie une offre a notre candidat et rend l'identifiant de la ligne. */
+    async function offrir(missionId: string): Promise<string> {
+      const reponse = await avec(app, agence)
+        .post(`/api/missions/${missionId}/propositions`)
+        .send({ candidatIds: [jeu.candidatA] })
+        .expect(201);
+
+      return reponse.body[0].id;
+    }
+
+    it('accepte, et la mission devient validable par l etablissement', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      const acceptee = await avec(app, candidat)
+        .post(`/api/propositions/${proposition}/accepter`)
+        .expect(201);
+
+      expect(acceptee.body.statut).toBe('ACCEPTEE_CANDIDAT');
+      expect(acceptee.body.repondueLe).not.toBeNull();
+
+      // La boucle se ferme : ce que l'agence ne pouvait pas valider tant que
+      // l'interesse n'avait pas repondu devient validable.
+      const validee = await avec(app, client)
+        .post(`/api/propositions/${proposition}/valider`)
+        .expect(201);
+
+      expect(validee.body.statut).toBe('VALIDEE_CLIENT');
+      expect(validee.body.mission.candidatRetenuId).toBe(jeu.candidatA);
+    });
+
+    it('consigne l acceptation dans le journal', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      await avec(app, candidat).post(`/api/propositions/${proposition}/accepter`).expect(201);
+
+      expect((await journal(id)).map((e) => e.type)).toEqual([
+        'mission.publiee',
+        'proposition.envoyee',
+        'proposition.acceptee',
+      ]);
+    });
+
+    it('n est ouverte qu au candidat concerne', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      await avec(app, agence).post(`/api/propositions/${proposition}/accepter`).expect(403);
+      await avec(app, client).post(`/api/propositions/${proposition}/accepter`).expect(403);
+    });
+
+    it('refuse deux fois', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      await avec(app, candidat).post(`/api/propositions/${proposition}/accepter`).expect(201);
+
+      const second = await avec(app, candidat)
+        .post(`/api/propositions/${proposition}/accepter`)
+        .expect(400);
+
+      expect(second.body.message).toContain('deja accepte');
+    });
+
+    it('refuse d accepter une candidature spontanee, deja acceptee par nature', async () => {
+      const id = await publier();
+
+      const candidature = await avec(app, candidat)
+        .post(`/api/missions/${id}/candidatures`)
+        .send({})
+        .expect(201);
+
+      await avec(app, candidat)
+        .post(`/api/propositions/${candidature.body.id}/accepter`)
+        .expect(400);
+    });
+
+    /**
+     * Le point qui justifie la methode : entre l'envoi de l'offre et la
+     * reponse, il a pu se passer des jours.
+     */
+    it('rejoue la porte d eligibilite au moment du oui', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      // Le candidat se met hors de portee apres avoir recu l'offre.
+      await prisma.candidat.update({
+        where: { id: jeu.candidatA },
+        data: { rayonKm: 1, latitude: 48.8566, longitude: 2.3522 },
+      });
+
+      const reponse = await avec(app, candidat)
+        .post(`/api/propositions/${proposition}/accepter`)
+        .expect(403);
+
+      expect(reponse.body.message).toMatch(/rayon/i);
+    });
+
+    /**
+     * Quand un autre candidat est retenu, `valider()` referme les candidatures
+     * concurrentes : la notre passe REFUSEE_CLIENT avant meme qu'on y touche.
+     * C'est donc le controle de statut qui parle, et non celui de la mission —
+     * lequel reste en defense, pour le cas ou une ligne resterait ENVOYEE.
+     */
+    it('refuse quand quelqu un d autre a ete retenu entre-temps', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      // Quelqu'un d'autre passe devant : il postule et l'etablissement le retient.
+      const autre = await prisma.candidat.create({
+        data: {
+          agenceId: jeu.agenceA,
+          nom: 'Rapide',
+          prenom: 'Profil',
+          email: 'rapide.a@test.example',
+          telephone: '0600000011',
+          adresse: '2 rue du Test',
+          codePostal: '44000',
+          ville: 'Nantes',
+          statut: 'ACTIF',
+          rayonKm: 25,
+          latitude: 47.2184,
+          longitude: -1.5536,
+        },
+      });
+
+      await prisma.qualificationCandidat.create({
+        data: {
+          candidatId: autre.id,
+          qualificationId: jeu.qualification,
+          obtenueLe: new Date('2019-06-30'),
+          verifieeLe: new Date(),
+          verifieePar: 'test',
+        },
+      });
+
+      const doublure = await avec(app, agence)
+        .post(`/api/missions/${id}/propositions`)
+        .send({ candidatIds: [autre.id] })
+        .expect(201);
+
+      await prisma.proposition.update({
+        where: { id: doublure.body[0].id },
+        data: { statut: 'ACCEPTEE_CANDIDAT', repondueLe: new Date() },
+      });
+
+      await avec(app, client)
+        .post(`/api/propositions/${doublure.body[0].id}/valider`)
+        .expect(201);
+
+      const reponse = await avec(app, candidat)
+        .post(`/api/propositions/${proposition}/accepter`)
+        .expect(400);
+
+      expect(reponse.body.message).toContain("n'est plus en attente de votre reponse");
+    });
+
+    it('laisse toujours la possibilite de refuser', async () => {
+      const id = await publier();
+      const proposition = await offrir(id);
+
+      const refusee = await avec(app, candidat)
+        .post(`/api/propositions/${proposition}/refuser`)
+        .send({ motif: 'Indisponible ce jour-la' })
+        .expect(201);
+
+      expect(refusee.body.statut).toBe('REFUSEE_CANDIDAT');
+    });
+  });
+
   describe('acces aux routes internes', () => {
     it('refuse sans jeton de service', async () => {
       await request(app.getHttpServer()).get('/api/interne/missions/non-pourvues').expect(401);
@@ -579,9 +751,9 @@ describe('evenements et routes internes', () => {
       const aPrevenir = emis('mission.annulee')!.candidatsAPrevenir;
 
       expect(aPrevenir).toHaveLength(1);
-      // Rien d'identifiant ne sort : seule la reference pseudonyme circule.
-      expect(aPrevenir[0]!.candidatRef).toMatch(/^CAN-[0-9A-F]{6}$/);
-      expect(Object.keys(aPrevenir[0]!)).toEqual(['candidatRef']);
+      // Pas de preference ici : la cloture part quoi qu'il arrive.
+      expect(aPrevenir[0]!.notificationsEmail).toBeUndefined();
+      expect(aPrevenir[0]!.email).toBe('candidat.a@test.example');
     });
   });
 

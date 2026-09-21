@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  competencesCandidatSchema,
+  COMPETENCES_MAX_CANDIDAT,
+  type CompetenceLiee,
+} from './competences';
 import { statutCandidatSchema, type StatutCandidat } from './enums';
 import type { DisponibiliteResume, IndisponibiliteResume } from './disponibilite';
 import type { ExperienceResume } from './experience';
@@ -9,9 +14,10 @@ import { paginationQuerySchema } from './pagination';
 /**
  * La fiche de l'intervenant.
  *
- * Elle ne porte plus de filiere : la plateforme ne couvre que l'aide a
- * domicile, et un champ qui ne prend qu'une valeur ne discrimine rien. Ce qui
- * rend proposable, c'est le diplome verifie, la zone et les disponibilites.
+ * Elle ne porte plus de filiere : la plateforme ne couvre que l'hebergement
+ * des personnes agees, et un champ qui ne prend qu'une valeur ne discrimine
+ * rien. Ce qui rend proposable, c'est le diplome verifie, la zone et les
+ * disponibilites.
  */
 export const candidatCreateSchema = z.object({
   nom: z.string().trim().min(1, 'Le nom est obligatoire').max(80),
@@ -48,6 +54,20 @@ export const candidatUpdateSchema = candidatCreateSchema.partial().extend({
     .nullable()
     .optional(),
   vaccinationVerifiee: z.boolean().optional(),
+
+  /**
+   * Compétences déclarées, choisies dans le même référentiel que celui qui
+   * sert à rédiger une mission. C'est cette communauté de référentiel qui rend
+   * les deux listes comparables — deux champs de texte libre ne l'auraient
+   * jamais été.
+   *
+   * Déclarées, et non vérifiées : contrairement au diplôme, aucune pièce ne
+   * les établit. Elles départagent donc, sans jamais ouvrir de porte.
+   *
+   * Remplace la liste entière, comme côté mission : l'omettre n'y touche pas,
+   * la passer vide efface.
+   */
+  competences: competencesCandidatSchema.optional(),
 });
 
 export type CandidatUpdate = z.infer<typeof candidatUpdateSchema>;
@@ -56,6 +76,25 @@ export const candidatListQuerySchema = paginationQuerySchema.extend({
   statut: statutCandidatSchema.optional(),
   recherche: z.string().trim().min(1).max(80).optional(),
   permisB: z.coerce.boolean().optional(),
+
+  /**
+   * Recherche par compétences : identifiants du référentiel, séparés par des
+   * virgules.
+   *
+   * Conjonctive — un candidat doit les détenir **toutes**. C'est le sens de la
+   * recherche : un chargé de recrutement qui coche « lève-personne » et
+   * « unité protégée » cherche quelqu'un qui sait faire les deux, pas la réunion
+   * de deux viviers. Élargir se fait en décochant.
+   */
+  competences: z
+    .union([z.string(), z.array(z.string())])
+    .transform((valeur) =>
+      (Array.isArray(valeur) ? valeur : valeur.split(','))
+        .map((element) => element.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().uuid('Compétence invalide')).max(COMPETENCES_MAX_CANDIDAT))
+    .optional(),
 });
 
 export type CandidatListQuery = z.infer<typeof candidatListQuerySchema>;
@@ -140,4 +179,5 @@ export interface CandidatDetail extends CandidatResume {
   experiences: ExperienceResume[];
   disponibilites: DisponibiliteResume[];
   indisponibilites: IndisponibiliteResume[];
+  competences: CompetenceLiee[];
 }

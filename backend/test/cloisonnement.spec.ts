@@ -86,7 +86,7 @@ describe('cloisonnement multi-agence', () => {
       const listeA = await avec(app, a).get('/api/clients').expect(200);
 
       expect(listeA.body.donnees.map((c: { raisonSociale: string }) => c.raisonSociale)).toEqual([
-        'SAAD A',
+        'EHPAD A',
       ]);
     });
 
@@ -96,7 +96,7 @@ describe('cloisonnement multi-agence', () => {
       await avec(app, b)
         .post(`/api/clients/${jeu.clientA}/lieux`)
         .send({
-          type: 'DOMICILE_BENEFICIAIRE',
+          type: 'ETABLISSEMENT',
           libelle: 'Intrusion',
           adresse: '1 rue Z',
           codePostal: '35000',
@@ -113,8 +113,9 @@ describe('cloisonnement multi-agence', () => {
         .send({
           raisonSociale: 'Autre A',
           siret: '35600000000048',
-          statutReglementaire: 'DECLARE_SAP',
-          numeroSap: 'SAP356000000',
+          statutJuridique: 'PRIVE_COMMERCIAL',
+          numeroFiness: '350000001',
+          arreteReference: 'ARR-2020-0001',
         })
         .expect(201);
 

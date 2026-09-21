@@ -49,6 +49,21 @@ const heureFin = ref('22:00');
 const motifRecours = ref<string>(MOTIFS[0]);
 const taux = ref('');
 
+/**
+ * Compétences attendues, choisies dans le référentiel agrégé depuis les offres
+ * France Travail.
+ *
+ * Vide par défaut, et il faut que ça le reste : un établissement qui dépose un
+ * besoin pour demain matin ne doit pas être retenu par un formulaire de plus.
+ * Sans compétence cochée, le barème redistribue simplement ses points sur les
+ * trois autres composantes.
+ *
+ * La liste est remise à zéro quand le poste change : les compétences d'un
+ * aide-soignant ne sont pas celles d'un accompagnant, et garder les cases
+ * cochées ferait publier un besoin que personne n'a relu.
+ */
+const competences = ref<{ competenceId: string; indispensable: boolean }[]>([]);
+
 const modificationTaux = ref(false);
 const recapitulatif = ref(false);
 const envoi = ref(false);
@@ -69,6 +84,10 @@ const qualification = computed(() =>
 );
 
 const lieu = computed(() => options.value?.lieux.find((option) => option.id === lieuId.value));
+
+watch(qualificationId, () => {
+  competences.value = [];
+});
 
 /** « 18:00-22:00 » se scinde en deux heures ; « Autre horaire » laisse la saisie libre. */
 watch(creneau, (valeur) => {
@@ -127,6 +146,10 @@ const resume = computed(() => [
   { libelle: 'Lieu d intervention', valeur: lieu.value?.libelle ?? '-' },
   { libelle: 'Motif de recours', valeur: motifRecours.value },
   { libelle: 'Remuneration indicative', valeur: `${taux.value || '-'} EUR brut / heure` },
+  {
+    libelle: 'Competences attendues',
+    valeur: competences.value.length ? `${competences.value.length} cochee(s)` : 'aucune',
+  },
 ]);
 
 async function publier(): Promise<void> {
@@ -145,6 +168,7 @@ async function publier(): Promise<void> {
         heureFin: heureFin.value,
         motifRecours: motifRecours.value,
         ...(taux.value ? { tauxHoraire: Number(taux.value.replace(',', '.')) } : {}),
+        ...(competences.value.length ? { competences: competences.value } : {}),
       },
     });
   } catch (cause) {
@@ -298,6 +322,21 @@ async function publier(): Promise<void> {
           </button>
         </div>
 
+        <fieldset class="competences">
+          <legend>Competences attendues <span class="facultatif">facultatif</span></legend>
+          <p class="aide">
+            Classees par ce que les EHPAD demandent le plus sur ce metier, d apres les offres
+            France Travail. Une competence marquee indispensable pese le double au classement —
+            elle n ecarte personne pour autant, puisque rien ne la verifie.
+          </p>
+          <AppSelecteurCompetences
+            v-model="competences"
+            :rome="qualification?.romeCode ?? undefined"
+            avec-indispensable
+            :max="12"
+          />
+        </fieldset>
+
         <p v-if="suggestion?.tauxHoraireMedian" class="marche">
           Le marche paie <strong>{{ tauxMarche }} EUR</strong> de l heure en mediane pour ce metier
           {{
@@ -342,6 +381,31 @@ async function publier(): Promise<void> {
 </template>
 
 <style scoped>
+.competences {
+  padding: 14px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.competences legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.competences .facultatif {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.competences .aide {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .mention-legale {
   margin: 8px 0 0;
   font-size: 0.78rem;

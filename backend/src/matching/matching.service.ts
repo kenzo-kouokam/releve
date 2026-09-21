@@ -43,6 +43,10 @@ const fichePourScore = Prisma.validator<Prisma.CandidatDefaultArgs>()({
         qualification: { select: { id: true, code: true, libelle: true } },
       },
     },
+    // Aucun filtre de verification ici, contrairement aux experiences : une
+    // competence n'est jamais verifiee, personne ne peut la verifier. C'est
+    // pour cela qu'elle departage sans jamais rendre eligible.
+    competences: { select: { competenceId: true } },
     experiences: {
       // Seules les lignes verifiees par l'agence sont chargees. Le filtre est
       // pose ici, dans la requete, et non dans le bareme : une experience non
@@ -112,6 +116,7 @@ export class MatchingService {
         heureDebut: true,
         heureFin: true,
         lieu: { select: { latitude: true, longitude: true } },
+        competences: { select: { competenceId: true, indispensable: true } },
       },
     });
 
@@ -136,6 +141,7 @@ export class MatchingService {
       latitude: fiche.latitude,
       longitude: fiche.longitude,
       diplomeValide: valide,
+      competences: fiche.competences.map((lien) => lien.competenceId),
       experiences: fiche.experiences.map((poste) => ({
         debutLe: poste.debutLe,
         finLe: poste.finLe,
@@ -222,6 +228,10 @@ export class MatchingService {
       heureFin: mission.heureFin,
       latitude: mission.lieu.latitude,
       longitude: mission.lieu.longitude,
+      competences: mission.competences.map((attendue) => ({
+        id: attendue.competenceId,
+        indispensable: attendue.indispensable,
+      })),
     };
 
     const [fiches, dejaProposes] = await Promise.all([
@@ -302,6 +312,7 @@ export class MatchingService {
         heureDebut: true,
         heureFin: true,
         lieu: { select: { latitude: true, longitude: true } },
+        competences: { select: { competenceId: true, indispensable: true } },
       },
     });
 
@@ -323,6 +334,10 @@ export class MatchingService {
       heureFin: mission.heureFin,
       latitude: mission.lieu.latitude,
       longitude: mission.lieu.longitude,
+      competences: mission.competences.map((attendue) => ({
+        id: attendue.competenceId,
+        indispensable: attendue.indispensable,
+      })),
     };
 
     return { motifs: motifsExclusion(profil, besoin), score: calculerScore(profil, besoin) };

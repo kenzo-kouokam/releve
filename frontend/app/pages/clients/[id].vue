@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ClientDetail } from '@releve/shared';
 import {
-  STATUT_REGLEMENTAIRE_LIBELLES,
+  STATUT_JURIDIQUE_LIBELLES,
   TYPE_CLIENT_LIBELLES,
   TYPE_LIEU_LIBELLES,
 } from '@releve/shared';
@@ -36,8 +36,8 @@ const introuvable = computed(
         <h1>{{ client.raisonSociale }}</h1>
         <span class="pastille">{{ TYPE_CLIENT_LIBELLES[client.type] }}</span>
         <span v-if="!client.actif" class="pastille inactif">Inactif</span>
-        <span v-if="client.statutReglementaire" class="pastille regime">
-          {{ STATUT_REGLEMENTAIRE_LIBELLES[client.statutReglementaire] }}
+        <span v-if="client.statutJuridique" class="pastille regime">
+          {{ STATUT_JURIDIQUE_LIBELLES[client.statutJuridique] }}
         </span>
         <span v-else class="pastille manque">Statut a renseigner</span>
       </div>
@@ -48,20 +48,17 @@ const introuvable = computed(
           <dd>{{ client.siret }}</dd>
         </div>
         <!--
-          Le justificatif change de nature selon le regime : un numero de
-          declaration, un agrement, ou un FINESS accompagne de son arrete. On
-          affiche celui qui correspond, et l'absence est nommee plutot que
-          laissee vide — c'est elle qui bloque l'activation de la fiche.
+          Le justificatif ne change plus de nature : tout EHPAD tient son droit
+          d'accueillir d'un arrete d'autorisation, et porte un FINESS. Ce qui
+          varie, c'est le statut juridique du gestionnaire, qui dit sous quelle
+          convention il remunere. L'absence est nommee plutot que laissee vide —
+          c'est elle qui bloque l'activation de la fiche.
         -->
         <div>
-          <dt>Statut reglementaire</dt>
+          <dt>Statut et autorisation</dt>
           <dd>
-            <template v-if="client.statutReglementaire">
-              {{ STATUT_REGLEMENTAIRE_LIBELLES[client.statutReglementaire] }}
-              <template v-if="client.numeroSap"> &middot; {{ client.numeroSap }}</template>
-              <template v-if="client.numeroAgrement">
-                &middot; agrement {{ client.numeroAgrement }}
-              </template>
+            <template v-if="client.statutJuridique">
+              {{ STATUT_JURIDIQUE_LIBELLES[client.statutJuridique] }}
               <template v-if="client.numeroFiness">
                 &middot; FINESS {{ client.numeroFiness }}
               </template>
@@ -101,10 +98,15 @@ const introuvable = computed(
         fixe le salaire de reference de l interimaire, pas celle de son employeur.
       </p>
 
-      <p v-if="!client.statutReglementaire" class="note avertissement">
-        Le statut reglementaire n est pas renseigne : declaration SAP, agrement, ou autorisation
-        departementale au titre du CASF. Il se saisit sur piece, et tant qu il manque la structure
-        ne peut pas etre activee — c est lui qui dit ce qu elle a le droit de faire.
+      <p
+        v-if="!client.statutJuridique || !client.numeroFiness || !client.arreteReference"
+        class="note avertissement"
+      >
+        L autorisation n est pas documentee : il manque le statut juridique du gestionnaire, le
+        numero FINESS geographique ou la reference de l arrete conjoint ARS / conseil
+        departemental. Cela se saisit sur piece, et tant qu il manque l etablissement ne peut pas
+        etre active — placer du personnel dans un EHPAD dont on n a pas lu l arrete reviendrait a
+        ignorer s il a le droit d accueillir des residents.
       </p>
 
       <h2>
@@ -127,9 +129,6 @@ const introuvable = computed(
           <p class="acces">
             <template v-if="lieu.etage">{{ lieu.etage }}</template>
             <template v-if="lieu.codeAcces"> &middot; code {{ lieu.codeAcces }}</template>
-            <template v-if="lieu.beneficiaireRef">
-              &middot; ref. {{ lieu.beneficiaireRef }}</template
-            >
             <template v-if="lieu.nombreMissions">
               &middot; {{ lieu.nombreMissions }} mission(s)
             </template>

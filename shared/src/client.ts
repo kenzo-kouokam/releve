@@ -8,8 +8,9 @@ import { champsHabilitation, verifierHabilitation, type Habilitation } from './h
 
 /**
  * Le client est l'entreprise utilisatrice qui signe la mission. Ce n'est pas le
- * lieu ou l'interimaire travaille : un SAAD signe, l'intervention a lieu chez
- * le beneficiaire. Les deux notions sont donc deux modeles distincts.
+ * lieu ou l'interimaire travaille : un gestionnaire signe pour ses douze EHPAD,
+ * l'intervention a lieu dans une unite precise de l'un d'eux. Les deux notions
+ * sont donc deux modeles distincts.
  */
 const clientBase = z.object({
   raisonSociale: z.string().trim().min(1, 'La raison sociale est obligatoire').max(160),
@@ -20,7 +21,7 @@ const clientBase = z.object({
     .refine(siretValide, 'SIRET invalide (14 chiffres, cle de controle incorrecte)'),
   // Un seul type aujourd'hui : le champ reste dans le contrat pour pouvoir en
   // reintroduire un autre sans casser les appelants, mais il peut etre omis.
-  type: typeClientSchema.default('SAAD'),
+  type: typeClientSchema.default('EHPAD'),
 
   // Porte par le client et non par le candidat : c'est la convention de
   // l'entreprise utilisatrice qui fixe le salaire de reference de l'interimaire.
@@ -40,9 +41,9 @@ const clientBase = z.object({
     .optional(),
   contactTel: z.string().trim().regex(MOTIF_TELEPHONE, 'Numero de telephone invalide').optional(),
 
-  // Statut reglementaire et sa piece justificative. Ce que chacun rend
-  // obligatoire est verifie par `verifierHabilitation` : le champ attendu
-  // depend du statut, un schema plat ne saurait pas l'exprimer seul.
+  // Statut juridique du gestionnaire et pieces de l'autorisation. Declarer le
+  // premier oblige a produire les secondes, ce qu'un schema plat ne sait pas
+  // exprimer seul : voir `verifierHabilitation`.
   ...champsHabilitation,
 });
 
@@ -53,10 +54,10 @@ export type ClientCreate = z.infer<typeof clientCreateSchema>;
 // Le SIRET n'est pas modifiable : un autre SIRET, c'est une autre entite
 // juridique, donc un autre client - pas une correction de fiche.
 //
-// Le statut reglementaire, lui, se corrige : une structure declaree obtient son
-// autorisation, un agrement arrive a echeance. Changer de statut oblige a
-// fournir le justificatif correspondant dans la meme requete — la piece
-// precedente ne prouve plus rien pour le nouveau regime.
+// L'autorisation, elle, se corrige : un arrete se renouvelle tous les quinze
+// ans, et un etablissement change de gestionnaire. Declarer un statut oblige a
+// produire l'arrete dans la meme requete — la reference precedente ne prouve
+// rien du nouveau gestionnaire.
 export const clientUpdateSchema = clientBase
   .omit({ siret: true })
   .partial()

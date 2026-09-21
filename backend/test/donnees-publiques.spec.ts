@@ -662,7 +662,7 @@ describe('donnees publiques', () => {
     it('ne nomme pas l etablissement client', async () => {
       const reponse = await request(app.getHttpServer()).get('/api/offres').expect(200);
 
-      expect(JSON.stringify(reponse.body)).not.toContain('SAAD A');
+      expect(JSON.stringify(reponse.body)).not.toContain('EHPAD A');
       expect(reponse.body.donnees[0].ville).toBe('Nantes');
     });
 

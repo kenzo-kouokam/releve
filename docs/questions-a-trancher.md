@@ -49,7 +49,7 @@ ci-dessus.
 **À trancher avant le lot 2.**
 
 Placer un intérimaire chez un particulier ne relève pas du même cadre juridique que la mise à
-disposition auprès d'un SAAD. Ce n'est pas une variante du modèle actuel : c'est un second métier,
+disposition auprès d'un EHPAD. Ce n'est pas une variante du modèle actuel : c'est un second métier,
 avec ses propres règles de contrat, de responsabilité et de facturation.
 
 Si la réponse est oui, il faut le savoir avant de construire le moteur de matching et le dépôt de
@@ -106,7 +106,7 @@ sécurité autant que du confort.
 | Question                         | Réponse retenue                                                           |
 | -------------------------------- | ------------------------------------------------------------------------- |
 | Profil unique ou deux entités ?  | Un seul candidat, avec un tableau `filieres`                              |
-| Client et lieu d'intervention    | Deux modèles distincts — un SAAD signe, on intervient ailleurs            |
+| Client et lieu d'intervention    | Deux modèles distincts — un gestionnaire signe, on intervient sur un site |
 | Convention collective            | Portée par le client, entreprise utilisatrice                             |
 | Données de santé                 | Une date de visite et deux booléens, rien de plus                         |
 | Bénéficiaire                     | Référence pseudonymisée, jamais nommé                                     |

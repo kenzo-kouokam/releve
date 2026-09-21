@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { competencesCandidatSchema } from './competences';
 import { MOTIF_CODE_POSTAL, MOTIF_TELEPHONE } from './motifs';
 
 /**
@@ -29,6 +30,19 @@ export const monProfilUpdateSchema = z.object({
   rayonKm: z.number().int().min(1, 'Au moins 1 km').max(150, 'Au plus 150 km').optional(),
   permisB: z.boolean().optional(),
   vehicule: z.boolean().optional(),
+
+  /**
+   * Compétences déclarées, puisées dans le référentiel agrégé depuis les
+   * offres France Travail.
+   *
+   * Déclaratif, contrairement au diplôme, et c'est assumé : aucune pièce
+   * n'établit qu'on sait utiliser un lève-personne. C'est pour cela que ces
+   * lignes départagent sans jamais rendre éligible — elles pèsent sur le score,
+   * elles n'ouvrent aucune porte que la vérification de l'agence tient fermée.
+   *
+   * Remplace la liste entière : l'omettre n'y touche pas, la passer vide efface.
+   */
+  competences: competencesCandidatSchema.optional(),
 });
 
 export type MonProfilUpdate = z.infer<typeof monProfilUpdateSchema>;

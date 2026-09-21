@@ -22,6 +22,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsCompteService } from '../mail/notifications-compte.service';
 import { GeocodageService } from '../geocodage/geocodage.service';
+import { CompetencesService } from '../competences/competences.service';
 
 const avecQualifications = {
   include: { qualifications: { include: { qualification: true } } },
@@ -45,6 +46,10 @@ const avecTout = {
     experiences: avecExperiences,
     disponibilites: { orderBy: [{ jourSemaine: 'asc' }, { heureDebut: 'asc' }] },
     indisponibilites: { orderBy: { du: 'asc' } },
+    competences: {
+      include: { competence: { select: { id: true, libelle: true } } },
+      orderBy: { competence: { libelle: 'asc' } },
+    },
   },
 } satisfies Prisma.CandidatDefaultArgs;
 
@@ -142,6 +147,7 @@ export class CandidatsService {
     private readonly prisma: PrismaService,
     private readonly geocodage: GeocodageService,
     private readonly notifications: NotificationsCompteService,
+    private readonly competences: CompetencesService,
   ) {}
 
   async lister(query: CandidatListQuery, agenceId: string): Promise<PageResultat<CandidatResume>> {
@@ -151,6 +157,17 @@ export class CandidatsService {
       agenceId,
       ...(query.statut ? { statut: query.statut } : {}),
       ...(query.permisB === undefined ? {} : { permisB: query.permisB }),
+      // Conjonctif : autant de conditions `some` que de competences demandees.
+      // Un seul `some` avec un `in` rendrait les candidats qui en detiennent
+      // une seule — l'union au lieu de l'intersection, donc l'inverse de ce
+      // qu'un charge de recrutement demande en cochant deux cases.
+      ...(query.competences?.length
+        ? {
+            AND: query.competences.map((competenceId) => ({
+              competences: { some: { competenceId } },
+            })),
+          }
+        : {}),
       ...(query.recherche
         ? {
             OR: [
@@ -195,6 +212,10 @@ export class CandidatsService {
       geocodeLe: candidat.geocodeLe ? candidat.geocodeLe.toISOString() : null,
       visiteMedicaleLe: enDateIso(candidat.visiteMedicaleLe),
       vaccinationVerifiee: candidat.vaccinationVerifiee,
+      competences: candidat.competences.map((lien) => ({
+        id: lien.competence.id,
+        libelle: lien.competence.libelle,
+      })),
       qualificationsDetail: candidat.qualifications.map((lien) =>
         versQualificationResume(lien, aujourdHui),
       ),
@@ -246,6 +267,20 @@ export class CandidatsService {
   async modifier(id: string, donnees: CandidatUpdate, agenceId: string): Promise<CandidatDetail> {
     const candidat = await this.exigerCandidat(id, agenceId, avecTout);
 
+    // Meme controle que cote mission, et pour la meme raison : sans lui, la
+    // cle etrangere leverait une P2003 rendue en 500, et une faute de saisie
+    // passerait pour une panne du serveur.
+    if (donnees.competences?.length) {
+      const connues = await this.competences.existantes(donnees.competences);
+      const inconnues = donnees.competences.filter((competenceId) => !connues.has(competenceId));
+
+      if (inconnues.length) {
+        throw new BadRequestException(
+          `Competences inconnues du referentiel : ${inconnues.join(', ')}`,
+        );
+      }
+    }
+
     // Passer ACTIF, c'est rendre le candidat proposable sur une mission. Sans
     // justificatif verifie, l'agence engagerait sa responsabilite a l'aveugle.
     if (donnees.statut === 'ACTIF' && candidat.statut !== 'ACTIF') {
@@ -257,12 +292,28 @@ export class CandidatsService {
     }
 
     const validation = donnees.statut === 'ACTIF' && candidat.statut !== 'ACTIF';
-    const { visiteMedicaleLe, ...reste } = donnees;
+    const { visiteMedicaleLe, competences, ...reste } = donnees;
+
+    // Les competences declarees remplacent la liste, elles ne la completent
+    // pas : `deleteMany` puis `createMany` dans la meme requete. Distinguer
+    // « je n'y touche pas » de « je les retire toutes » serait impossible
+    // autrement — un tableau vide ne sait pas dire lequel des deux il veut
+    // dire, c'est l'absence du champ qui le dit.
+    const remplacerCompetences =
+      competences === undefined
+        ? {}
+        : {
+            competences: {
+              deleteMany: {},
+              createMany: { data: competences.map((competenceId) => ({ competenceId })) },
+            },
+          };
 
     const apres = await this.prisma.candidat.update({
       where: { id },
       data: {
         ...reste,
+        ...remplacerCompetences,
         ...(visiteMedicaleLe === undefined ? {} : { visiteMedicaleLe: versDate(visiteMedicaleLe) }),
         // La date de derniere annonce est posee au moment de la validation, et
         // pas laissee nulle : sinon le premier balayage deroulerait a un nouvel

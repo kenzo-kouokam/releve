@@ -11,6 +11,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { QualificationsModule } from './qualifications/qualifications.module';
+import { CompetencesModule } from './competences/competences.module';
 import { UtilisateursModule } from './utilisateurs/utilisateurs.module';
 import { DonneesPubliquesModule } from './donnees-publiques/donnees-publiques.module';
 import { MatchingModule } from './matching/matching.module';
@@ -32,6 +33,7 @@ import { EvenementsModule } from './evenements/evenements.module';
     CandidatsModule,
     ClientsModule,
     QualificationsModule,
+    CompetencesModule,
     UtilisateursModule,
     DonneesPubliquesModule,
     MatchingModule,

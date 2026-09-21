@@ -61,7 +61,7 @@ describe('inscription des deux profils', () => {
     await request(app.getHttpServer())
       .post('/api/auth/inscription/entreprise')
       .send({
-        entreprise: { raisonSociale: 'SAAD Les Glycines', siret: '55208131766522' },
+        entreprise: { raisonSociale: 'EHPAD Les Glycines', siret: '55208131766522' },
         compte: { email: 'direction@glycines.example', motDePasse: MOT_DE_PASSE_INSCRIPTION },
       })
       .expect(404);

@@ -15,6 +15,7 @@ import type {
   OptionsAnnonces,
   OptionsVitrine,
   PageResultat,
+  TypeLieu,
 } from '@releve/shared';
 import { distanceKm } from '../matching/score';
 import { PrismaService } from '../prisma/prisma.service';
@@ -62,6 +63,30 @@ const NOMS_DEPARTEMENTS: Record<string, string> = {
  * les annonces partenaire lisent les offres collectees sur France Travail, sur
  * lesquelles on ne postule pas du tout depuis la plateforme.
  */
+/**
+ * Ce que le visiteur non connecte lit a la place du lieu.
+ *
+ * Le libelle du lieu ne peut pas etre recopie ici, et c'est le passage a
+ * l'EHPAD qui l'a rendu evident. Sous le regime precedent un lieu s'appelait
+ * « Domicile - secteur Doulon » : il ne nommait personne, et le recopier etait
+ * sans consequence. Un lieu d'EHPAD, lui, s'appelle « Les Tilleuls -
+ * hebergement » — le lieu et le client sont la meme chose, donc afficher l'un
+ * revient a publier l'autre.
+ *
+ * Or publier sur le web ouvert quels EHPAD recourent a l'interim est une
+ * information commercialement sensible pour eux, et, s'agissant du soin aux
+ * personnes agees, une information que les familles liraient comme un signal
+ * sur la qualite de la prise en charge. Ils ne l'ont pas autorisee en deposant
+ * un besoin.
+ *
+ * Le remplacement se compose donc de deux informations que le candidat peut
+ * avoir sans identifier l'etablissement : la nature du poste et la commune. Le
+ * candidat connecte, lui, voit le nom dans son espace.
+ */
+function secteurAnonyme(type: TypeLieu, ville: string): string {
+  return type === 'UNITE_PROTEGEE' ? `Unite protegee - ${ville}` : `EHPAD - ${ville}`;
+}
+
 @Injectable()
 export class VitrineService {
   constructor(private readonly prisma: PrismaService) {}
@@ -86,7 +111,8 @@ export class VitrineService {
       this.prisma.mission.findMany({
         where,
         include: {
-          lieu: { select: { type: true, libelle: true, ville: true, codePostal: true } },
+          // `libelle` est volontairement absent : voir `secteurAnonyme`.
+          lieu: { select: { type: true, ville: true, codePostal: true } },
           qualificationRequise: { select: { code: true, libelle: true } },
         },
         // La plus proche dans le temps d'abord : un candidat cherche a remplir
@@ -104,7 +130,7 @@ export class VitrineService {
         metier: mission.qualificationRequise.libelle,
         metierCode: mission.qualificationRequise.code,
         typeLieu: mission.lieu.type as MissionVitrine['typeLieu'],
-        secteur: mission.lieu.libelle,
+        secteur: secteurAnonyme(mission.lieu.type, mission.lieu.ville),
         ville: mission.lieu.ville,
         codePostal: mission.lieu.codePostal,
         departement: departementDepuisCodePostal(mission.lieu.codePostal),

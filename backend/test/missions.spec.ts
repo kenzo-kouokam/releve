@@ -115,7 +115,7 @@ describe('missions et candidatures', () => {
       const ailleurs = await prisma.lieuIntervention.create({
         data: {
           clientId: jeu.clientB,
-          type: 'DOMICILE_BENEFICIAIRE',
+          type: 'ETABLISSEMENT',
           libelle: 'Domicile B',
           adresse: '9 rue B',
           codePostal: '35000',

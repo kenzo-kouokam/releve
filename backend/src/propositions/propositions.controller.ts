@@ -73,6 +73,23 @@ export class PropositionsController {
     return this.propositions.valider(id, session);
   }
 
+  /**
+   * Le candidat repond oui a une offre que l'agence lui a envoyee.
+   *
+   * Reserve au candidat, et c'est tout le sens de la route : personne ne peut
+   * accepter a sa place. L'agence propose, l'interesse accepte, l'etablissement
+   * tranche — trois gestes, trois acteurs, aucun raccourci.
+   */
+  @Post(':id/accepter')
+  @Roles('CANDIDAT')
+  @ApiOperation({ summary: 'Accepter une mission proposee par l agence' })
+  accepter(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UtilisateurCourant() session: UtilisateurSession,
+  ): Promise<PropositionResume> {
+    return this.propositions.accepter(id, session);
+  }
+
   @Post(':id/refuser')
   @ApiOperation({ summary: 'Ecarter la candidature, ou se retirer quand on est le candidat' })
   refuser(

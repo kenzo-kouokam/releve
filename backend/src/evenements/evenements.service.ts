@@ -156,8 +156,10 @@ export class EvenementsService {
       ? await this.destinataires.parIds(transition.candidatsAPrevenirIds)
       : [];
 
-    const viser = (candidat: { id: string }): CandidatVise => ({
+    const viser = (candidat: { id: string; prenom: string; email: string }): CandidatVise => ({
       candidatRef: this.webhooks.referenceCandidat(candidat.id),
+      prenom: candidat.prenom,
+      email: candidat.email,
     });
 
     return {

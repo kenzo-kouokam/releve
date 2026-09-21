@@ -1,19 +1,20 @@
 # Relève
 
-Agence d'intérim numérique pour l'aide à domicile.
+Agence d'intérim numérique pour les EHPAD.
 
-L'agence place des intérimaires — auxiliaires de vie, aides-soignants, AES — chez des **services
-d'aide et d'accompagnement à domicile (SAAD)** qui ont un besoin de remplacement, souvent à très
-court terme. La plateforme remplace le tableur et le téléphone : vivier de candidats, référentiel
-client, dépôt de besoin, matching — puis, au schéma mais pas encore au code, contractualisation et
-relevés d'heures (voir « État d'avancement »).
+L'agence place des intérimaires — aides-soignants, accompagnants éducatifs et sociaux — dans des
+**établissements d'hébergement pour personnes âgées dépendantes (EHPAD)** qui ont un besoin de
+remplacement, souvent à très court terme. La plateforme remplace le tableur et le téléphone :
+vivier de candidats, référentiel client, dépôt de besoin, matching — puis, au schéma mais pas
+encore au code, contractualisation et relevés d'heures (voir « État d'avancement »).
 
-Le SAAD est le **seul** type de client : `TypeClient` ne porte qu'une valeur, les particuliers
-employeurs sont hors périmètre. Une structure est enregistrée par l'agence, jamais par
-auto-inscription — son **statut réglementaire** (déclaration SAP, agrément, ou autorisation
-départementale au titre du CASF) décide de ce qu'elle a le droit de faire, et se vérifie sur pièce. Face à Hublo, qui vend un outil de recrutement, et à Mediflash, qui
-contourne le salariat, la différenciation tient dans un vrai contrat de mission d'intérim —
-l'analyse concurrentielle est dans
+L'EHPAD est le **seul** type de client : `TypeClient` ne porte qu'une valeur. Un établissement est
+enregistré par l'agence, jamais par auto-inscription — il n'ouvre qu'après un **arrêté conjoint
+ARS / conseil départemental** (art. L. 313-1 du CASF), et cet arrêté se vérifie sur pièce. Comme
+tout EHPAD relève de l'article L. 312-1 du CASF, la durée minimale d'exercice préalable à l'intérim
+de la loi Valletoux s'applique à **toutes** nos mises à disposition, sans condition. Face à Hublo,
+qui vend un outil de recrutement, et à Mediflash, qui contourne le salariat, la différenciation
+tient dans un vrai contrat de mission d'intérim — l'analyse concurrentielle est dans
 [`docs/analyse-de-marche.html`](docs/analyse-de-marche.html).
 
 ---
@@ -26,28 +27,35 @@ Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | **J1–J2 — Socle et vivier**                  | Monorepo, authentification et rôles, référentiels, fiches candidats, back-office                          | **Livré**                     |
 | **J3–J5 — Comptes, mission, profil**         | Inscription des deux profils, dépôt de besoin, candidature, validation, espace personnel de l'intérimaire | **Livré**                     |
-| **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, moteur de matching à score explicable                     | **Livré**                     |
+| **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, référentiel de compétences, moteur de matching à score explicable | **Livré**                     |
 | J7–J9 — Tableau de bord, vitrine, conformité | Tableau de bord candidat, pages publiques, n8n, RGAA / RGESN / RGPD                                       | **Partiel** — voir ci-dessous |
+| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **Côté API livré** — workflows partiels |
 | J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | À faire · 4 j·dev             |
 
-**371 tests au vert** : 339 sur l'API, 32 sur les règles partagées. Le front n'en a aucun.
+**483 tests au vert** : 435 sur l'API, 48 sur les règles partagées. Le front n'en a aucun.
 
 Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
 fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
 confidentialité) et la refonte complète des écrans sur le canvas de design. Le volet RGPD est
 entamé : dépôt des pièces justificatives, **conservation bornée à un an** avec relance par courriel,
-et consentement recueilli et daté à l'inscription. Restent les **automatisations n8n**, le reste de
-la **conformité** (RGAA, RGESN) et le **référencement**. Le chiffrage par fonctionnalité, le plan de
+et consentement recueilli et daté à l'inscription. Les **automatisations n8n** ont désormais tout
+leur versant API — journal des transitions, émission signée, routes de service — et il reste à finir
+les workflows eux-mêmes. Restent aussi le reste de la **conformité** (RGAA, RGESN) et le
+**référencement**. Le chiffrage par fonctionnalité, le plan de
 repli et les livrables datés sont dans le cahier des charges figé à J+2, qui sert de référence pour
 l'écart entre estimé et réel.
 
 **La boucle produit est fermée** : un service publie un besoin, un intérimaire qualifié le voit et
 postule, le service le confirme, la mission apparaît dans son suivi.
 
-**Elle s'arrête là.** Les modèles `Contrat`, `ReleveHeures`, `Facture` et `EvenementMission` sont au
-schéma et **aucun service ne les lit** — zéro occurrence dans `backend/src`. La contractualisation
-et les relevés d'heures annoncés en tête de ce document sont donc une intention du modèle de
-données, pas une fonctionnalité.
+**Elle s'arrête là.** Les modèles `Contrat`, `ReleveHeures` et `Facture` sont au schéma et **aucun
+service ne les lit** — zéro occurrence dans `backend/src`. La contractualisation et les relevés
+d'heures annoncés en tête de ce document sont donc une intention du modèle de données, pas une
+fonctionnalité.
+
+`EvenementMission`, en revanche, **est désormais écrit** : chaque transition de mission y laisse une
+trace, et c'est ce journal qui alimente les automatisations. Voir « Automatisations » dans la section
+API.
 
 **Les trois manques qui bloquaient une mise en ligne sont traités** — dépôt de pièces
 justificatives, conditions d'utilisation, identité légale. Le dernier l'est **pour la démonstration
@@ -95,7 +103,7 @@ navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, c
 dérouler une inscription complète sans écrire à une vraie adresse.
 
 ```bash
-pnpm test                    # 306 tests : règles partagées + intégration API
+pnpm test                    # 483 tests : règles partagées + intégration API
 ```
 
 La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
@@ -116,7 +124,7 @@ le moyen le plus simple de récupérer un accès en local.
 | ------------------------------ | ----------------------- | ------------------------ |
 | `admin@releve.example`         | Administrateur d'agence | Agence pilote            |
 | `charge@releve.example`        | Chargé de recrutement   | Agence pilote            |
-| `secteur@les-tilleuls.example` | Client                  | Les Tilleuls (SAAD)      |
+| `cadre@les-tilleuls.example`   | Client                  | EHPAD Les Tilleuls       |
 | `sophie.marchand@example.org`  | Candidat                | Fiche de Sophie Marchand |
 
 Les quatre comptes ont leurs écrans : back-office pour les deux premiers, espace établissement
@@ -246,6 +254,73 @@ La médiane ne porte que sur les offres qui **annoncent** une rémunération —
 national du 16 septembre (521 sur 2 025). Le baromètre expose `offresSansSalaire` pour que la page le
 dise, plutôt que d'afficher un chiffre qui aurait l'air complet.
 
+### Référentiel de compétences
+
+Second usage des mêmes offres, à côté du baromètre. Le baromètre répond à « combien payer », le
+référentiel à « **que demander** » : ce qu'un EHPAD attend d'un aide-soignant s'apprend en lisant ce
+que les EHPAD écrivent dans leurs annonces, pas en imaginant une liste en réunion.
+
+Aucune collecte supplémentaire : les compétences dormaient déjà dans `offre_collectee`. Une commande
+les réveille.
+
+```bash
+pnpm cli competences     # reconstruit le référentiel depuis les offres actives
+```
+
+**Deux sources, et l'honnêteté sur laquelle pèse le plus.** L'API expose bien un champ `competences`,
+structuré et propre — il est presque toujours vide : sur l'échantillon de référence
+(`backend/donnees/offres-echantillon.json`, 102 offres réelles), **deux offres** le renseignent. Le
+signal est dans le corps de l'annonce, écrit en prose.
+
+Or extraire des n-grammes de ces descriptions ne donne pas des compétences. Les expressions les plus
+fréquentes du corpus sont « parking gratuit », « piste cyclable principale » et « fortes valeurs
+humaines » : de l'argumentaire de recrutement, recopié d'une annonce à l'autre. Le proposer à un
+établissement qui rédige son besoin serait pire que de ne rien proposer.
+
+Le partage retenu est donc explicite : le **vocabulaire** est à nous — 40 entrées versionnées dans
+[`backend/src/competences/lexique.ts`](backend/src/competences/lexique.ts), relisibles en revue — et
+les **fréquences** viennent entièrement de la donnée publique. Une entrée qu'on ne lit dans aucune
+offre active n'entre pas au référentiel, et le classement proposé est celui du marché. C'est une
+lecture assistée du corpus, et il faut la nommer comme telle plutôt que de laisser croire à une
+découverte automatique.
+
+Sur les 2 020 offres actives du dernier balayage, les cinq premières lignes :
+
+| Occurrences | Compétence                             |
+| ----------- | -------------------------------------- |
+| 878         | Soins d'hygiène et de confort          |
+| 664         | Travail en équipe pluridisciplinaire   |
+| 542         | Prévention des escarres                |
+| 533         | Prise des constantes                   |
+| 510         | Change et soins d'élimination          |
+
+**Une entrée ne compte qu'une fois par offre**, quel que soit le nombre de répétitions dans le
+texte : sans cette règle, une annonce bavarde pèserait autant que quatre établissements, et le
+classement mesurerait le style rédactionnel plutôt que le marché.
+
+**Rien n'est jamais supprimé.** Une compétence disparue du marché garde sa ligne et ses
+rattachements vers les missions passées et les profils qui l'ont déclarée ; seules ses occurrences
+retombent à zéro. Supprimer réécrirait l'histoire — une mission de l'an dernier a bien exigé cette
+compétence-là.
+
+Le calcul vit dans [`agregation.ts`](backend/src/competences/agregation.ts), hors de Nest, parce que
+le seed doit produire **exactement** le même référentiel que la commande : il rejoue l'échantillon
+versionné, de sorte qu'une installation neuve ait un référentiel rempli sans réseau ni identifiants
+France Travail.
+
+#### Ce qu'il sert
+
+| Où                        | Comment                                                                 |
+| ------------------------- | ------------------------------------------------------------------------ |
+| Rédaction d'une mission   | L'établissement coche jusqu'à 12 compétences, dont des « indispensables » |
+| Profil de l'intérimaire   | Il déclare jusqu'à 30 compétences, depuis son espace                     |
+| Score de matching         | Une composante de 20 points — voir « Matching »                          |
+| Recherche de profils      | `GET /candidats?competences=<ids>`, conjonctive                          |
+
+La déclaration du candidat est **déclarative et jamais vérifiée** : aucune pièce n'établit qu'on sait
+utiliser un lève-personne. C'est pourquoi elle départage sans jamais ouvrir de porte — une case
+cochée ne rend personne éligible, et une case vide n'écarte personne.
+
 ### Import automatique
 
 `IMPORT_OFFRES_AUTOMATIQUE="true"` déclenche deux balayages complets par jour, à 5 h et 13 h, suivis
@@ -351,9 +426,22 @@ remplacé par le motif chiffré et un lien vers son profil.
 
 | Composante    | Poids | Ce qui est mesuré                                                        |
 | ------------- | ----- | ------------------------------------------------------------------------ |
-| Expérience    | 40    | Mois de terrain **vérifiés**, pondérés par la quotité, plafonnés à 5 ans |
-| Zone          | 35    | Distance réelle au lieu, décroissance linéaire jusqu'au rayon déclaré    |
-| Disponibilité | 25    | Part de la vacation réellement couverte par les créneaux déclarés        |
+| Expérience    | 30    | Mois de terrain **vérifiés**, pondérés par la quotité, plafonnés à 5 ans |
+| Zone          | 30    | Distance réelle au lieu, décroissance linéaire jusqu'au rayon déclaré    |
+| Disponibilité | 20    | Part de la vacation réellement couverte par les créneaux déclarés        |
+| Compétences   | 20    | Ce qui est coché sur la mission, face à ce que le profil a déclaré       |
+
+**Quand la mission ne demande aucune compétence** — le cas le plus courant, et il faut qu'il le
+reste — les vingt points sont **redistribués** sur les trois autres, dans les proportions qui
+étaient les leurs avant : 40 / 35 / 25. Neutraliser la composante n'aurait pas suffi. Un profil
+parfait plafonnerait alors à 80 sur ces missions-là, et deux classements cesseraient d'être
+comparables : un 78 deviendrait excellent ici et médiocre ailleurs, sans que rien ne le dise à
+l'écran. Le total reste sur 100 dans les deux cas.
+
+Une compétence marquée **indispensable** pèse le double d'une compétence souhaitée. Elle n'écarte
+pas pour autant : l'éligibilité est établie ailleurs, sur des faits vérifiés, et une case cochée par
+le candidat ne prouve rien. En faire un motif d'exclusion reviendrait à laisser un profil se
+disqualifier — ou s'auto-sélectionner — sur sa seule parole.
 
 Le diplôme ne rapporte aucun point, et c'est délibéré : la porte d'éligibilité l'exige déjà de tout
 le monde, donc lui en attribuer reviendrait à ajouter la même constante à chaque candidat classé —
@@ -448,8 +536,11 @@ La **liste publique de missions** du canvas existe désormais, sous `/offres` : 
 missions ouvertes de l'agence, sans session, avec trois menus déroulants — département, ville,
 métier — construits sur les missions réellement ouvertes plutôt que sur une liste figée des cent une
 divisions françaises. Elle ne nomme pas l'établissement client : publier sur le web ouvert quels
-services d'aide à domicile passent par une agence d'intérim est commercialement sensible pour eux,
-et ils ne l'ont pas autorisé en déposant un besoin.
+EHPAD recourent à l'intérim est commercialement sensible pour eux — et, s'agissant du soin aux
+personnes âgées, une information que les familles liraient comme un signal sur la qualité de la
+prise en charge. Ils ne l'ont pas autorisé en déposant un besoin. Le secteur affiché est donc
+recomposé (« EHPAD — Nantes », « Unité protégée — Rezé ») et non recopié du libellé du lieu : dans
+un EHPAD, le lieu **est** le client, donc afficher l'un revient à publier l'autre.
 
 `GET /missions` reste réservé à une session : c'est la vue du candidat sur son agence, avec son
 classement et ses candidatures, et elle n'a pas le même contenu.
@@ -475,8 +566,8 @@ backend/                          API NestJS
     offres-echantillon.json       102 offres réelles, rejouables sans réseau
   prisma/
     schema.prisma                 modèle complet du produit + 3 invariants métier
-    migrations/                   … statut réglementaire, pièces justificatives, conservation
-    seed.ts                       agence, deux diplômes, SAAD, candidats, comptes ; élague le référentiel
+    migrations/                   … pivot EHPAD, référentiel de compétences, conservation
+    seed.ts                       agence, deux diplômes, deux EHPAD, candidats, comptes ; amorce le marché
   src/
     auth/                         authentification, rôles, sessions, mots de passe
       auth.decorateurs.ts         @Public, @Roles, @UtilisateurCourant, @AgenceCourante
@@ -489,12 +580,20 @@ backend/                          API NestJS
       inscriptions.service.ts     auto-inscription entreprise et intérimaire
       mots-de-passe.ts            Argon2id
     candidats/                    vivier : fiche, qualifications, disponibilités
-    clients/                      clients SAAD et lieux d'intervention
+    clients/                      EHPAD clients et lieux d'intervention
     contact/                      formulaire public de la vitrine, relayé par courriel
     notifications/                annonce quotidienne des missions correspondantes
+    evenements/                   journal des transitions, webhooks signés, routes de service
+      evenements.service.ts       consigne puis émet — le journal d'abord, toujours
+      webhooks.service.ts         émission signée HMAC, non bloquante
+      destinataires.service.ts    qui est concerné par une mission, et à quel titre
+      interne.controller.ts       /api/interne/* derrière X-Service-Token
     mail/                         sortie courriel, un seul point de sortie
       gabarits.ts                 les messages en clair, texte et HTML
       notifications-compte.service.ts  ce qu'on écrit à quelqu'un sur son compte
+    competences/                  référentiel métier tiré des offres France Travail
+      lexique.ts                  le vocabulaire cherché, et pourquoi il est écrit à la main
+      agregation.ts               le calcul, hors de Nest : partagé avec le seed
     matching/                     porte d'éligibilité et score explicable
       score.ts                    le barème, sans Prisma ni Nest : testable seul
     missions/                     dépôt de besoin, visibilité par profil, annulation
@@ -617,7 +716,7 @@ shared/                           @releve/shared — contrat API ↔ front
     client.ts, lieu.ts, qualification.ts
     mission.ts, proposition.ts    dépôt de besoin, candidature, décision
     matching.ts, profil.ts        score décomposé, espace personnel
-    habilitation.ts               statut réglementaire et cohérence du justificatif
+    habilitation.ts               statut juridique et pièces de l'autorisation
     verification.ts               confirmation d'adresse et destination par rôle
     reinitialisation.ts           mot de passe oublié
     document.ts                   types de pièces, formats admis, plafond de taille
@@ -641,40 +740,51 @@ docker-compose.yml                PostgreSQL + PostGIS, Redis
 
 Le schéma porte trois décisions structurantes, commentées dans `schema.prisma`.
 
-**1. Le client contractuel n'est pas le lieu d'intervention.** Un SAAD signe la mission ;
-l'intervention a lieu chez le bénéficiaire. `Client` et `LieuIntervention` sont deux modèles
-distincts, et le client n'a pas d'adresse propre.
+**1. Le client contractuel n'est pas le lieu d'intervention.** Un gestionnaire signe pour
+l'ensemble de ses EHPAD ; le remplacement se fait dans une unité précise de l'un d'eux. `Client` et
+`LieuIntervention` sont deux modèles distincts, et le client n'a pas d'adresse propre.
 
 **2. La convention collective est portée par le client.** Principe d'égalité de traitement avec les
 salariés de l'entreprise utilisatrice : c'est sa convention qui fixe le salaire de référence de
 l'intérimaire, pas celle du candidat.
 
-**3. Le statut réglementaire du client est saisi sur pièce.** Rien dans le SIRET ne dit sous quel
-régime une structure intervient : deux services au même code NAF peuvent relever de régimes
-différents. Le champ est **nullable** — les fiches antérieures à la règle n'ont pas de statut connu,
-et leur en inventer un ferait dire à la base ce que personne n'a vérifié. L'absence est ici
+**3. L'autorisation du client est saisie sur pièce.** Un EHPAD n'ouvre qu'après un arrêté conjoint
+ARS / conseil départemental (art. L. 313-1 du CASF), délivré pour quinze ans, et rien dans le SIRET
+ne le dit. Les champs sont **nullables** — les fiches antérieures à la règle n'ont pas d'arrêté
+connu, et leur en inventer un ferait dire à la base ce que personne n'a vérifié. L'absence est ici
 l'information juste, et c'est l'**activation** qui la refuse.
 
-### Le statut réglementaire, et ce qu'il commande
+### L'autorisation, et le statut juridique
 
-| Statut                    | Justificatif exigé          | Ce qu'il implique                                          |
-| ------------------------- | --------------------------- | ---------------------------------------------------------- |
-| **Déclaré SAP**           | Numéro SAP                  | Déclaration en DDETS ; avantage fiscal pour le particulier |
-| **Agréé SAP**             | Numéro d'agrément           | Mandataire auprès de publics fragiles ; État, 5 ans        |
-| **Autorisé SAD / ESMS**   | Numéro FINESS **et** arrêté | Conseil départemental, 15 ans ; entre dans L. 312-1 CASF   |
-| **Prestataire classique** | Numéro SAP                  | Hors champ de l'autorisation                               |
+Deux informations distinctes, qu'il ne faut pas confondre.
 
-Le contrôle porte sur la **cohérence**, pas seulement sur la présence : déclarer une autorisation
-départementale en ne fournissant qu'un numéro SAP ferait passer une structure pour ce qu'elle n'est
-pas. Et l'enjeu n'est pas administratif — une structure autorisée relève de l'article L. 312-1 du
-CASF, ce qui déclenche pour ses mises à disposition la **durée minimale d'exercice préalable** à
-l'intérim de la loi Valletoux. Le barème vit dans `shared/src/habilitation.ts`.
+**L'autorisation ne varie pas.** Il n'existe pas d'EHPAD non autorisé : le numéro FINESS
+géographique et la référence de l'arrêté sont donc exigés de tous, sans condition. C'est aussi ce
+qui rend la loi Valletoux (loi 2023-1268, art. 8) applicable à **toutes** nos mises à disposition —
+la durée minimale d'exercice préalable à l'intérim vise les professionnels de santé exerçant en
+ESMS, et un EHPAD en est un.
 
-Le numéro SAP est normalisé (`SAP` + les 9 chiffres du SIREN, séparateurs absorbés). La clé de
-contrôle du FINESS n'est **pas** vérifiée, contrairement à celle du SIRET : l'algorithme varie selon
-les référentiels, et une implémentation approximative refuserait des établissements parfaitement
-réels. Ici, un faux négatif coûte bien plus cher qu'un faux positif — que la lecture de l'arrêté
-rattrape de toute façon.
+C'est une simplification réelle par rapport au régime précédent. Sous l'aide à domicile, la règle ne
+mordait que sur une partie des structures, et il fallait un champ pour savoir lesquelles ; ici elle
+est générale, et le code n'a plus à la conditionner.
+
+**Le statut juridique varie**, et c'est la seule chose qui varie. Il ne décide pas de ce que
+l'établissement a le droit de faire — l'arrêté s'en charge — mais de la convention collective
+applicable, donc du salaire de référence de l'intérimaire.
+
+| Statut juridique          | Cadre salarial indicatif                       |
+| ------------------------- | ---------------------------------------------- |
+| **Public hospitalier**    | Fonction publique hospitalière (grille)        |
+| **Public territorial**    | Fonction publique territoriale (grille)        |
+| **Privé non lucratif**    | Convention de branche (CCN 51, CCN 66)         |
+| **Privé commercial**      | Convention de branche (IDCC 2264)              |
+
+La clé de contrôle du FINESS n'est **pas** vérifiée, contrairement à celle du SIRET : l'algorithme
+varie selon les référentiels, et une implémentation approximative refuserait des établissements
+parfaitement réels. Ici, un faux négatif coûte bien plus cher qu'un faux positif — que la lecture de
+l'arrêté rattrape de toute façon. C'est le FINESS **géographique** qui est attendu, celui du site :
+un groupe qui exploite douze EHPAD n'a qu'un FINESS juridique, et l'autorisation se lit site par
+site. Le barème vit dans `shared/src/habilitation.ts`.
 
 ### RGPD
 
@@ -738,7 +848,7 @@ Un `usage` porté par chaque lien empêche qu'un jeton serve à l'autre parcours
 
 Le formulaire de demande répond **204 dans tous les cas**, adresse connue ou non, et il est plafonné
 à trois essais par minute : répondre différemment en ferait un annuaire des inscrits — et ici, être
-inscrit révèle qu'on cherche des missions d'aide à domicile. Une réinitialisation réussie ferme
+inscrit révèle qu'on cherche des missions en EHPAD. Une réinitialisation réussie ferme
 **toutes** les sessions en cours : elle sert aussi après un vol, et laisser vivre les sessions
 laisserait le voleur connecté après la reprise de main.
 
@@ -872,10 +982,17 @@ Base : `http://localhost:3001/api`. Toutes les routes sauf mention contraire exi
 | ------- | -------------------------------- | -------------- |
 | `GET`   | `/qualifications`                | authentifié    |
 | `POST`  | `/qualifications`                | administrateur |
+| `GET`   | `/competences`                   | authentifié    |
 | `GET`   | `/utilisateurs`                  | administrateur |
 | `POST`  | `/utilisateurs`                  | administrateur |
 | `PATCH` | `/utilisateurs/:id`              | administrateur |
 | `POST`  | `/utilisateurs/:id/mot-de-passe` | administrateur |
+
+`GET /competences` accepte `rome` (le métier visé), `recherche` (mot-clé, accents et casse
+ignorés) et `limite`. Il rend les compétences classées par ce que le marché demande le plus, avec
+leur nombre d'offres. **Aucune écriture n'est exposée** : le référentiel se reconstruit depuis les
+offres publiques par `pnpm cli competences`, et une ligne ajoutée à la main ne serait plus une
+observation du marché mais une opinion.
 
 ### Missions
 
@@ -1023,6 +1140,51 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 `/tension/suggestion` retombe sur la médiane nationale quand le département ne dit rien, et renvoie
 `perimetre: 'aucun'` plutôt que d'inventer un taux.
 
+### Automatisations
+
+Deux sens de circulation. L'API **émet** un événement signé à chaque transition de mission ;
+l'automatisation **rappelle** l'API sur un préfixe à part. Aucun outil extérieur ne touche la base.
+
+| Événement              | Transition                                  |
+| ---------------------- | ------------------------------------------- |
+| `mission.publiee`      | Création d'une mission (elle naît `PUBLIEE`) |
+| `proposition.envoyee`  | L'agence propose des candidats               |
+| `proposition.acceptee` | Un candidat postule de lui-même              |
+| `mission.pourvue`      | L'établissement retient un candidat          |
+| `mission.annulee`      | Mission annulée                              |
+| `mission.relancee`     | Relance enregistrée par l'automatisation     |
+| `mission.escaladee`    | Escalade après relances infructueuses        |
+
+Chaque envoi porte `X-Releve-Event`, `X-Releve-Delivery` et `X-Releve-Signature` — `sha256=` suivi
+du HMAC SHA-256 du **corps brut**. L'émission est asynchrone et ne lève jamais : une panne de
+l'automatisation ne doit pas faire échouer une validation de mission. Trois tentatives, puis l'échec
+est journalisé — la transition, elle, reste écrite dans `EvenementMission`, qui permet de rejouer.
+
+| Méthode | Route                                           | Accès             |
+| ------- | ----------------------------------------------- | ----------------- |
+| `POST`  | `/missions/:id/propositions`                    | back-office       |
+| `GET`   | `/interne/missions/non-pourvues`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/relances`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/escalade`                | `X-Service-Token` |
+| `POST`  | `/interne/missions/:id/alertes`                 | `X-Service-Token` |
+| `POST`  | `/interne/notifications/missions`               | `X-Service-Token` |
+
+`POST /missions/:id/propositions` est la route par laquelle **l'agence propose des candidats depuis
+le classement**, par lot. C'est elle qui fait naître une candidature `ENVOYEE` — jusque-là ce statut
+était lu partout et écrit nulle part.
+
+Le seuil de relance est un paramètre d'appel et non un réglage serveur : la démonstration tourne à
+la minute, l'exploitation à la journée, et ce n'est pas à l'API d'arbitrer. Le seuil se mesure depuis
+le **dernier mouvement** — publication ou relance — sans quoi une mission relancée ressortirait
+aussitôt et le workflow tournerait en boucle.
+
+Sans `INTERNAL_SERVICE_TOKEN`, les routes internes répondent `503` : un oubli de configuration ferme
+la porte, il ne l'ouvre pas. Sans `N8N_WEBHOOK_SECRET`, l'API se tait — les transitions sont
+journalisées, rien ne sort. C'est l'état normal d'un poste qui ne fait pas tourner n8n.
+
+Le détail du contrat, et ce qui sort ou non vers Slack, sont dans `docs/automatisations-api.md`. Les
+workflows exportés vivent dans `n8n/`.
+
 « back-office » = `ADMIN_AGENCE` ou `CHARGE_RECRUTEMENT`.
 
 ---
@@ -1034,7 +1196,7 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 | `pnpm dev`                               | Contracts compilés, puis API et front en parallèle  |
 | `pnpm dev:backend` / `pnpm dev:frontend` | Un seul des deux                                    |
 | `pnpm build`                             | Contracts, puis API, puis front                     |
-| `pnpm test`                              | Règles partagées (32) puis intégration API (339)    |
+| `pnpm test`                              | Règles partagées (48) puis intégration API (435)    |
 | `pnpm test:shared`                       | Règles partagées seules, sans base                  |
 | `pnpm test:backend`                      | Intégration API seule                               |
 | `pnpm typecheck`                         | TypeScript sur les trois paquets, tests compris     |
@@ -1061,6 +1223,7 @@ d'annoncer), et l'annonce des missions. `--sec` montre ce qui se passerait sans 
 | `pnpm cli geocoder`              | Situe les fiches candidats restées sans coordonnées                         |
 | `pnpm cli geocoder:offres`       | Situe les offres collectées à partir de leur commune, via la BAN            |
 | `pnpm cli importer:offres`       | Collecte des offres France Travail (voir « Données publiques »)             |
+| `pnpm cli competences`           | Reconstruit le référentiel de compétences depuis les offres actives         |
 
 ---
 
@@ -1080,7 +1243,7 @@ faire passer par Redis, déjà présent dans le `docker-compose`.
 vivier de l'agence en mémoire avant de filtrer. Le pré-filtre `ST_DWithin` est le gain suivant, et
 il ne deviendra mesurable qu'à quelques milliers de fiches.
 
-**La distance reste à vol d'oiseau.** Pour de l'aide à domicile, 12 km en centre-ville et 12 km en
+**La distance reste à vol d'oiseau.** Pour un remplacement au pied levé, 12 km en centre-ville et 12 km en
 campagne ne sont pas le même trajet, et c'est le temps de route qui décide si une intervenante
 accepte. PostGIS n'y changerait rien — il mesure aussi à vol d'oiseau. Il faudra du routage (OSRM
 auto-hébergé sur un extrait OSM, ou une API de matrice de distances).
@@ -1120,8 +1283,8 @@ mais à revoir si la suite s'allonge.
 le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
 travail. Sans conséquence technique, mais visible en soutenance.
 
-**Aucun test ne couvre le front.** Les 306 tests portent sur l'API et les règles partagées ; les
-30 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
+**Aucun test ne couvre le front.** Les 483 tests portent sur l'API et les règles partagées ; les
+35 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
 
 **La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le
 rapport de couverture est un livrable attendu.
@@ -1166,10 +1329,17 @@ bloc de chiffres reste masqué tant qu'il est vide : une absence ne trompe perso
 inventé si. Le formulaire de contact, lui, envoie désormais pour de bon — voir « Contact » dans la
 section API.
 
-**Les notifications ne couvrent que deux moments.** Le candidat est averti quand son dossier est
-validé, puis une fois par jour des missions publiées qui lui correspondent. Rien ne l'avertit
-lorsqu'un établissement retient sa candidature, ni lorsqu'une mission à laquelle il a postulé est
-annulée — ces deux-là restent à écrire, et ce sont les plus attendues une fois la boucle fermée.
+**Le récapitulatif quotidien est un delta, pas un récapitulatif.** Le balayage ne retient que les
+missions créées depuis le dernier envoi, et la date de dernier envoi avance même quand aucun courriel
+ne part. Une mission publiée lundi et toujours ouverte vendredi n'a donc été annoncée qu'une fois. Le
+choix est assumé — il évite huit courriels quand une agence dépose huit besoins dans l'après-midi —
+mais « annoncée tant qu'elle n'est pas pourvue » demanderait un vrai changement de logique.
+
+**Les autres moments sont couverts par les automatisations.** L'alerte pour une mission urgente, la
+clôture quand une mission est pourvue ou annulée, et la confirmation au candidat retenu passent
+désormais par les événements émis vers n8n, qui décide et déclenche. Les gabarits existent des deux
+côtés — backend et nœuds n8n — ce qui est le prix de ce découpage : un changement de mention légale
+doit être fait deux fois.
 
 L'interrupteur « Notifications par e-mail » du canvas existe désormais dans « Mon compte » et
 commande quelque chose de réel (`Utilisateur.notificationsEmail`). Il ne coupe que les courriels de

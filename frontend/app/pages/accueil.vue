@@ -9,12 +9,12 @@ import {
 } from '~/data/vitrine';
 
 useHead({
-  title: "Relève — intérim de l'aide à domicile",
+  title: "Relève — intérim en EHPAD",
   meta: [
     {
       name: 'description',
       content:
-        "Relève est l'agence d'intérim dédiée à l'aide à domicile : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
+        "Relève est l'agence d'intérim dédiée aux EHPAD : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
     },
   ],
 });
@@ -25,9 +25,9 @@ useHead({
     <section class="heros">
       <div class="promesse">
         <p class="vitrine-accroche">{{ ACCROCHE }}</p>
-        <h1>Des missions d'aide à domicile près de vous, dès demain.</h1>
+        <h1>Des missions en EHPAD près de chez vous, dès demain.</h1>
         <p class="chapeau">
-          Relève est l'agence d'intérim dédiée à l'aide à domicile. Créez votre dossier candidat une
+          Relève est l'agence d'intérim dédiée aux Aides soignants aux EHPAD. Créez votre dossier candidat une
           fois, puis candidatez en un clic aux missions qui correspondent à votre secteur, à vos
           disponibilités et à vos diplômes.
         </p>
