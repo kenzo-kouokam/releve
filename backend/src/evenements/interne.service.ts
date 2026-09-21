@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  KpiAgence,
   MissionNonPourvue,
   MissionsNonPourvuesQuery,
   RelanceCreate,
@@ -113,6 +114,66 @@ export class InterneService {
     }
 
     return mures;
+  }
+
+  /**
+   * Indicateurs agrégés pour le tableau de bord de l'agence.
+   *
+   * Aucun filtre par agence : les routes internes traitent le parc entier.
+   * Les valeurs sont calculées en temps réel sans cache — le volume est faible
+   * et les KPI sont lus ponctuellement, pas toutes les secondes.
+   */
+  async kpi(): Promise<KpiAgence> {
+    const missionsPourvues = await this.prisma.mission.findMany({
+      where: { candidatRetenuId: { not: null } },
+      select: {
+        updatedAt: true,
+        evenements: {
+          where: { type: 'mission.publiee' },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    let delaiPourvoiMoyenHeures: number | null = null;
+    const avecEvenement = missionsPourvues.filter((m) => m.evenements[0]);
+    if (avecEvenement.length > 0) {
+      const delais = avecEvenement.map(
+        (m) => (m.updatedAt.getTime() - m.evenements[0].createdAt.getTime()) / 3_600_000,
+      );
+      delaiPourvoiMoyenHeures =
+        Math.round((delais.reduce((a, b) => a + b, 0) / delais.length) * 10) / 10;
+    }
+
+    const ETATS_TERMINAUX = [
+      'VALIDEE',
+      'CONTRACTUALISEE',
+      'EN_COURS',
+      'TERMINEE',
+      'ANNULEE',
+      'NON_POURVUE',
+    ] as const satisfies readonly Prisma.MissionWhereInput['statut'][];
+
+    const [missionsCloses, misNonPourvues, totalRelances, totalEscalades] = await Promise.all([
+      this.prisma.mission.count({ where: { statut: { in: [...ETATS_TERMINAUX] } } }),
+      this.prisma.mission.count({ where: { statut: { in: ['ANNULEE', 'NON_POURVUE'] } } }),
+      this.prisma.evenementMission.count({ where: { type: 'mission.relancee' } }),
+      this.prisma.evenementMission.count({ where: { type: 'mission.escaladee' } }),
+    ]);
+
+    return {
+      delaiPourvoiMoyenHeures,
+      tauxNonPourvusPercent:
+        missionsCloses > 0
+          ? Math.round((misNonPourvues / missionsCloses) * 1000) / 10
+          : null,
+      totalRelances,
+      totalEscalades,
+      missionsCloses,
+      missionsPourvues: missionsPourvues.length,
+    };
   }
 
   /** Enregistre une relance. */

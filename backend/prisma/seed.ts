@@ -478,7 +478,9 @@ async function main(): Promise<void> {
     // Le diplome exige est reecrit et pas seulement pose a la creation : sans
     // cela, une base semee avant la reduction du referentiel garderait un
     // rattachement vers une ligne que l'elagage ne pourrait plus retirer.
-    update: { qualificationRequiseId: deas.id },
+    // Les dates sont aussi remises a jour : elles doivent rester futures pour
+    // que missionsNonPourvues() les voie (dateDebut >= aujourd'hui).
+    update: { qualificationRequiseId: deas.id, dateDebut: new Date('2026-10-06'), dateFin: new Date('2026-10-10') },
     create: {
       reference: 'M-2026-0001',
       agenceId: agence.id,
@@ -486,8 +488,8 @@ async function main(): Promise<void> {
       lieuId: lieuTilleuls.id,
       qualificationRequiseId: deas.id,
       statut: 'PUBLIEE',
-      dateDebut: new Date('2026-09-15'),
-      dateFin: new Date('2026-09-19'),
+      dateDebut: new Date('2026-10-06'),
+      dateFin: new Date('2026-10-10'),
       heureDebut: '06:45',
       heureFin: '14:15',
       motifRecours: "Remplacement d'un salarie absent",
@@ -499,7 +501,7 @@ async function main(): Promise<void> {
 
   await prisma.mission.upsert({
     where: { reference: 'M-2026-0002' },
-    update: { qualificationRequiseId: avs.id },
+    update: { qualificationRequiseId: avs.id, dateDebut: new Date('2026-10-07'), dateFin: new Date('2026-10-11') },
     create: {
       reference: 'M-2026-0002',
       agenceId: agence.id,
@@ -507,8 +509,8 @@ async function main(): Promise<void> {
       lieuId: lieuDomicile.id,
       qualificationRequiseId: avs.id,
       statut: 'PUBLIEE',
-      dateDebut: new Date('2026-09-14'),
-      dateFin: new Date('2026-09-20'),
+      dateDebut: new Date('2026-10-07'),
+      dateFin: new Date('2026-10-11'),
       heureDebut: '08:00',
       heureFin: '11:00',
       motifRecours: 'Accroissement temporaire d activite',
@@ -517,6 +519,45 @@ async function main(): Promise<void> {
       coefficient: '1.880',
     },
   });
+
+  // Mission dediee a la demonstration de WF2 (relance automatique).
+  // Elle est publiee avec un evenement date d'avant-hier : avec RELANCE_SEUIL_MIN=1,
+  // WF2 la voit immediatement et declenche une relance sans attendre.
+  const missionRelance = await prisma.mission.upsert({
+    where: { reference: 'M-2026-RELANCE' },
+    update: {},
+    create: {
+      reference: 'M-2026-RELANCE',
+      agenceId: agence.id,
+      clientId: saad.id,
+      lieuId: lieuDomicile.id,
+      qualificationRequiseId: avs.id,
+      statut: 'PUBLIEE',
+      dateDebut: new Date('2026-10-14'),
+      dateFin: new Date('2026-10-16'),
+      heureDebut: '09:00',
+      heureFin: '13:00',
+      motifRecours: "Remplacement d'un salarie absent",
+      description: 'Aide au lever, assistance repas. Mission de demonstration WF2.',
+      tauxHoraire: '12.5000',
+      coefficient: '1.900',
+    },
+  });
+
+  // Evenement mission.publiee date d'il y a 2h : visible immediatement par WF2
+  // en mode demo (RELANCE_SEUIL_MIN=1 ou 5). Idempotent : skipped si deja present.
+  const dejaPubliee = await prisma.evenementMission.findFirst({
+    where: { missionId: missionRelance.id, type: 'mission.publiee' },
+  });
+  if (!dejaPubliee) {
+    await prisma.evenementMission.create({
+      data: {
+        missionId: missionRelance.id,
+        type: 'mission.publiee',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+    });
+  }
 
   // Le seed pose latitude / longitude en dur, pour rester deterministe et
   // jouable sans reseau. La colonne PostGIS, elle, n'est ecrite qu'en SQL brut :

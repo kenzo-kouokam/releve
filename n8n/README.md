@@ -4,9 +4,9 @@ Exports des automatisations de Relève (livrable « Workflows no-code »).
 
 | Fichier | Workflow | Statut |
 |---|---|---|
-| `wf1-notification.json` | Alertes : e-mail urgent aux candidats éligibles, e-mail de clôture, suivi Slack de l'agence | En cours : signature, aiguillage, alerte urgente (3/jour) et clôture faits ; Slack et Airtable à brancher |
-| `wf2-relance.json` | Relance des missions non pourvues + escalade | Fait : planification, relance, escalade à la 3e, alertes Slack |
-| `wf3-confirmation.json` | Confirmation de mission au candidat retenu | Fait : appelé par WF1 à la validation, courriel via l'API + ligne Slack |
+| `wf1-notification.json` | Alertes : e-mail urgent aux candidats éligibles, e-mail de clôture, suivi Slack de l'agence | ✅ Signature, aiguillage, alerte urgente (3/jour, Redis), clôture, Slack agence — ⬜ Airtable Tampon (table Notifications) à brancher |
+| `wf2-relance.json` | Relance des missions non pourvues + escalade | ✅ Planification, relance, escalade à la 3e, alertes Slack — ⬜ Airtable Tampon (table Relances) à brancher |
+| `wf3-confirmation.json` | Confirmation de mission au candidat retenu | ✅ Appelé par WF1 à la validation, courriel via l'API + ligne Slack |
 
 Contrat d'échange avec l'API : [`docs/automatisations.md`](../docs/automatisations.md).
 
@@ -41,6 +41,7 @@ Credentials à recréer après import (aucun n'est exporté) :
 | Mailpit (local) | SMTP | hôte `mailpit`, port `1025`, sans utilisateur ni mot de passe, SSL désactivé |
 | Redis (local) | Redis | hôte `redis`, port `6379`, base `0`, sans mot de passe |
 | Slack — Relève | Slack API | jeton bot `xoxb-…` de l'app Slack « Releve » (scopes `chat:write`, `chat:write.public`) |
+| Airtable — Relève | Airtable Token | Personal access token Airtable, scopes `data.records:read`, `data.records:write`, `schema.bases:read`, limité à la base Tampon |
 
 Le plafond de 3 alertes urgentes par jour s'appuie sur des compteurs Redis `n8n:alertes:<candidat>:<date>`, qui expirent au bout de 48 h.
 
