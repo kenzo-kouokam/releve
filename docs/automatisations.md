@@ -124,9 +124,28 @@ Une application Slack dédiée (jeton bot `xoxb-…`, portées `chat:write` et `
 
 Le jeton bot est enregistré dans les credentials n8n, jamais dans le dépôt.
 
+## Journal Airtable : base « Relève — Tampon n8n »
+
+Chaque workflow écrit une ligne après chaque envoi. L'application ne lit jamais cette base : c'est le journal des automatisations, et le cockpit de l'agence.
+
+| Table | Écrite par | Une ligne quand… | Statuts |
+|---|---|---|---|
+| `Notifications` | WF1, WF3 | un message Slack de suivi part, un lot d'e-mails (urgente, clôture, confirmation) est confié à l'API, ou le plafond bloque une alerte | `ENVOYE`, `ECHEC`, `PLAFOND` |
+| `Relances` | WF2 | une relance ou une escalade est enregistrée | `OK`, `ECHEC` |
+
+- Colonnes : clé (`deliveryId` + type, pour repérer un rejeu), date, workflow, événement, mission, canal, type, références candidats, envoyés / écartés (réponse de `/alertes`), statut.
+- Chaque ligne est préparée par un nœud « Journal : … » aux noms exacts des colonnes, puis un seul nœud Airtable par workflow l'écrit (correspondance automatique, `typecast`).
+- **Le journal ne bloque jamais un envoi** : le nœud Airtable continue en cas d'erreur (quota, panne, jeton expiré).
+- Quota du plan gratuit : 1 000 appels par mois. On n'écrit que sur événement, une ligne par lot, jamais une par candidat (sauf `PLAFOND`).
+- Interface **Cockpit agence** (F64) : compteurs, répartition par type et par statut, onglets « Échecs », « Plafond atteint », « Escalades ».
+- Identifiant de base : `AIRTABLE_BASE_ID` (non secret, dans `backend/.env`). Jeton : credential n8n « Airtable — Relève », limité à cette base.
+- Conservation : 90 jours, puis purge.
+
 ## Données personnelles
 
-- Aucun nom, e-mail, téléphone ni adresse ne sort vers Slack ou Airtable. n8n, hébergé avec l'application, reçoit l'adresse e-mail des seuls candidats à prévenir, pour l'envoi.
+- Aucun nom, e-mail, téléphone ni adresse ne sort vers Slack ou Airtable : les nœuds « Journal » et les messages Slack ne lisent que `candidatRef`.
+- n8n, hébergé avec l'application, reçoit le prénom et l'e-mail des candidats visés (`candidatsEligibles`, `candidatRetenu`, `candidatsAPrevenir`). Les workflows n'en font rien : ils confient l'envoi à `POST /alertes`, qui revalide les destinataires.
+- Une référence `CAN-XXXXXX` reste une donnée **pseudonyme**, donc personnelle au sens du RGPD tant que le secret HMAC existe : Slack et Airtable doivent figurer comme sous-traitants dans le registre.
 - Le candidat est désigné par une référence pseudonyme `CAN-XXXXXX`, dérivée de son identifiant par HMAC.
 - Slack et Airtable sont hébergés hors UE : cette minimisation est la condition de leur usage.
 

@@ -80,6 +80,9 @@ services:
       # Secrets partages avec l'API, lus dans backend/.env (voir pnpm infra:up).
       N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      # Base Airtable « Tampon » (journal des notifications et relances).
+      # Identifiant non secret ; le jeton, lui, reste dans les credentials n8n.
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
     extra_hosts:
       # Necessaire sous Linux et WSL ; deja resolu nativement sur macOS et Windows.
       - 'host.docker.internal:host-gateway'

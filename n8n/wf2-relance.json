@@ -293,6 +293,175 @@
         736,
         416
       ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.AIRTABLE_BASE_ID }}"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Relances"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "8dbce1d5-3763-440a-83b5-75542b28a2b9",
+      "name": "Airtable : journal des relances",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1700,
+        240
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtableReleve",
+          "name": "Airtable — Relève"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0d707b82-0ea6-4aa4-8181-b02f694fbb80",
+              "name": "Clé",
+              "value": "={{ $('Des missions en attente ?').item.json.mission.reference }}-R-{{ $('API : enregistrer la relance').item.json.relances }}",
+              "type": "string"
+            },
+            {
+              "id": "cfe16b7f-7ad3-492c-b977-6ad492036f2a",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "fe70ea17-bc59-44d6-a7e6-3ed44c3ac0d5",
+              "name": "Mission",
+              "value": "={{ $('Des missions en attente ?').item.json.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "df7968ca-efd4-4933-9b12-101277d0c216",
+              "name": "Action",
+              "value": "Relance",
+              "type": "string"
+            },
+            {
+              "id": "ac311187-8549-44e0-bb58-98900a4bd5b2",
+              "name": "Numéro de relance",
+              "value": "={{ $('API : enregistrer la relance').item.json.relances }}",
+              "type": "number"
+            },
+            {
+              "id": "440d1741-d4af-4694-9364-0d1fc85a0142",
+              "name": "Ouverte depuis (min)",
+              "value": "={{ $('Des missions en attente ?').item.json.ouverteDepuisMinutes }}",
+              "type": "number"
+            },
+            {
+              "id": "c84cfed6-6037-426c-be4f-bec6ce0f0eb3",
+              "name": "Candidatures en attente",
+              "value": "={{ $('Des missions en attente ?').item.json.candidaturesEnAttente }}",
+              "type": "number"
+            },
+            {
+              "id": "f36c1920-9b61-4232-ad51-6d6dbdfa49b3",
+              "name": "Statut",
+              "value": "OK",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1e11a9c4-54d9-4935-9b60-d9ff589214ec",
+      "name": "Journal : relance",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7bbfb3b8-4102-4868-8a27-70573c12eda0",
+              "name": "Clé",
+              "value": "={{ $('Des missions en attente ?').item.json.mission.reference }}-ESC-{{ $('API : enregistrer l'escalade').item.json.relances }}",
+              "type": "string"
+            },
+            {
+              "id": "d6648e4f-6f90-4b3c-bbbf-3e717d188ca3",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "61a28dc1-d3a9-4e8b-a40b-b97b8ac48178",
+              "name": "Mission",
+              "value": "={{ $('Des missions en attente ?').item.json.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "7d063cf6-d8b0-42ac-8986-a932f67b3432",
+              "name": "Action",
+              "value": "Escalade",
+              "type": "string"
+            },
+            {
+              "id": "55e96e93-1906-4f1c-a858-19edfa6bda75",
+              "name": "Numéro de relance",
+              "value": "={{ $('API : enregistrer l'escalade').item.json.relances }}",
+              "type": "number"
+            },
+            {
+              "id": "faceb6ee-9d0c-43b1-85ae-d9c826c95be0",
+              "name": "Ouverte depuis (min)",
+              "value": "={{ $('Des missions en attente ?').item.json.ouverteDepuisMinutes }}",
+              "type": "number"
+            },
+            {
+              "id": "45f45d81-d65f-4fa6-bf1d-be0186ba6f0e",
+              "name": "Candidatures en attente",
+              "value": "={{ $('Des missions en attente ?').item.json.candidaturesEnAttente }}",
+              "type": "number"
+            },
+            {
+              "id": "7ea557db-0017-407f-8ed5-e21b8f73c2ed",
+              "name": "Statut",
+              "value": "OK",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9489f82d-b872-4c59-ba43-708cf8f78e66",
+      "name": "Journal : escalade",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1440,
+        352
+      ]
     }
   ],
   "connections": {
@@ -396,6 +565,50 @@
           }
         ]
       ]
+    },
+    "Slack : relance": {
+      "main": [
+        [
+          {
+            "node": "Journal : relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : relance": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des relances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack : escalade": {
+      "main": [
+        [
+          {
+            "node": "Journal : escalade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : escalade": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des relances",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -404,7 +617,7 @@
   },
   "meta": null,
   "nodeGroups": [],
-  "versionCounter": 6,
+  "versionCounter": 7,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {

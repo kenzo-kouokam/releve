@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-18T10:34:32.000Z",
+  "updatedAt": "2026-09-21T08:02:56.000Z",
   "createdAt": "2026-09-16T08:46:33.140Z",
   "id": "d8QVqzS08bEjGiKP",
   "name": "WF1 - Notification des candidats",
@@ -747,6 +747,626 @@
         424
       ],
       "parameters": {}
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.AIRTABLE_BASE_ID }}"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Notifications"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "eaa87f32-48f9-49c2-8c80-3cffbc11fb05",
+      "name": "Airtable : journal des notifications",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        3000,
+        200
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtableReleve",
+          "name": "Airtable — Relève"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1e46524a-55af-4453-acbd-376f81298726",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-suivi",
+              "type": "string"
+            },
+            {
+              "id": "a34cd4ea-f5a4-4111-bf4e-4fa973d704a2",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "830687bf-899e-457f-af01-938815589a72",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "c2046f15-ae9a-4270-9283-f61e22113703",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "9eebecd4-e9d3-44b6-94c7-00b737864e73",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "8cbb953f-6f02-4fa6-b5f4-0cdde6df73b8",
+              "name": "Canal",
+              "value": "Slack agence",
+              "type": "string"
+            },
+            {
+              "id": "fcc320d8-a726-40ff-b7d2-205f9d90e8ed",
+              "name": "Type",
+              "value": "suivi",
+              "type": "string"
+            },
+            {
+              "id": "899e4933-76a3-4ed8-b569-66fd104645e4",
+              "name": "Candidats",
+              "value": "={{ $('Webhook').first().json.body.propositions.map(p => p.candidatRef).join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "8dbf87f2-6aef-486a-9e0e-338425a07456",
+              "name": "Envoyés",
+              "value": "={{ $('Webhook').first().json.body.propositions.length }}",
+              "type": "number"
+            },
+            {
+              "id": "dbf8c8e9-a9a8-42b7-b0d5-4cf5e314a647",
+              "name": "Ignorés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "e5ec6204-a87a-47cd-85bd-e18bf35353c4",
+              "name": "Statut",
+              "value": "ENVOYE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e4e47488-a08d-4faa-bb0c-a228e890bec0",
+      "name": "Journal : candidats proposés",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1260,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1de66588-7e4b-4e8c-8b09-6d47fff5bc3e",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-acceptee",
+              "type": "string"
+            },
+            {
+              "id": "65de6630-a75a-4269-97fa-62ee8803784b",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "1621da3d-4ec0-4560-9ff7-8f526216286b",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "42df2f54-0560-43dc-9a71-584db1a1bd02",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "19f06fb5-f7b7-4a35-8ae7-e823a0d544d5",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "00fd1a20-dada-48a3-8c8b-4a0b060d95ed",
+              "name": "Canal",
+              "value": "Slack agence",
+              "type": "string"
+            },
+            {
+              "id": "19b4cbbc-6da3-413b-84df-1ce5a98b9192",
+              "name": "Type",
+              "value": "suivi",
+              "type": "string"
+            },
+            {
+              "id": "99fcf146-73c4-4440-ad4b-269f03585fbb",
+              "name": "Candidats",
+              "value": "={{ $('Webhook').first().json.body.propositions.map(p => p.candidatRef).join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "29155c34-46f2-4e24-9892-3309a56dbad8",
+              "name": "Envoyés",
+              "value": "=1",
+              "type": "number"
+            },
+            {
+              "id": "ef2c0fd2-5006-435e-9814-a22fb8635a02",
+              "name": "Ignorés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "a6fa5923-e738-4d55-a6e2-9dd02afd3983",
+              "name": "Statut",
+              "value": "ENVOYE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84d0ce9a-103e-4ae2-80b9-30ea0f3e97e2",
+      "name": "Journal : acceptation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1260,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "51d32e85-f81f-4979-9c6d-9a7b2855d0de",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-cloture",
+              "type": "string"
+            },
+            {
+              "id": "fa454978-4297-4dab-96ad-3646ab2f9b33",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "9b89c5ba-890c-46b3-904f-24f04825b39c",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "3fcedf73-c5da-49c5-96a5-75f61d50dbda",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "56dc46e9-e5d5-454f-9ece-8548e351c20c",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "2a51e3eb-7ca8-4a78-b242-d9ce7a9571dc",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "a7c87662-d69a-4e77-b1b9-a3bf8c221fe3",
+              "name": "Type",
+              "value": "cloture",
+              "type": "string"
+            },
+            {
+              "id": "b6446315-1fba-4e75-9cb2-8f3064ccab8c",
+              "name": "Candidats",
+              "value": "={{ $('Références à prévenir').first().json.candidatRef.join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "990f3289-451b-4ec2-bf23-f27030ff2610",
+              "name": "Envoyés",
+              "value": "={{ $json.envoyees }}",
+              "type": "number"
+            },
+            {
+              "id": "c7a434d1-99ca-4315-94a7-e9be5fb03f7e",
+              "name": "Ignorés",
+              "value": "={{ $json.ignorees }}",
+              "type": "number"
+            },
+            {
+              "id": "63ed5672-40a0-4530-b3bd-f49c8fa3e5cc",
+              "name": "Statut",
+              "value": "ENVOYE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "57d47861-41d1-41fb-aeaa-8a9070d61c1c",
+      "name": "Journal : clôture envoyée",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1712,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13b093f6-36ab-4090-9cc8-2a2531d28e07",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-cloture",
+              "type": "string"
+            },
+            {
+              "id": "0a815e8c-6f1f-46be-82f6-0570a3c4cc7c",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "0281da48-7600-496a-b79e-4750b475f040",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "48eadf10-7377-490e-8221-2c4da8aacf99",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "fff600ce-2d17-4963-a503-dcdcd673c7d3",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "d000dd13-a393-44f9-822b-58c3fb8e0e13",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "611e5dd1-e734-47e7-be97-61b30c637a77",
+              "name": "Type",
+              "value": "cloture",
+              "type": "string"
+            },
+            {
+              "id": "83716eed-4ff3-4df8-82b4-4e146c3f57cf",
+              "name": "Candidats",
+              "value": "={{ $('Références à prévenir').first().json.candidatRef.join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "1634e6ef-2530-4586-b1de-6d2d55ae9082",
+              "name": "Envoyés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "f82fdd5b-5d78-4a86-837c-13c5c0783d8c",
+              "name": "Ignorés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "bb0c6b68-d774-409a-9176-935942468fa3",
+              "name": "Statut",
+              "value": "ECHEC",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5577db13-3b60-44b4-a5a0-c666b0fddb86",
+      "name": "Journal : clôture en échec",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1712,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fffbf65f-cbec-4469-ab79-9e7a75265000",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-urgente",
+              "type": "string"
+            },
+            {
+              "id": "aac59234-35a4-4fd7-813c-ca3bd9276d2d",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "781ca6f8-4e96-4fa4-a139-4d55d95ec869",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "1ae40b8e-5bf4-45e2-a4d0-92f64c878eef",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "0e51eced-d89c-4b4f-9591-0ca25531f91d",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "bf6e31b5-7d6c-4804-a85e-476ddb9efec9",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "227dbb4d-229c-40da-b1b2-d86dc481dcc2",
+              "name": "Type",
+              "value": "urgente",
+              "type": "string"
+            },
+            {
+              "id": "835f01f9-d3a0-424e-bbc9-3cf2c4e81ded",
+              "name": "Candidats",
+              "value": "={{ $('Références retenues').first().json.candidatRef.join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "6d784994-d0ba-4114-94a5-e811b403fafe",
+              "name": "Envoyés",
+              "value": "={{ $json.envoyees }}",
+              "type": "number"
+            },
+            {
+              "id": "acccd8a7-c8d4-42c8-a91b-5f14ea063b42",
+              "name": "Ignorés",
+              "value": "={{ $json.ignorees }}",
+              "type": "number"
+            },
+            {
+              "id": "b8c6fae1-769a-4469-a49e-cc84a22d24cc",
+              "name": "Statut",
+              "value": "ENVOYE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "34138a0a-ac6d-44ec-9dac-3dbf7be24ede",
+      "name": "Journal : alerte urgente envoyée",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39b7edd7-95fe-408d-b9dd-34c54e621fb2",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-urgente",
+              "type": "string"
+            },
+            {
+              "id": "7f4ff7d4-2b64-4607-87ef-3f3d9345dba4",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "ae113493-1f25-4295-8725-48f086f27932",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "35ca22c1-c76d-4cd8-a976-4a7b98b86611",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "2bbacae0-1334-44b0-8e2a-279ead1c885b",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "33def8b7-1448-4692-bdcc-00ac3d151846",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "cd545859-319b-4a72-953f-1c3c4b16297b",
+              "name": "Type",
+              "value": "urgente",
+              "type": "string"
+            },
+            {
+              "id": "2096585f-c3ec-4d1f-b613-1713994778b3",
+              "name": "Candidats",
+              "value": "={{ $('Références retenues').first().json.candidatRef.join('\\n') }}",
+              "type": "string"
+            },
+            {
+              "id": "b02d971c-f519-4a47-9ec4-811d16a551e8",
+              "name": "Envoyés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "ec87f906-5ac9-46d7-98b7-dfd5d2fceb85",
+              "name": "Ignorés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "b0a9ee55-7e76-477c-93a7-359ed3ec88f8",
+              "name": "Statut",
+              "value": "ECHEC",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8184bd28-4d08-4ca1-852f-cf59df2bb5d6",
+      "name": "Journal : alerte urgente en échec",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b06959fc-cf8e-440f-8940-afb5de336008",
+              "name": "Clé",
+              "value": "={{ $('Webhook').first().json.body.deliveryId }}-plafond-{{ $json.candidatRef }}",
+              "type": "string"
+            },
+            {
+              "id": "6f93dbcb-bd6a-4ef8-8469-fdac69cb3035",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "9edd5e8e-26b4-4939-8a6b-b2c0cd90d3bb",
+              "name": "Workflow",
+              "value": "WF1",
+              "type": "string"
+            },
+            {
+              "id": "09dea468-c8d0-43e6-bb82-305adb2f7eb2",
+              "name": "Événement",
+              "value": "={{ $('Webhook').first().json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "d108cd77-7a0c-4b7a-8fcd-6ac18aff0579",
+              "name": "Mission",
+              "value": "={{ $('Webhook').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "9377434b-8f41-4eb2-b270-4e185eb686ca",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "0f1dc86a-4c62-4d36-bdc0-1bba0ead648d",
+              "name": "Type",
+              "value": "urgente",
+              "type": "string"
+            },
+            {
+              "id": "d677a335-9ea4-4652-be3e-bbb8b648ae1f",
+              "name": "Candidats",
+              "value": "={{ $json.candidatRef }}",
+              "type": "string"
+            },
+            {
+              "id": "d6910ee8-d291-40fd-9d80-f16ae1d3c16a",
+              "name": "Envoyés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "4196787b-ac50-45d4-9b06-bc64bd1451ab",
+              "name": "Ignorés",
+              "value": "=1",
+              "type": "number"
+            },
+            {
+              "id": "22c12d7a-55b1-43f5-9432-a9c03783aeef",
+              "name": "Statut",
+              "value": "PLAFOND",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b3065639-4de2-4513-add0-45e766138547",
+      "name": "Journal : plafond atteint",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        800
+      ]
     }
   ],
   "connections": {
@@ -935,6 +1555,11 @@
             "node": "Mémoriser le message Slack",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Journal : candidats proposés",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -970,10 +1595,21 @@
     },
     "API : courriels de clôture": {
       "main": [
-        [],
+        [
+          {
+            "node": "Journal : clôture envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Journal : clôture en échec",
             "type": "main",
             "index": 0
           }
@@ -982,10 +1618,21 @@
     },
     "API : alerte urgente": {
       "main": [
-        [],
+        [
+          {
+            "node": "Journal : alerte urgente envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Journal : alerte urgente en échec",
             "type": "main",
             "index": 0
           }
@@ -1009,6 +1656,105 @@
           }
         ]
       ]
+    },
+    "Journal : candidats proposés": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack : candidat a accepté": {
+      "main": [
+        [
+          {
+            "node": "Journal : acceptation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : acceptation": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : clôture envoyée": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : clôture en échec": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : alerte urgente envoyée": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : alerte urgente en échec": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plafond atteint (pas d'envoi)": {
+      "main": [
+        [
+          {
+            "node": "Journal : plafond atteint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : plafond atteint": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1019,7 +1765,7 @@
     "templateCredsSetupCompleted": true
   },
   "nodeGroups": [],
-  "versionCounter": 36,
+  "versionCounter": 37,
   "sourceWorkflowId": null,
   "tags": [],
   "versionMetadata": {
