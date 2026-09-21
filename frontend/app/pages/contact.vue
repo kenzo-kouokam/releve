@@ -171,12 +171,14 @@ async function soumettre(): Promise<void> {
 </template>
 
 <style scoped>
+/* Plus large que la colonne de lecture ordinaire : deux colonnes cote a cote.
+ * La gouttiere s'ajoute autour, comme pour `.vitrine`. */
 .contact {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 48px;
   align-items: start;
-  max-width: 1100px;
+  max-width: calc(1100px + 2 * var(--gouttiere));
 }
 
 .chapeau {

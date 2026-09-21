@@ -7,10 +7,23 @@
  * page reste dans son bloc <style scoped>.
  */
 
+/*
+ * La colonne de lecture des pages publiques.
+ *
+ * `padding-inline` manquait, et c'est tout le defaut : sous 1000 px de fenetre,
+ * le titre, les paragraphes et les cartes touchaient les deux bords de l'ecran.
+ * L'en-tete, lui, avait sa gouttiere — d'ou l'impression d'un contenu decale
+ * par rapport a sa propre barre de navigation.
+ *
+ * La largeur maximale inclut la gouttiere (`box-sizing: border-box` est global)
+ * : sans le `calc`, ajouter la marge aurait retreci la colonne de lecture de
+ * 56 px sur grand ecran. Ici elle reste a 1000 px, et la marge s'ajoute autour.
+ */
 .vitrine {
-  max-width: 1000px;
+  max-width: calc(1000px + 2 * var(--gouttiere));
   margin: 0 auto;
   padding-block: 64px 90px;
+  padding-inline: var(--gouttiere);
 }
 
 .vitrine-accroche {

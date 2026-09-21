@@ -38,6 +38,22 @@ export default tseslint.config(
     },
   },
   {
+    // Outils de developpement lances par `node`, hors du bundle : ils parlent
+    // aux globales de la plateforme. Les declarer ici plutot que d'ajouter le
+    // paquet `globals` pour cinq noms, et plutot que d'eteindre `no-undef`, qui
+    // reste utile sur le reste du fichier.
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        Buffer: 'readonly',
+        WebSocket: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',

@@ -318,16 +318,24 @@ function taux(mission: MissionVitrine): string {
   border-radius: 14px;
 }
 
+/* `min-width: 0` n'est pas une precaution : un item de flex refuse par defaut
+ * de descendre sous la largeur de son contenu, et le contenu d un menu
+ * deroulant, c'est sa plus longue option — ici « Diplôme d'État d'accompagnant
+ * éducatif et social ». Sans cette ligne, le bloc mesurait 374 px et debordait
+ * de 35 px sur un ecran de 360 px. */
 .filtres label {
   display: flex;
+  flex: 1 1 190px;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
 }
 
 .filtres select {
-  min-width: 190px;
+  width: 100%;
+  min-width: 0;
   padding: 9px 12px;
   font: inherit;
   font-weight: 400;

@@ -542,6 +542,51 @@ Le layout `onboarding` et son cadre mobile de 402 px ont disparu avec les écran
 encadraient : le canvas est dessiné pour le poste de travail. Les points de rupture sous 900 px et
 560 px sont des ajouts, le canvas ne décrivant aucune version étroite.
 
+#### La navigation sous 900 px
+
+Les deux coques passent derrière un bouton **Menu**. Ce n'est pas une préférence de style, c'est
+une mesure : sur un écran de 390 × 844, la barre latérale occupait **387 px sur 849** — près de la
+moitié de l'affichage avant le premier mot de la page — et l'en-tête public 310 px, collant, donc
+présent pendant tout le défilement. Aucune des deux ne débordait en largeur ; elles étaient
+simplement inutilisables. Repliées, elles tombent à **67 px**.
+
+Le conteneur `.repliable` passe en `display: contents` au-dessus du point de rupture : il disparaît
+de la mise en page et ses enfants redeviennent enfants directs de la barre, ce qui permet de
+grouper la navigation dans une boîte pliable **sans rien changer à l'affichage large**. Fermé, il
+est en `display: none` — ses liens sortent donc aussi de l'ordre de tabulation, sans `inert` ni
+`aria-hidden` posés à la main. Le bouton porte `aria-expanded` et `aria-controls`, le menu se
+referme au changement de page et sur Échap.
+
+#### Les marges, et le pied de page
+
+Deux défauts que la sonde ne voyait pas, et qui se sont relevés à l'œil sur une capture.
+
+Les pages publiques n'avaient **aucune gouttière latérale** : `.vitrine` ne posait qu'un
+`padding-block`. Sous la largeur maximale de la colonne, le titre, les paragraphes et les cartes
+touchaient les deux bords de l'écran, alors que l'en-tête, lui, gardait sa marge — d'où
+l'impression d'un contenu décalé par rapport à sa propre barre de navigation. La valeur est
+maintenant un jeton, `--gouttiere`, redéfini à 20 px sous 560 px. La largeur maximale l'inclut
+(`max-width: calc(1000px + 2 * var(--gouttiere))`) pour que la colonne de lecture reste à 1000 px
+sur grand écran au lieu de perdre 56 px.
+
+Le pied de page, lui, superposait ses colonnes. La cause n'était pas une marge : la piste avait
+disparu. `grid-template-columns` mélangeait une piste flexible — `minmax(0, 1.4fr)` — et un
+`repeat(auto-fit, minmax(160px, 1fr))`. Les trois pistes répétées réclamaient 160 px chacune, plus
+les écarts ; sur une fenêtre moyenne il ne restait presque rien pour la première, que son
+`minmax(0, …)` autorisait à tomber à zéro. Le bloc de marque se retrouvait large de quelques
+dizaines de pixels et son texte débordait par-dessus la colonne suivante. Deux règles explicites
+remplacent l'automatisme : colonnes égales qui se replient d'elles-mêmes, puis la répartition du
+canvas au-dessus de 900 px.
+
+La sonde mesure désormais aussi les gouttières. Une page dont le texte touche les deux bords ne
+déborde pas — elle est seulement illisible, et c'est exactement ce qui lui avait échappé.
+
+La mesure se refait : `frontend/scripts/sonde-responsive.mjs` pilote Chrome par CDP, émule un
+viewport mobile, et
+rend pour chaque page le débordement horizontal, les éléments qui en sont la cause et la hauteur de
+la barre. C'est ce qui a permis de voir qu'une capture prise avec `--window-size` seul ment : sans
+émulation, la page est rendue à 980 px puis rognée, et tout paraît déborder.
+
 ### Ce que le canvas décrit et que l'API ne sait pas faire
 
 Trois écrans du canvas reposaient sur un **dépôt de documents** — étape 2 de l'inscription, cartes

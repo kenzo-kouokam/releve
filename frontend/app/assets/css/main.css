@@ -59,6 +59,25 @@
   --r-carte-large: 24px;
 
   --ombre-carte: 0 8px 24px rgba(17, 34, 28, 0.07);
+
+  /*
+   * Marge laterale entre le texte et le bord de l'ecran.
+   *
+   * Un jeton plutot qu'une valeur recopiee : elle l'etait a quatre endroits, et
+   * la feuille des pages vitrine l'avait tout simplement oubliee — le texte y
+   * touchait les deux bords des que la fenetre descendait sous la largeur
+   * maximale de la colonne. Une valeur unique rend l'oubli visible : un
+   * conteneur qui ne la porte pas se repere a l'oeil.
+   */
+  --gouttiere: 28px;
+}
+
+/* Sur un telephone, 28 px de chaque cote prennent 15 % d'un ecran de 360 px.
+ * Le jeton se redefinit, les conteneurs n'ont rien a savoir. */
+@media (max-width: 560px) {
+  :root {
+    --gouttiere: 20px;
+  }
 }
 
 /* Le canvas ne couvre pas le theme sombre : les teintes sont transposees a
