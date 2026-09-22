@@ -18,6 +18,24 @@ useHead({
     },
   ],
 });
+
+/**
+ * Pas de fil d'Ariane ici : c'est la racine du site public, et un chemin qui
+ * ne contiendrait que « Accueil » n'apprend rien a personne. Google l'ignore
+ * d'ailleurs sur la page d'accueil.
+ *
+ * L'editeur et le site sont deja declares par le gabarit ; cette page ajoute
+ * seulement ce qu'elle est.
+ */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/accueil',
+    filAriane: false,
+    titre: "Relève — intérim en EHPAD, hôpital et clinique",
+    description:
+      "L'agence d'intérim dédiée au soin : missions d'aide-soignant et d'accompagnant éducatif et social en EHPAD, hôpital et clinique.",
+  }),
+);
 </script>
 
 <template>

@@ -134,6 +134,34 @@ function periode(mission: MissionVitrine): string {
     : `${jourCourt.format(debut)} → ${jourCourt.format(fin)}`;
 }
 
+/**
+ * Les offres affichees, balisees en `JobPosting`.
+ *
+ * Reactif et non fige : la liste s'allonge au fil des clics sur « voir plus »
+ * et se refait a chaque filtre. Un balisage calcule une seule fois decrirait
+ * alors trois offres quand la page en montre neuf — un ecart entre ce que la
+ * page dit et ce qu'elle montre, qui est exactement ce que les moteurs
+ * penalisent.
+ *
+ * `useDonneesStructurees` relit donc la fonction a chaque changement, et rien
+ * n'est emis tant que l'API n'a pas repondu.
+ */
+const site = useUrlSite();
+
+/** Le chemin affiche en tete de page, et balise par le composant. */
+const FIL = [{ libelle: 'Accueil', to: '/accueil' }, { libelle: "Nos offres d'emploi" }];
+
+useDonneesStructurees(() => [
+  pageWeb(site, {
+    chemin: '/offres',
+    type: 'CollectionPage',
+    titre: "Nos offres d'emploi en intérim — Relève",
+    description:
+      "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.",
+  }),
+  ...(missions.value.length ? [listeOffres(site, '/offres', missions.value)] : []),
+]);
+
 function taux(mission: MissionVitrine): string {
   return mission.tauxHoraire === null
     ? 'Rémunération selon profil'
@@ -143,6 +171,8 @@ function taux(mission: MissionVitrine): string {
 
 <template>
   <main class="vitrine offres">
+    <AppFilAriane :etapes="FIL" />
+
     <p class="vitrine-accroche">Nos offres</p>
     <h1 class="vitrine-titre">Les offres d'intérim du secteur</h1>
     <p class="vitrine-chapeau">

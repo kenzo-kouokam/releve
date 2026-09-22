@@ -1,7 +1,23 @@
 <script setup lang="ts">
-import { ROLE_LIBELLES, ROLES_AGENCE, type RoleUtilisateur } from '@releve/shared';
+import { ADRESSE_CONTACT, ROLE_LIBELLES, ROLES_AGENCE, type RoleUtilisateur } from '@releve/shared';
 
 const { utilisateur, deconnexion } = useSession();
+
+/**
+ * Identite de l'editeur et du site, pour les moteurs.
+ *
+ * Posee ici et non dans chaque page : c'est la seule chose vraie de toutes les
+ * pages vitrine a la fois, et les pages s'y rattachent par `@id` sans avoir a
+ * la redecrire.
+ *
+ * Rien n'est emis dans l'espace connecte — un tableau de bord derriere un mot
+ * de passe n'est indexe par personne, et le balisage y serait du bruit.
+ */
+const site = useUrlSite();
+
+useDonneesStructurees(() =>
+  utilisateur.value ? [] : [identiteOrganisation(site, ADRESSE_CONTACT), siteWeb(site)],
+);
 
 /**
  * Le menu suit le profil : le back-office et les deux espaces externes n'ont
@@ -69,7 +85,7 @@ const liens = computed<{ to: string; label: string }[]>(() => {
 const liensVitrine = [
   { to: '/accueil', label: 'Accueil' },
   { to: '/offres', label: "Nos offres d'emploi" },
-  { to: '/fonctionnement', label: 'Comment ça marche' },
+  { to: '/fonctionnement', label: 'Comment ça marche?' }, 
   { to: '/a-propos', label: 'À propos' },
   { to: '/faq', label: 'FAQ' },
   { to: '/contact', label: 'Contact' },
@@ -119,6 +135,24 @@ const annee = new Date().getFullYear();
  */
 const menuOuvert = ref(false);
 const route = useRoute();
+
+/**
+ * Lien canonique des pages publiques.
+ *
+ * Complement direct des donnees structurees : celles-ci declarent des adresses
+ * absolues, et sans canonique la meme page atteinte par deux chemins — avec ou
+ * sans barre finale, en `www` ou non, suivie d'un parametre de campagne —
+ * serait indexee plusieurs fois, chacune diluant le poids de l'autre.
+ *
+ * `route.path` et non `fullPath` : les filtres des offres sont des parametres
+ * d'affichage, pas des pages distinctes, et les faire indexer separement
+ * multiplierait les doublons au lieu de les eviter.
+ */
+useHead(() =>
+  utilisateur.value
+    ? {}
+    : { link: [{ rel: 'canonical', href: urlAbsolue(site, route.path) }] },
+);
 
 /**
  * Le menu se referme en changeant de page.

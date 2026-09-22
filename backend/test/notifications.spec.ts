@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { avec, connecter, type Session } from './aide';
-import { creerApp, prisma, reinitialiser, type Jeu } from './fixtures';
+import { creerCompteDeTest, creerApp, prisma, reinitialiser, type Jeu } from './fixtures';
 import { MailService } from '../src/mail/mail.service';
 import { NotificationsMissionsService } from '../src/notifications/notifications-missions.service';
 
@@ -91,6 +91,145 @@ describe('notifications du candidat', () => {
     jeu = await reinitialiser();
     agence = await connecter(app, 'charge.a@test.example');
     mail.viderBoite();
+  });
+
+  /**
+   * L'autre bout du meme parcours : l'etablissement.
+   *
+   * Il s'inscrit, confirme son adresse, puis attend — et jusqu'ici il attendait
+   * indefiniment. Rien ne lui disait que l'agence avait lu son autorisation,
+   * alors que c'est le seul evenement qui change quoi que ce soit pour lui :
+   * c'est lui qui ouvre le depot de besoins.
+   */
+  describe('etablissement active', () => {
+    const ADRESSE_CLIENT = 'direction.a@test.example';
+
+    /** Une fiche inactive, avec un compte a qui ecrire. */
+    async function ficheEnAttente() {
+      await prisma.client.update({
+        where: { id: jeu.clientA },
+        data: {
+          actif: false,
+          statutJuridique: null,
+          numeroFiness: null,
+          arreteReference: null,
+        },
+      });
+
+      await creerCompteDeTest(ADRESSE_CLIENT, 'CLIENT', { clientId: jeu.clientA });
+    }
+
+    const pieces = {
+      statutJuridique: 'PRIVE_NON_LUCRATIF',
+      numeroFiness: '440000123',
+      arreteReference: 'ARR-2025-114',
+    };
+
+    it('ecrit a l etablissement quand l agence l active', async () => {
+      await ficheEnAttente();
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, ...pieces })
+        .expect(200);
+
+      const courriel = mail.dernierPour(ADRESSE_CLIENT);
+
+      expect(courriel?.sujet).toContain('etablissement est active');
+      // Le lien mene la ou le droit vient de s'ouvrir, pas sur un accueil.
+      expect(courriel?.texte).toContain('/etablissement/publier');
+    });
+
+    /**
+     * La piece nommee suit le type. Reprendre le libelle d'un EHPAD pour une
+     * clinique ferait douter l'etablissement de ce qui a ete verifie — et, pire,
+     * laisserait croire qu'on lui a reclame un document qu'il n'a pas.
+     */
+    it('nomme la piece propre au type d etablissement', async () => {
+      await ficheEnAttente();
+      await prisma.client.update({ where: { id: jeu.clientA }, data: { type: 'CLINIQUE' } });
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, ...pieces })
+        .expect(200);
+
+      expect(mail.dernierPour(ADRESSE_CLIENT)?.texte).toContain("activite de soins");
+    });
+
+    /** Le courriel suit la transition, pas l'etat : reenvoyer ne reexpedie rien. */
+    it('n ecrit pas quand l etablissement etait deja actif', async () => {
+      await ficheEnAttente();
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, ...pieces })
+        .expect(200);
+
+      mail.viderBoite();
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, contactNom: 'Direction' })
+        .expect(200);
+
+      expect(mail.dernierPour(ADRESSE_CLIENT)).toBeUndefined();
+    });
+
+    /**
+     * Le verrou, verifie ici aussi : sans les trois pieces, l'activation est
+     * refusee — et rien ne part, ce qui serait le pire des deux mondes.
+     */
+    it('n active pas, et n ecrit pas, sans les pieces de l autorisation', async () => {
+      await ficheEnAttente();
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true })
+        .expect(400);
+
+      expect(mail.dernierPour(ADRESSE_CLIENT)).toBeUndefined();
+    });
+
+    /**
+     * Une fiche creee par l'agence pour un etablissement qui n'a jamais ouvert
+     * de session n'a personne a qui ecrire. Ce n'est pas une erreur, et cela ne
+     * doit pas faire echouer l'activation.
+     */
+    it('active sans broncher quand aucun compte n est rattache', async () => {
+      await prisma.client.update({
+        where: { id: jeu.clientA },
+        data: {
+          actif: false,
+          statutJuridique: null,
+          numeroFiness: null,
+          arreteReference: null,
+        },
+      });
+
+      const reponse = await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, ...pieces })
+        .expect(200);
+
+      expect(reponse.body.actif).toBe(true);
+    });
+
+    /** Le reglage de notifications vaut ici comme ailleurs. */
+    it('respecte le refus des courriels de service', async () => {
+      await ficheEnAttente();
+      await prisma.utilisateur.updateMany({
+        where: { email: ADRESSE_CLIENT },
+        data: { notificationsEmail: false },
+      });
+
+      await avec(app, agence)
+        .patch(`/api/clients/${jeu.clientA}`)
+        .send({ actif: true, ...pieces })
+        .expect(200);
+
+      expect(mail.dernierPour(ADRESSE_CLIENT)).toBeUndefined();
+    });
   });
 
   describe('dossier validé', () => {

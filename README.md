@@ -40,7 +40,7 @@ Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
 | J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **API livrée** — 1 workflow sur 3 commencé, aucun activé |
 | J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | À faire · 4 j·dev             |
 
-**505 tests au vert** : 456 sur l'API, 49 sur les règles partagées. Le front n'en a aucun.
+**511 tests au vert** : 462 sur l'API, 49 sur les règles partagées. Le front n'en a aucun.
 
 Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
 fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
@@ -111,7 +111,7 @@ navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, c
 dérouler une inscription complète sans écrire à une vraie adresse.
 
 ```bash
-pnpm test                    # 505 tests : règles partagées + intégration API
+pnpm test                    # 511 tests : règles partagées + intégration API
 ```
 
 La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
@@ -931,6 +931,32 @@ inscrit révèle qu'on cherche des missions dans le soin. Une réinitialisation 
 **toutes** les sessions en cours : elle sert aussi après un vol, et laisser vivre les sessions
 laisserait le voleur connecté après la reprise de main.
 
+**L'acceptation d'un dossier se dit par courriel, des deux côtés.** Le déclenchement est manuel —
+c'est l'agence qui lit les pièces et qui tranche — mais l'envoi ne l'est pas.
+
+| | Geste de l'agence | Courriel |
+| --- | --- | --- |
+| **Candidat** | statut passé à `ACTIF` sur sa fiche | « Votre dossier est validé », lien vers `/missions` |
+| **Établissement** | encart d'activation de la fiche client | « Votre établissement est activé », lien vers `/etablissement/publier` |
+
+Les deux suivent les mêmes trois règles. Ils partent **à la transition**, pas sur l'état : renvoyer
+`actif: true` sur une fiche déjà active — ce que fait n'importe quelle sauvegarde de formulaire — ne
+réexpédie rien. Ils sont **non bloquants** : la fiche est déjà validée quand on arrive là, et faire
+échouer la requête sur une panne de SMTP laisserait le chargé de recrutement persuadé que son clic
+n'a pas pris. Ils respectent enfin le réglage `notificationsEmail` et l'état du compte — sans compte
+rattaché, il n'y a personne à qui écrire, et c'est un cas normal pour une fiche que l'agence a créée
+elle-même.
+
+Le courriel d'activation **nomme la pièce qui a été lue**, et elle dépend du type : arrêté conjoint
+pour un EHPAD, autorisation d'activité de soins pour un établissement de santé. Ce n'est pas une
+formalité — c'est ce qui distingue « votre compte fonctionne » de « nous avons vérifié que vous avez
+le droit d'accueillir », et l'établissement doit pouvoir le classer.
+
+**Un refus n'écrit rien**, ni pour un candidat passé `INACTIF` ou `ARCHIVE`, ni pour un
+établissement laissé inactif. C'est une décision ouverte, pas un oubli : un refus automatique se
+rédige très différemment d'une validation, et la désactivation d'un établissement en exercice se dit
+de vive voix. Le bouton de désactivation existe, et n'envoie volontairement rien.
+
 **Tout changement de mot de passe est signalé par courriel** — celui que l'intéressé fait lui-même
 comme la réinitialisation par l'agence. C'est le seul message de la plateforme qui ne sert à rien
 quand tout va bien : quelqu'un qui prend un compte commence par en changer le mot de passe, et sans
@@ -1371,7 +1397,7 @@ indésirable.
 | `pnpm dev`                               | Contracts compilés, puis API et front en parallèle  |
 | `pnpm dev:backend` / `pnpm dev:frontend` | Un seul des deux                                    |
 | `pnpm build`                             | Contracts, puis API, puis front                     |
-| `pnpm test`                              | Règles partagées (49) puis intégration API (456)    |
+| `pnpm test`                              | Règles partagées (49) puis intégration API (462)    |
 | `pnpm test:shared`                       | Règles partagées seules, sans base                  |
 | `pnpm test:backend`                      | Intégration API seule                               |
 | `pnpm typecheck`                         | TypeScript sur les trois paquets, tests compris     |
@@ -1468,7 +1494,7 @@ mais à revoir si la suite s'allonge.
 le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
 travail. Sans conséquence technique, mais visible en soutenance.
 
-**Aucun test ne couvre le front.** Les 505 tests portent sur l'API et les règles partagées ; les
+**Aucun test ne couvre le front.** Les 511 tests portent sur l'API et les règles partagées ; les
 35 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
 
 **La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le

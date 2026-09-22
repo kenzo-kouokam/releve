@@ -18,6 +18,7 @@ import type {
 } from '@releve/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { GeocodageService } from '../geocodage/geocodage.service';
+import { NotificationsCompteService } from '../mail/notifications-compte.service';
 
 const avecComptes = {
   include: { _count: { select: { lieux: true } } },
@@ -83,6 +84,7 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly geocodage: GeocodageService,
+    private readonly notifications: NotificationsCompteService,
   ) {}
 
   async lister(query: ClientListQuery, agenceId: string): Promise<PageResultat<ClientResume>> {
@@ -172,11 +174,24 @@ export class ClientsService {
       );
     }
 
+    // L'activation est une transition, pas un etat : ce qui declenche le
+    // courriel est le passage de `false` a `true`. Renvoyer `actif: true` sur
+    // une fiche deja active — ce que fait n'importe quelle sauvegarde de
+    // formulaire — ne doit rien reexpedier.
+    const activation = donnees.actif === true && !existant.actif;
+
     const client = await this.prisma.client.update({
       where: { id },
       data: donnees,
       ...avecComptes,
     });
+
+    // Jamais bloquant, comme cote candidat : la fiche est deja active quand on
+    // arrive ici, et faire echouer la requete sur une panne de SMTP laisserait
+    // l'agence persuadee que son activation n'a pas pris.
+    if (activation) {
+      await this.notifications.etablissementActive(id);
+    }
 
     return versResume(client);
   }

@@ -11,10 +11,26 @@ useHead({
     },
   ],
 });
+
+/**
+ * Pas de `HowTo` ici, bien que la page decrive six etapes : Google a retire ce
+ * balisage de ses resultats en 2023, et le declarer ferait porter a la page une
+ * promesse d'affichage qui n'existe plus.
+ */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/fonctionnement',
+    titre: "Comment ça marche — de l'inscription à la mission",
+    description:
+      "Les six étapes du parcours candidat chez Relève : compte, dossier, vérification, candidature, contrat, mission.",
+  }),
+);
 </script>
 
 <template>
   <main class="vitrine">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'Comment ça marche' }]" />
+
     <p class="vitrine-accroche">Comment ça marche</p>
     <h1 class="vitrine-titre">De l'inscription à la mission</h1>
     <p class="vitrine-chapeau">

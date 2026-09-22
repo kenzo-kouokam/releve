@@ -147,6 +147,7 @@ export class VitrineService {
         ville: mission.lieu.ville,
         codePostal: mission.lieu.codePostal,
         departement: departementDepuisCodePostal(mission.lieu.codePostal),
+        datePublication: mission.createdAt.toISOString(),
         dateDebut: mission.dateDebut.toISOString(),
         dateFin: mission.dateFin.toISOString(),
         heureDebut: mission.heureDebut,

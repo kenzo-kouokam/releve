@@ -11,10 +11,24 @@ useHead({
     },
   ],
 });
+
+/** `AboutPage` : le type dit aux moteurs que la page parle de l'editeur
+ *  lui-meme, et non d'un service ou d'une offre. */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/a-propos',
+    type: 'AboutPage',
+    titre: "À propos de Relève",
+    description:
+      "Une agence d'intérim qui ne fait que du soin : aides-soignants et accompagnants éducatifs et sociaux, en EHPAD, hôpital et clinique.",
+  }),
+);
 </script>
 
 <template>
   <main class="vitrine">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'À propos' }]" />
+
     <p class="vitrine-accroche">À propos</p>
     <h1 class="vitrine-titre">Une agence d'intérim qui ne fait que du soin</h1>
 

@@ -292,7 +292,7 @@ async function soumettre(): Promise<void> {
       -->
       <p class="note-validation">
         Votre compte sera créé immédiatement, et <strong>activé après vérification</strong> de
-        votre autorisation par notre équipe — nous vous demanderons la pièce par retour de
+        votre autorisation par notre équipe nous vous demanderons la pièce par retour de
         courriel. Vous pourrez suivre l'avancement depuis votre espace ; le dépôt de besoins
         s'ouvrira à l'activation.
       </p>

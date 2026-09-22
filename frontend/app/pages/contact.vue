@@ -13,6 +13,18 @@ useHead({
   ],
 });
 
+/** `ContactPage` : c'est ce type que les moteurs cherchent pour rattacher une
+ *  adresse de contact a l'organisation deja declaree par le gabarit. */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/contact',
+    type: 'ContactPage',
+    titre: "Contacter l'agence Relève",
+    description:
+      "Une question sur une mission, sur un dossier candidat ou sur un contrat : les coordonnées de l'agence.",
+  }),
+);
+
 const { requete } = useApi();
 
 const form = reactive({
@@ -77,6 +89,8 @@ async function soumettre(): Promise<void> {
 
 <template>
   <main class="vitrine contact">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'Contact' }]" />
+
     <div>
       <p class="vitrine-accroche">Contact</p>
       <h1 class="vitrine-titre">Parlons de votre recherche</h1>
@@ -179,6 +193,22 @@ async function soumettre(): Promise<void> {
   gap: 48px;
   align-items: start;
   max-width: calc(1100px + 2 * var(--gouttiere));
+}
+
+/* Le fil d'Ariane traverse la grille, il n'y occupe pas une cellule.
+ *
+ * Sans cette ligne, il prenait la premiere case et decalait tout d'un cran :
+ * le titre passait dans la colonne de droite, le formulaire tombait en
+ * deuxieme rangee a gauche, et la page se lisait de travers. C'est le piege de
+ * toute grille dont la racine est aussi le conteneur de la page — ajouter un
+ * element en tete y deplace tout le reste.
+ *
+ * Le selecteur porte sur la classe du composant et non sur `:first-child` :
+ * une regle de position ne doit pas dependre de l'ordre d'ecriture du gabarit.
+ * Les styles scopes atteignent bien cette classe, Vue posant l'attribut de
+ * portee sur la racine d'un composant enfant. */
+.contact > .fil-ariane {
+  grid-column: 1 / -1;
 }
 
 .chapeau {

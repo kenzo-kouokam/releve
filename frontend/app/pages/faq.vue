@@ -13,6 +13,13 @@ useHead({
 });
 
 /**
+ * Les questions sont balisees a partir de la meme constante que le gabarit :
+ * impossible qu'une reponse declaree aux moteurs differe de celle affichee,
+ * ce qui est precisement la faute que Google sanctionne sur les FAQ.
+ */
+useDonneesStructurees(pageQuestions(useUrlSite(), '/faq', QUESTIONS));
+
+/**
  * Le canvas n'ouvre qu'une question a la fois. Le repli natif de <details> fait
  * exactement ce qu'il faut — clavier, lecteurs d'ecran, recherche dans la page
  * — et il suffit de le refermer les uns les autres pour retrouver le comportement
@@ -23,6 +30,8 @@ const ouverte = ref(-1);
 
 <template>
   <main class="vitrine faq">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'FAQ' }]" />
+
     <p class="vitrine-accroche">FAQ</p>
     <h1 class="vitrine-titre">Questions fréquentes</h1>
 

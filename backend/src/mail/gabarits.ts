@@ -398,6 +398,66 @@ export function courrielDossierValide(
 }
 
 /**
+ * Annonce a un etablissement que l'agence a lu son autorisation et active sa
+ * fiche.
+ *
+ * C'est le pendant exact de `courrielDossierValide` cote candidat, et le
+ * dernier maillon d'un parcours qui s'arretait sinon en silence : la structure
+ * s'inscrivait, confirmait son adresse, puis n'entendait plus parler de rien
+ * jusqu'a ce qu'elle rappelle pour demander ou en etait son dossier.
+ *
+ * Le message nomme la piece qui a ete lue. Ce n'est pas une formalite : c'est
+ * ce qui distingue « votre compte fonctionne » de « nous avons verifie que vous
+ * avez le droit d'accueillir », et l'etablissement doit pouvoir le classer.
+ */
+export function courrielEtablissementActive(
+  destinataire: string,
+  contactNom: string | null,
+  raisonSociale: string,
+  piece: string,
+  lien: string,
+): Courriel {
+  const bonjour = contactNom ? `Bonjour ${contactNom},` : 'Bonjour,';
+  const titre = 'Votre etablissement est active';
+
+  const texte = [
+    bonjour,
+    '',
+    `Nous avons verifie l'autorisation de ${raisonSociale} — ${piece} — et active sa fiche.`,
+    'Vous pouvez desormais deposer vos besoins de remplacement :',
+    '',
+    lien,
+    '',
+    'Chaque besoin depose est rapproche des interimaires dont les diplomes ont deja',
+    'ete controles par l agence. Vous recevez les profils retenus, vous tranchez.',
+    '',
+    PIED,
+  ].join('\n');
+
+  const html = enveloppe(
+    titre,
+    `<p style="margin:0 0 16px;line-height:1.6">${echapper(bonjour)}</p>
+     <p style="margin:0 0 24px;line-height:1.6">
+       Nous avons verifie l'autorisation de <strong>${echapper(raisonSociale)}</strong>
+       — ${echapper(piece)} — et active sa fiche. Vous pouvez desormais deposer vos besoins de
+       remplacement.
+     </p>
+     <p style="margin:0 0 24px">
+       <a href="${echapper(lien)}"
+          style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">
+         Deposer un besoin
+       </a>
+     </p>
+     <p style="margin:24px 0 0;font-size:13px;color:#57534e;line-height:1.6">
+       Chaque besoin depose est rapproche des interimaires dont les diplomes ont deja ete
+       controles par l'agence. Vous recevez les profils retenus, vous tranchez.
+     </p>`,
+  );
+
+  return { destinataire, sujet: `Releve — ${titre}`, texte, html };
+}
+
+/**
  * Les missions publiees depuis le dernier envoi qui correspondent au profil.
  *
  * Le courriel annonce, il ne decide pas : aucune candidature n'est envoyee
