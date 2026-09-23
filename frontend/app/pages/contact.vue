@@ -2,16 +2,15 @@
 import { messageContactSchema, SUJETS_CONTACT, type SujetContact } from '@releve/shared';
 import { COORDONNEES } from '~/data/vitrine';
 
-useHead({
-  title: 'Contact — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Une question sur une mission, un dossier candidat ou un contrat : écrivez à l'agence Relève.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Contact — Relève';
+const DESCRIPTION =
+  "Une question sur une mission, un dossier candidat ou un contrat : écrivez à l'agence Relève.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 /** `ContactPage` : c'est ce type que les moteurs cherchent pour rattacher une
  *  adresse de contact a l'organisation deja declaree par le gabarit. */
@@ -19,9 +18,8 @@ useDonneesStructurees(
   pageWeb(useUrlSite(), {
     chemin: '/contact',
     type: 'ContactPage',
-    titre: "Contacter l'agence Relève",
-    description:
-      "Une question sur une mission, sur un dossier candidat ou sur un contrat : les coordonnées de l'agence.",
+    titre: TITRE,
+    description: DESCRIPTION,
   }),
 );
 

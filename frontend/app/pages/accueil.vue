@@ -8,16 +8,19 @@ import {
   PRISE_EN_CHARGE,
 } from '~/data/vitrine';
 
-useHead({
-  title: "Relève — intérim en EHPAD, hôpital et clinique",
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Relève est l'agence d'intérim dédiée aux EHPAD, hôpitaux et cliniques : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
-    },
-  ],
-});
+/**
+ * Titre et description, ecrits une fois pour les quatre destinations qui les
+ * demandent : l'onglet, la balise `description` que lit Google, les donnees
+ * structurees et l'apercu des liens partages. Repetes a la main, ils auraient
+ * fini par diverger — et le partage aurait annonce autre chose que la page.
+ */
+const TITRE = 'Relève — intérim en EHPAD, hôpital et clinique';
+const DESCRIPTION =
+  "Relève est l'agence d'intérim dédiée aux EHPAD, hôpitaux et cliniques : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 /**
  * Pas de fil d'Ariane ici : c'est la racine du site public, et un chemin qui
@@ -31,9 +34,8 @@ useDonneesStructurees(
   pageWeb(useUrlSite(), {
     chemin: '/accueil',
     filAriane: false,
-    titre: "Relève — intérim en EHPAD, hôpital et clinique",
-    description:
-      "L'agence d'intérim dédiée au soin : missions d'aide-soignant et d'accompagnant éducatif et social en EHPAD, hôpital et clinique.",
+    titre: TITRE,
+    description: DESCRIPTION,
   }),
 );
 </script>

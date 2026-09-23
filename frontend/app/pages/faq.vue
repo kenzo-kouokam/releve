@@ -1,23 +1,28 @@
 <script setup lang="ts">
 import { QUESTIONS } from '~/data/vitrine';
 
-useHead({
-  title: 'Questions fréquentes — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Dossier candidat, vérification des diplômes, rayon de déplacement, suivi des candidatures : les questions les plus fréquentes.',
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Questions fréquentes — Relève';
+const DESCRIPTION =
+  'Dossier candidat, vérification des diplômes, rayon de déplacement, suivi des candidatures : les questions les plus fréquentes.';
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 /**
  * Les questions sont balisees a partir de la meme constante que le gabarit :
  * impossible qu'une reponse declaree aux moteurs differe de celle affichee,
  * ce qui est precisement la faute que Google sanctionne sur les FAQ.
  */
-useDonneesStructurees(pageQuestions(useUrlSite(), '/faq', QUESTIONS));
+useDonneesStructurees(
+  pageQuestions(
+    useUrlSite(),
+    { chemin: '/faq', titre: TITRE, description: DESCRIPTION },
+    QUESTIONS,
+  ),
+);
 
 /**
  * Le canvas n'ouvre qu'une question a la fois. Le repli natif de <details> fait

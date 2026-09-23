@@ -173,17 +173,11 @@ export function pageWeb(site: string, page: DescriptionPage): NoeudSchema {
  */
 export function pageQuestions(
   site: string,
-  chemin: string,
+  page: Omit<DescriptionPage, 'type'>,
   questions: readonly { question: string; reponse: string }[],
 ): NoeudSchema {
   return {
-    ...pageWeb(site, {
-      chemin,
-      type: 'FAQPage',
-      titre: 'Questions fréquentes',
-      description:
-        'Dossier candidat, vérification des diplômes, rayon de déplacement, suivi des candidatures.',
-    }),
+    ...pageWeb(site, { ...page, type: 'FAQPage' }),
     mainEntity: questions.map((item) => ({
       '@type': 'Question',
       name: item.question,

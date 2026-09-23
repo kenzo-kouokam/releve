@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { PARCOURS } from '~/data/vitrine';
 
-useHead({
-  title: 'Comment ça marche — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée dans le soin — EHPAD, hôpitaux, cliniques.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Comment ça marche — Relève';
+const DESCRIPTION =
+  "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée dans le soin — EHPAD, hôpitaux, cliniques.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 /**
  * Pas de `HowTo` ici, bien que la page decrive six etapes : Google a retire ce
@@ -20,9 +19,8 @@ useHead({
 useDonneesStructurees(
   pageWeb(useUrlSite(), {
     chemin: '/fonctionnement',
-    titre: "Comment ça marche — de l'inscription à la mission",
-    description:
-      "Les six étapes du parcours candidat chez Relève : compte, dossier, vérification, candidature, contrat, mission.",
+    titre: TITRE,
+    description: DESCRIPTION,
   }),
 );
 </script>

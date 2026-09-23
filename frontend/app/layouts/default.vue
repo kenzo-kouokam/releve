@@ -155,6 +155,20 @@ useHead(() =>
 );
 
 /**
+ * Apercu des liens partages : nom du site, langue, image, compte X, adresse.
+ *
+ * Meme decoupage que les donnees structurees — l'invariant ici, le titre et la
+ * description dans chaque page, par `usePartageSocialPage`.
+ *
+ * Pose sans condition de session, contrairement au schema.org et au lien
+ * canonique. Les trois se ressemblent mais ne servent pas la meme chose : les
+ * deux premiers s'adressent aux moteurs, qui n'entrent pas dans l'espace
+ * connecte, tandis qu'un lien colle dans une conversation garde son apercu
+ * meme si celui qui l'envoie est identifie.
+ */
+usePartageSocialSite(() => route.path);
+
+/**
  * Le menu se referme en changeant de page.
  *
  * Sans cela, suivre un lien laisserait le panneau ouvert par-dessus la page

@@ -12,16 +12,15 @@ import type { MissionVitrine, OptionsVitrine, PageResultat } from '@releve/share
  * apparaissent seulement, source citée, dans l'espace d'un candidat identifié.
  */
 
-useHead({
-  title: "Nos offres d'emploi — Relève",
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = "Nos offres d'emploi — Relève";
+const DESCRIPTION =
+  "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 const { requete } = useApi();
 
@@ -155,9 +154,8 @@ useDonneesStructurees(() => [
   pageWeb(site, {
     chemin: '/offres',
     type: 'CollectionPage',
-    titre: "Nos offres d'emploi en intérim — Relève",
-    description:
-      "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.",
+    titre: TITRE,
+    description: DESCRIPTION,
   }),
   ...(missions.value.length ? [listeOffres(site, '/offres', missions.value)] : []),
 ]);

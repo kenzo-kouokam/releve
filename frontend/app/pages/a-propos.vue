@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { VALEURS } from '~/data/vitrine';
 
-useHead({
-  title: 'À propos — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Relève est une agence d'intérim consacrée au soin : mise en relation des aides-soignants et accompagnants et des EHPAD, hôpitaux et cliniques qui ont besoin d'un renfort rapide.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'À propos — Relève';
+const DESCRIPTION =
+  "Relève est une agence d'intérim consacrée au soin : mise en relation des aides-soignants et accompagnants et des EHPAD, hôpitaux et cliniques qui ont besoin d'un renfort rapide.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 /** `AboutPage` : le type dit aux moteurs que la page parle de l'editeur
  *  lui-meme, et non d'un service ou d'une offre. */
@@ -18,9 +17,8 @@ useDonneesStructurees(
   pageWeb(useUrlSite(), {
     chemin: '/a-propos',
     type: 'AboutPage',
-    titre: "À propos de Relève",
-    description:
-      "Une agence d'intérim qui ne fait que du soin : aides-soignants et accompagnants éducatifs et sociaux, en EHPAD, hôpital et clinique.",
+    titre: TITRE,
+    description: DESCRIPTION,
   }),
 );
 </script>
