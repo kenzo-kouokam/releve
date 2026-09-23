@@ -8,6 +8,7 @@ import {
   type AlerteCreate,
   type AlerteEnvoyee,
   type BalayageNotifications,
+  type KpiAgence,
   type MissionNonPourvue,
   type MissionsNonPourvuesQuery,
   type RapportNotifications,
@@ -41,6 +42,12 @@ export class InterneController {
     private readonly alertes: AlertesService,
     private readonly notifications: NotificationsMissionsService,
   ) {}
+
+  @Get('kpi')
+  @ApiOperation({ summary: 'Indicateurs de performance : délai de pourvoi, taux non-pourvus, relances' })
+  kpi(): Promise<KpiAgence> {
+    return this.interne.kpi();
+  }
 
   @Get('missions/non-pourvues')
   @ApiOperation({ summary: 'Missions ouvertes en attente au-dela du seuil' })

@@ -21,12 +21,12 @@ Chaque canal a son public : l'e-mail pour les candidats (externes), Slack pour l
 | Destinataire | Message | Canal (POC) | En production | Porté par |
 |---|---|---|---|---|
 | Candidat | Récapitulatif quotidien des missions publiées qui lui correspondent, **missions urgentes incluses tant qu'elles ne sont pas pourvues** | E-mail (Mailpit) | E-mail | Backend (`notifier:missions`) |
-| Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus, désactivable (préférence « notifications e-mail ») | E-mail (Mailpit) | SMS ou notification push | n8n — WF1 |
-| Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | n8n — WF1 |
+| Candidat | **Alerte urgente** : mission éligible qui démarre dans moins de 48 h, envoyée tout de suite, 3 par jour au plus | E-mail (Mailpit) | SMS ou notification push | **n8n décide, l'API expédie** — WF1 |
+| Candidat | **Mission pourvue ou annulée**, pour les seuls candidats ayant une proposition en cours sur la mission | E-mail (Mailpit) | E-mail ou push | **n8n décide, l'API expédie** — WF1 |
 | Candidat | **Confirmation de mission** (mentions obligatoires), e-mail transactionnel envoyé quelle que soit la préférence | E-mail (Mailpit) | E-mail | n8n — WF3 |
-| Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` | Slack / Teams | n8n — WF1 |
+| Agence | Propositions, acceptations, missions pourvues ou annulées | Slack `#missions-proposees` — le message de proposition est **mis à jour** à la clôture (son horodatage est gardé dans Redis, `n8n:slack:<missionId>`, 30 jours) | Slack / Teams | n8n — WF1 |
 | Agence | Relances des missions non pourvues, escalade à la 3e | Slack `#agence-relances` | Slack / Teams | n8n — WF2 |
-| Agence (tech) | Erreurs des workflows | Slack `#ops` | Slack / Teams | n8n |
+| Agence (tech) | Erreurs des workflows | Slack `#ops` — chaque appel à l'API a 2 tentatives puis bascule sur cette alerte, sans interrompre le reste du workflow | Slack / Teams | n8n |
 
 Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir** des missions sans saturer la boîte ; l'alerte sert l'**urgence** (un remplacement du jour ne peut pas attendre le lendemain).
 
@@ -35,8 +35,8 @@ Pourquoi deux rythmes pour le candidat : le récapitulatif sert à **découvrir*
 | Workflow | Déclencheur | Rôle | Priorité |
 |---|---|---|---|
 | WF1 — Alertes | Webhook `mission.publiee` (urgente), `proposition.envoyee`, `proposition.acceptee`, `mission.pourvue`, `mission.annulee` | Alerte e-mail aux candidats éligibles pour une mission urgente ; suivi en temps réel pour l'agence sur Slack ; e-mail de clôture aux candidats en cours | MUST |
-| WF2 — Relance des missions non pourvues | Planification (15 min ; 1 min en démo) | Relancer une mission ouverte au-delà du seuil, escalade après 3 relances | MUST |
-| WF3 — Confirmation de mission | Webhook `mission.pourvue` | E-mail de confirmation au candidat retenu depuis un template, puis ligne « confirmation envoyée » sur Slack pour l'agence | MUST |
+| WF2 — Relance des missions non pourvues | Planification toutes les 15 min | `GET /interne/missions/non-pourvues?seuilMinutes=` puis, par mission : `POST /relances` et message dans `#agence-relances`, ou `POST /escalade` + alerte au canal à partir de la 3e relance. Le compteur vient de l'API, et le seuil se mesure depuis le **dernier mouvement** : une mission relancée sort de la liste jusqu'au seuil suivant, ce qui évite toute boucle. | MUST |
+| WF3 — Confirmation de mission | Appelé par WF1 à la validation (`mission.pourvue`) | Demande à l'API le courriel `type: confirmation` pour le seul candidat retenu, puis trace « confirmation envoyée » dans `#missions-proposees`. Une annulation ne déclenche rien. | MUST |
 
 Un même événement peut déclencher plusieurs workflows : `mission.pourvue` met à jour le message Slack de l'agence et prévient les autres candidats (WF1), et déclenche la confirmation du candidat retenu (WF3).
 
@@ -51,7 +51,25 @@ Pour `mission.publiee`, l'API joint à l'événement les candidats éligibles (c
 
 Pour `mission.pourvue` et `mission.annulee`, elle joint `candidatRetenu` et `candidatsAPrevenir` (mêmes champs, sans `notificationsEmail`).
 
-**Plafond anti-spam** : n8n incrémente dans Redis un compteur `n8n:alertes:<candidatRef>:<AAAA-MM-JJ>` (expiration 48 h) avant chaque alerte, et n'envoie pas au-delà de 3 par jour. Les candidats dont `notificationsEmail` vaut `false` ne reçoivent aucune alerte.
+**Aucune donnée personnelle ne sort de l'API** (décision du 17/09, avec le dev). L'événement ne porte que des références pseudonymes `candidatsAPrevenir: [{ candidatRef }]`, et les candidats qui ont coupé leurs notifications sont déjà écartés par l'API.
+
+**Qui envoie quoi** : n8n **décide** (urgence, plafond, moment), l'**API expédie**. Après son filtrage, le workflow rassemble les références retenues et appelle :
+
+```
+POST {RELEVE_API_URL}/interne/missions/:id/alertes
+X-Service-Token: <INTERNAL_SERVICE_TOKEN>
+{ "type": "urgente" | "cloture" | "confirmation", "candidatRefs": ["CAN-19B0E4", "CAN-5D21A8"] }
+→ { missionId, type, demandees, envoyees, ignorees }
+```
+
+Les trois types possibles sont `urgente`, `cloture` et `confirmation`. L'API borne les destinataires autorisés pour chacun : une référence hors de cet ensemble est ignorée et rendue dans `ignorees`.
+
+```
+```
+
+Un seul appel par lot, pas un par candidat : un envoi correspond à un geste.
+
+**Plafond anti-spam** : avant l'appel, n8n incrémente dans Redis un compteur `n8n:alertes:<candidatRef>:<AAAA-MM-JJ>` (expiration 48 h) et ne garde que les candidats sous la barre des 3 alertes du jour.
 
 ## Événements émis par l'API
 
@@ -106,9 +124,28 @@ Une application Slack dédiée (jeton bot `xoxb-…`, portées `chat:write` et `
 
 Le jeton bot est enregistré dans les credentials n8n, jamais dans le dépôt.
 
+## Journal Airtable : base « Relève — Tampon n8n »
+
+Chaque workflow écrit une ligne après chaque envoi. L'application ne lit jamais cette base : c'est le journal des automatisations, et le cockpit de l'agence.
+
+| Table | Écrite par | Une ligne quand… | Statuts |
+|---|---|---|---|
+| `Notifications` | WF1, WF3 | un message Slack de suivi part, un lot d'e-mails (urgente, clôture, confirmation) est confié à l'API, ou le plafond bloque une alerte | `ENVOYE`, `ECHEC`, `PLAFOND` |
+| `Relances` | WF2 | une relance ou une escalade est enregistrée | `OK`, `ECHEC` |
+
+- Colonnes : clé (`deliveryId` + type, pour repérer un rejeu), date, workflow, événement, mission, canal, type, références candidats, envoyés / écartés (réponse de `/alertes`), statut.
+- Chaque ligne est préparée par un nœud « Journal : … » aux noms exacts des colonnes, puis un seul nœud Airtable par workflow l'écrit (correspondance automatique, `typecast`).
+- **Le journal ne bloque jamais un envoi** : le nœud Airtable continue en cas d'erreur (quota, panne, jeton expiré).
+- Quota du plan gratuit : 1 000 appels par mois. On n'écrit que sur événement, une ligne par lot, jamais une par candidat (sauf `PLAFOND`).
+- Interface **Cockpit agence** (F64) : compteurs, répartition par type et par statut, onglets « Échecs », « Plafond atteint », « Escalades ».
+- Identifiant de base : `AIRTABLE_BASE_ID` (non secret, dans `backend/.env`). Jeton : credential n8n « Airtable — Relève », limité à cette base.
+- Conservation : 90 jours, puis purge.
+
 ## Données personnelles
 
-- Aucun nom, e-mail, téléphone ni adresse ne sort vers Slack ou Airtable. n8n, hébergé avec l'application, reçoit l'adresse e-mail des seuls candidats à prévenir, pour l'envoi.
+- Aucun nom, e-mail, téléphone ni adresse ne sort vers Slack ou Airtable : les nœuds « Journal » et les messages Slack ne lisent que `candidatRef`.
+- n8n, hébergé avec l'application, reçoit le prénom et l'e-mail des candidats visés (`candidatsEligibles`, `candidatRetenu`, `candidatsAPrevenir`). Les workflows n'en font rien : ils confient l'envoi à `POST /alertes`, qui revalide les destinataires.
+- Une référence `CAN-XXXXXX` reste une donnée **pseudonyme**, donc personnelle au sens du RGPD tant que le secret HMAC existe : Slack et Airtable doivent figurer comme sous-traitants dans le registre.
 - Le candidat est désigné par une référence pseudonyme `CAN-XXXXXX`, dérivée de son identifiant par HMAC.
 - Slack et Airtable sont hébergés hors UE : cette minimisation est la condition de leur usage.
 

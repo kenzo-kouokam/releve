@@ -290,3 +290,21 @@ export interface AlerteEnvoyee {
    */
   ignorees: string[];
 }
+
+// ------------------------------------------------------------------ kpi
+
+/** Indicateurs de performance, rendus par GET /api/interne/kpi. */
+export interface KpiAgence {
+  /** Délai moyen de pourvoi depuis la publication jusqu'à la validation, en heures. Null si aucune mission pourvue. */
+  delaiPourvoiMoyenHeures: number | null;
+  /** Part des missions closes non pourvues (annulées ou expirées), en pourcentage. Null si aucune mission close. */
+  tauxNonPourvusPercent: number | null;
+  /** Nombre total de relances enregistrées depuis la mise en service. */
+  totalRelances: number;
+  /** Nombre total d'escalades enregistrées depuis la mise en service. */
+  totalEscalades: number;
+  /** Missions qui ont atteint un état terminal (validée, annulée, non pourvue…). */
+  missionsCloses: number;
+  /** Dont missions effectivement pourvues. */
+  missionsPourvues: number;
+}

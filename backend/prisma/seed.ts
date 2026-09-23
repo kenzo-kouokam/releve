@@ -514,6 +514,42 @@ async function main(): Promise<void> {
 
   await poserLeReste(agence.id, deas.id, deaes.id);
 
+  // Mission dediee a la demonstration de WF2 (relance automatique), dans un
+  // futur proche pour que missionsNonPourvues() la voie. Son evenement de
+  // publication est antidate de 2 h : avec RELANCE_SEUIL_MIN=1, WF2 la relance
+  // des son premier passage.
+  await poserMission({
+    reference: 'DEMO-2026-RELANCE',
+    agenceId: agence.id,
+    clientId: ehpadTilleuls.id,
+    lieuId: lieuTilleuls.id,
+    qualificationRequiseId: deas.id,
+    statut: 'PUBLIEE',
+    dateDebut: new Date('2026-10-14'),
+    dateFin: new Date('2026-10-16'),
+    heureDebut: '09:00',
+    heureFin: '13:00',
+    motifRecours: "Remplacement d'un salarie absent",
+    description: 'Aide au lever et assistance aux repas. Mission de demonstration de la relance.',
+    tauxHoraire: '12.5000',
+    coefficient: '1.900',
+  });
+  const missionRelance = await prisma.mission.findUniqueOrThrow({
+    where: { reference: 'DEMO-2026-RELANCE' },
+  });
+  const dejaPubliee = await prisma.evenementMission.findFirst({
+    where: { missionId: missionRelance.id, type: 'mission.publiee' },
+  });
+  if (!dejaPubliee) {
+    await prisma.evenementMission.create({
+      data: {
+        missionId: missionRelance.id,
+        type: 'mission.publiee',
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+    });
+  }
+
   // Le seed pose latitude / longitude en dur, pour rester deterministe et
   // jouable sans reseau. La colonne PostGIS, elle, n'est ecrite qu'en SQL brut :
   // sans cette mise en accord, l'index spatial designerait le vide alors que le
