@@ -19,6 +19,7 @@ import {
   type BesoinAPourvoir,
   type ProfilAEvaluer,
 } from './score';
+import { heuresExercice } from './experience';
 
 /** Missions qui immobilisent déjà un candidat sur une période. */
 const ETATS_ENGAGEANTS = ['VALIDEE', 'CONTRACTUALISEE', 'EN_COURS'] as const;
@@ -176,6 +177,25 @@ export class MatchingService {
           : `Rayon de ${fiche.rayonKm} km`,
       },
     ];
+
+    // Les experiences chargees ici sont deja filtrees aux lignes verifiees par
+    // l'agence : ce que l'etablissement lit est opposable, pas declaratif.
+    const heures = heuresExercice(
+      fiche.experiences.map((poste) => ({
+        debutLe: poste.debutLe,
+        finLe: poste.finLe,
+        quotitePourcent: poste.quotitePourcent,
+        duReferentiel: poste.qualificationId !== null,
+      })),
+    );
+
+    if (heures > 0) {
+      pointsForts.unshift({
+        icone: 'clock',
+        libelle: 'Exercice du metier',
+        valeur: `${heures.toLocaleString('fr-FR')} h verifiees`,
+      });
+    }
 
     if (pertinente) {
       pointsForts.unshift({

@@ -58,8 +58,8 @@ export type PropositionListQuery = z.infer<typeof propositionListQuerySchema>;
 
 /** Un point fort du profil, tel que l'etablissement le lit sur la fiche. */
 export interface PointFortCandidat {
-  /** Nom d'icone cote front : briefcase, star, map-pin. */
-  icone: 'briefcase' | 'star' | 'map-pin';
+  /** Nom d'icone cote front. Chacune existe dans `assets/icons`. */
+  icone: 'briefcase' | 'star' | 'map-pin' | 'clock';
   libelle: string;
   valeur: string;
 }

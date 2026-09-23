@@ -6,7 +6,7 @@ import {
 } from './competences';
 import { statutCandidatSchema, type StatutCandidat } from './enums';
 import type { DisponibiliteResume, IndisponibiliteResume } from './disponibilite';
-import type { ExperienceResume } from './experience';
+import type { ExercicePrealable, ExperienceResume } from './experience';
 import type { PrecisionGeocodage } from './geocodage';
 import { MOTIF_CODE_POSTAL, MOTIF_DATE_ISO, MOTIF_EMAIL, MOTIF_TELEPHONE } from './motifs';
 import { paginationQuerySchema } from './pagination';
@@ -177,6 +177,12 @@ export interface CandidatDetail extends CandidatResume {
   vaccinationVerifiee: boolean;
   qualificationsDetail: QualificationCandidatResume[];
   experiences: ExperienceResume[];
+  /**
+   * Le total des `experiences`, lu a l'aune de l'exercice prealable exige avant
+   * une mise a disposition. Calcule au serveur : trois ecrans l'affichent, et
+   * trois arithmetiques finiraient par diverger.
+   */
+  exercicePrealable: ExercicePrealable;
   disponibilites: DisponibiliteResume[];
   indisponibilites: IndisponibiliteResume[];
   competences: CompetenceLiee[];

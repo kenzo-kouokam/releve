@@ -130,6 +130,52 @@ function basculerVerification(qualificationId: string, verifiee: boolean): Promi
   );
 }
 
+// --- parcours professionnel
+//
+// L'API portait deja ces trois gestes ; seul l'ecran manquait. Consequence
+// concrete avant ce correctif : la verification d'une experience etait « le
+// seul geste qui fait entrer une experience dans le score » et aucun bouton ne
+// permettait de la poser.
+
+function basculerVerificationPoste(experienceId: string, verifiee: boolean): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'PATCH',
+      body: { verifiee },
+    }),
+  );
+}
+
+function retirerPoste(experienceId: string): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'DELETE',
+    }),
+  );
+}
+
+/**
+ * Espace insecable fine (U+202F), posee avant l'unite.
+ *
+ * Ecrite par son code plutot qu'en clair : le caractere lui-meme est invisible
+ * dans un diff, et la regle `no-irregular-whitespace` le refuse a juste titre.
+ */
+const ESPACE_FINE = String.fromCharCode(0x202f);
+
+/** Les heures, avec une espace insecable fine avant l'unite. */
+function enHeures(heures: number): string {
+  return `${heures.toLocaleString('fr-FR')}${ESPACE_FINE}h`;
+}
+
+/** Remplissage de la jauge, borne : au-dela du seuil elle reste pleine. */
+const partExercice = computed(() => {
+  const bilan = candidat.value?.exercicePrealable;
+
+  if (!bilan || bilan.seuilHeures === 0) return 0;
+
+  return Math.min(100, Math.round((bilan.heuresVerifiees / bilan.seuilHeures) * 100));
+});
+
 function retirerQualification(qualificationId: string): Promise<void> {
   return appliquer(() =>
     requete<CandidatDetail>(`/candidats/${identifiant.value}/qualifications/${qualificationId}`, {
@@ -361,6 +407,111 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
           </label>
           <button type="submit" :disabled="enCours || !qualificationAAjouter">Rattacher</button>
         </form>
+      </section>
+
+      <!-- parcours professionnel -->
+      <section class="bloc">
+        <h2>
+          Parcours professionnel <span class="compte">{{ candidat.experiences.length }}</span>
+        </h2>
+
+        <div class="exercice" :class="{ atteint: candidat.exercicePrealable.seuilAtteint }">
+          <p class="chiffre">
+            {{ enHeures(candidat.exercicePrealable.heuresVerifiees) }}
+            <span class="sur">
+              d exercice verifie, sur {{ enHeures(candidat.exercicePrealable.seuilHeures) }}
+            </span>
+          </p>
+
+          <div
+            class="jauge"
+            role="progressbar"
+            :aria-valuenow="candidat.exercicePrealable.heuresVerifiees"
+            aria-valuemin="0"
+            :aria-valuemax="candidat.exercicePrealable.seuilHeures"
+            aria-label="Exercice du metier verifie"
+          >
+            <span :style="{ width: `${partExercice}%` }" />
+          </div>
+
+          <p class="detail">
+            <template v-if="candidat.exercicePrealable.seuilAtteint">
+              Le candidat justifie de la duree d exercice attendue avant une mise a disposition.
+            </template>
+            <template v-else>
+              Il manque {{ enHeures(candidat.exercicePrealable.heuresManquantes) }} d exercice
+              verifie.
+              <template
+                v-if="
+                  candidat.exercicePrealable.heuresDeclarees >
+                  candidat.exercicePrealable.heuresVerifiees
+                "
+              >
+                {{
+                  enHeures(
+                    candidat.exercicePrealable.heuresDeclarees -
+                      candidat.exercicePrealable.heuresVerifiees,
+                  )
+                }}
+                sont declarees mais pas encore verifiees.
+              </template>
+            </template>
+          </p>
+        </div>
+
+        <p class="aide">
+          Seul l exercice rattache au referentiel est compte, au prorata du temps de travail, sur
+          une base de 1 607 heures par an. Ce seuil s affiche mais ne ferme rien : c est a vous de
+          trancher sur piece, le calcul ne fait que rendre lisible ce que les dates declarent.
+        </p>
+
+        <p v-if="!candidat.experiences.length" class="vide">Aucun poste declare.</p>
+
+        <ul v-else class="liste">
+          <li v-for="poste in candidat.experiences" :key="poste.id" class="rangee">
+            <div>
+              <p class="nom">{{ poste.intitule }} &middot; {{ poste.employeur }}</p>
+              <p class="detail">
+                {{ poste.debutLe }} &mdash;
+                <template v-if="poste.enCours">aujourd hui</template>
+                <template v-else>{{ poste.finLe }}</template>
+                &middot; {{ enHeures(poste.dureeHeures) }}
+                <template v-if="poste.quotitePourcent < 100">
+                  a {{ poste.quotitePourcent }} %
+                </template>
+                <template v-if="poste.qualificationLibelle">
+                  &middot; {{ poste.qualificationLibelle }}
+                </template>
+                <template v-else>&middot; hors referentiel, ne compte pas ici</template>
+                <template v-if="poste.verifieePar">
+                  &middot; verifie par {{ poste.verifieePar }}
+                </template>
+              </p>
+            </div>
+
+            <span v-if="poste.verifieeLe" class="etat verifiee">Verifie</span>
+            <span v-else class="etat attente">A verifier</span>
+
+            <div class="actions">
+              <button
+                type="button"
+                class="lien"
+                :disabled="enCours"
+                @click="basculerVerificationPoste(poste.id, !poste.verifieeLe)"
+              >
+                {{ poste.verifieeLe ? 'Annuler la verification' : 'Verifier' }}
+              </button>
+              <button
+                type="button"
+                class="lien danger"
+                :disabled="enCours"
+                @click="retirerPoste(poste.id)"
+              >
+                Retirer
+              </button>
+            </div>
+          </li>
+        </ul>
       </section>
 
       <!-- disponibilites -->
@@ -709,6 +860,65 @@ button:disabled {
 .vide {
   margin: 0;
   font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* Exercice prealable : une jauge plutot qu'un oui/non. L'agence a besoin de
+ * voir ce qui manque, pas seulement que quelque chose manque. */
+.exercice {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: var(--ambre);
+  border: 1px solid var(--ambre-line);
+  border-radius: 12px;
+}
+
+.exercice.atteint {
+  background: var(--dom-soft);
+  border-color: var(--dom);
+}
+
+.exercice .chiffre {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.exercice .sur {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.exercice .jauge {
+  height: 8px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.exercice .jauge span {
+  display: block;
+  height: 100%;
+  background: var(--ambre-encre);
+  border-radius: inherit;
+}
+
+.exercice.atteint .jauge span {
+  background: var(--dom);
+}
+
+.exercice .detail {
+  margin: 0;
+}
+
+.aide {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 

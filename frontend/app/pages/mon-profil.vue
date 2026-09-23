@@ -222,6 +222,41 @@ const nouveauPoste = reactive({
   quotitePourcent: 100,
 });
 
+/**
+ * Espace insecable fine (U+202F), posee avant l'unite.
+ *
+ * Ecrite par son code plutot qu'en clair : le caractere lui-meme est invisible
+ * dans un diff, et la regle `no-irregular-whitespace` le refuse a juste titre.
+ */
+const ESPACE_FINE = String.fromCharCode(0x202f);
+
+/** Remplissage de la jauge, borné : au-delà du seuil elle reste pleine. */
+const partExercice = computed(() => {
+  const bilan = profil.value?.exercicePrealable;
+
+  if (!bilan || bilan.seuilHeures === 0) return 0;
+
+  return Math.min(100, Math.round((bilan.heuresVerifiees / bilan.seuilHeures) * 100));
+});
+
+/** Ce qui est déclaré mais pas encore contrôlé : un manque de pièce, pas de terrain. */
+const heuresEnAttente = computed(() => {
+  const bilan = profil.value?.exercicePrealable;
+
+  return bilan ? Math.max(0, bilan.heuresDeclarees - bilan.heuresVerifiees) : 0;
+});
+
+/**
+ * Les heures, séparées par un espace insécable fin avant l'unité.
+ *
+ * `toLocaleString('fr-FR')` met déjà une espace insécable étroite comme
+ * séparateur de milliers ; celle avant « h » est posée ici pour la même raison,
+ * qu'un retour à la ligne ne vienne pas couper « 3 214 » de son unité.
+ */
+function enHeures(heures: number): string {
+  return `${heures.toLocaleString('fr-FR')}${ESPACE_FINE}h`;
+}
+
 /** Durée telle que le barème la comptera, pour ne pas afficher deux chiffres. */
 function dureeLisible(mois: number): string {
   const entiers = Math.round(mois);
@@ -427,6 +462,41 @@ function retirerPoste(id: string): Promise<void> {
         certificat de travail.
       </p>
 
+      <div class="exercice" :class="{ atteint: profil.exercicePrealable.seuilAtteint }">
+        <p class="chiffre">
+          {{ enHeures(profil.exercicePrealable.heuresVerifiees) }}
+          <span class="sur">sur {{ enHeures(profil.exercicePrealable.seuilHeures) }}</span>
+        </p>
+
+        <div
+          class="jauge"
+          role="progressbar"
+          :aria-valuenow="profil.exercicePrealable.heuresVerifiees"
+          aria-valuemin="0"
+          :aria-valuemax="profil.exercicePrealable.seuilHeures"
+          aria-label="Exercice du métier vérifié"
+        >
+          <span :style="{ width: `${partExercice}%` }" />
+        </div>
+
+        <p v-if="profil.exercicePrealable.seuilAtteint" class="commentaire">
+          Vous justifiez de la durée d'exercice attendue avant une mise à disposition en intérim.
+        </p>
+        <p v-else class="commentaire">
+          Il manque {{ enHeures(profil.exercicePrealable.heuresManquantes) }} d'exercice vérifié
+          pour atteindre la durée attendue avant une mise à disposition.
+          <template v-if="heuresEnAttente > 0">
+            {{ enHeures(heuresEnAttente) }} attendent d'être vérifiées par l'agence.
+          </template>
+        </p>
+
+        <p class="note">
+          Cette durée est celle de l'exercice du métier, hors postes sans rapport, et comptée au
+          prorata du temps de travail : deux ans à mi-temps valent un an. Base de conversion :
+          1 607 heures par an, la durée annuelle légale.
+        </p>
+      </div>
+
       <ul class="postes">
         <li v-for="poste in profil.experiences" :key="poste.id">
           <div class="copie">
@@ -436,13 +506,17 @@ function retirerPoste(id: string): Promise<void> {
               <template v-if="poste.enCours">aujourd'hui</template>
               <template v-else>{{ poste.finLe }}</template>
               · {{ dureeLisible(poste.dureeMois) }}
+              · {{ enHeures(poste.dureeHeures) }}
               <template v-if="poste.quotitePourcent < 100">
                 a {{ poste.quotitePourcent }} %
               </template>
               <template v-if="poste.qualificationLibelle">
                 · {{ poste.qualificationLibelle }}
               </template>
-              <template v-else> · hors référentiel, compte pour moitié</template>
+              <template v-else>
+                · hors référentiel : compte pour moitié au classement, et pas du tout dans la
+                durée d'exercice ci-dessus
+              </template>
             </p>
           </div>
 
@@ -784,6 +858,67 @@ input[type='checkbox'] {
 }
 
 /* ---------- Lignes du dossier ---------- */
+
+/* Exercice prealable : une jauge, pas un badge. Le candidat a besoin de voir
+ * ou il en est, pas seulement s'il y est. */
+.exercice {
+  display: grid;
+  gap: 10px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  background: var(--ambre);
+  border: 1px solid var(--ambre-line);
+  border-radius: 16px;
+}
+
+.exercice.atteint {
+  background: var(--dom-soft);
+  border-color: var(--dom);
+}
+
+.exercice .chiffre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.exercice .sur {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.exercice .jauge {
+  height: 8px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.exercice .jauge span {
+  display: block;
+  height: 100%;
+  background: var(--ambre-encre);
+  border-radius: inherit;
+}
+
+.exercice.atteint .jauge span {
+  background: var(--dom);
+}
+
+.exercice .commentaire {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.exercice .note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 
 .creneaux,
 .diplomes,

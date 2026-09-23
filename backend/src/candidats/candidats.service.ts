@@ -8,6 +8,7 @@ import type {
   CandidatUpdate,
   DisponibilitesRemplace,
   DisponibiliteResume,
+  ExercicePrealable,
   ExperienceCreate,
   ExperienceResume,
   ExperienceVerification,
@@ -19,6 +20,8 @@ import type {
   QualificationCandidatUpdate,
   UtilisateurSession,
 } from '@releve/shared';
+import { SEUIL_EXERCICE_PREALABLE_HEURES, heuresDepuisMois } from '@releve/shared';
+import { heuresExercice, type PosteExerce } from '../matching/experience';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsCompteService } from '../mail/notifications-compte.service';
 import { GeocodageService } from '../geocodage/geocodage.service';
@@ -108,22 +111,34 @@ function versQualificationResume(
 }
 
 /**
- * Duree d'un poste en mois, ponderee par la quotite.
+ * Duree d'un poste en mois, ponderee par la quotite, sans arrondi.
  *
  * Calculee ici et rendue au client plutot que laissee a son appreciation : le
  * front afficherait sinon sa propre arithmetique, qui divergerait de celle du
  * bareme, et un candidat lirait « 2 ans » sur sa fiche pour un score calcule
  * sur dix-huit mois.
+ *
+ * L'arrondi est laisse aux deux sorties, qui n'ont pas la meme finesse : les
+ * mois se lisent au dixieme, les heures a l'unite. Arrondir ici obligerait les
+ * secondes a heriter de l'imprecision des premiers.
  */
-function dureeEnMois(experience: ExperienceChargee, reference: Date): number {
+function moisExacts(experience: ExperienceChargee, reference: Date): number {
   const debut = experience.debutLe.getTime();
   const fin = Math.min(experience.finLe?.getTime() ?? reference.getTime(), reference.getTime());
   const jours = Math.max(0, fin - debut) / (24 * 3600 * 1000);
 
-  return Math.round((jours / 30.436875) * (experience.quotitePourcent / 100) * 10) / 10;
+  return (jours / 30.436875) * (experience.quotitePourcent / 100);
 }
 
+
 function versExperienceResume(experience: ExperienceChargee, reference: Date): ExperienceResume {
+  // Les heures partent des dates brutes, pas de `dureeMois` : celui-ci est
+  // arrondi au dixieme de mois, soit trois jours, et l'ecran affichait « 4 406 h »
+  // sur une ligne juste au-dessus d'un total exact de « 4 402 h ». Deux nombres
+  // a quatre heures d'ecart sur le meme ecran donnent l'impression que l'un des
+  // deux ment.
+  const exacts = moisExacts(experience, reference);
+
   return {
     id: experience.id,
     employeur: experience.employeur,
@@ -136,8 +151,50 @@ function versExperienceResume(experience: ExperienceChargee, reference: Date): E
     description: experience.description,
     verifieeLe: experience.verifieeLe ? experience.verifieeLe.toISOString() : null,
     verifieePar: experience.verifieePar,
-    dureeMois: dureeEnMois(experience, reference),
+    dureeMois: Math.round(exacts * 10) / 10,
+    dureeHeures: Math.round(heuresDepuisMois(exacts)),
     enCours: experience.finLe === null,
+  };
+}
+
+/**
+ * Ou en est le candidat de l'exercice prealable exige.
+ *
+ * Ne comptent que les postes **rattaches au referentiel** : la loi parle
+ * d'exercice du metier, et un poste hors referentiel — qui pese pourtant pour
+ * moitie au bareme — ne dit rien de celui-ci.
+ *
+ * Aucun plafond n'est applique, a la difference du bareme. Le plafond de cinq
+ * ans existe pour eviter de departager deux professionnelles sur une difference
+ * que l'etablissement ne constatera jamais ; ici on ne departage personne, on
+ * mesure une duree face a un seuil.
+ */
+function bilanExercicePrealable(
+  experiences: ExperienceChargee[],
+  reference: Date,
+): ExercicePrealable {
+  // Calcule sur les dates brutes, et non en additionnant les `dureeHeures`
+  // deja arrondies de chaque ligne : sur dix postes, dix arrondis feraient
+  // deriver le total de plusieurs heures du seuil affiche juste a cote.
+  const poste = (ligne: ExperienceChargee): PosteExerce => ({
+    debutLe: ligne.debutLe,
+    finLe: ligne.finLe,
+    quotitePourcent: ligne.quotitePourcent,
+    duReferentiel: ligne.qualificationId !== null,
+  });
+
+  const heuresVerifiees = heuresExercice(
+    experiences.filter((ligne) => ligne.verifieeLe !== null).map(poste),
+    reference,
+  );
+  const heuresDeclarees = heuresExercice(experiences.map(poste), reference);
+
+  return {
+    heuresVerifiees,
+    heuresDeclarees,
+    seuilHeures: SEUIL_EXERCICE_PREALABLE_HEURES,
+    seuilAtteint: heuresVerifiees >= SEUIL_EXERCICE_PREALABLE_HEURES,
+    heuresManquantes: Math.max(0, SEUIL_EXERCICE_PREALABLE_HEURES - heuresVerifiees),
   };
 }
 
@@ -202,6 +259,9 @@ export class CandidatsService {
     const candidat = await this.exigerCandidat(id, agenceId, avecTout);
     const maintenant = new Date();
     const aujourdHui = maintenant.toISOString().slice(0, 10);
+    const experiences = candidat.experiences.map((poste) =>
+      versExperienceResume(poste, maintenant),
+    );
 
     return {
       ...versResume(candidat),
@@ -219,7 +279,8 @@ export class CandidatsService {
       qualificationsDetail: candidat.qualifications.map((lien) =>
         versQualificationResume(lien, aujourdHui),
       ),
-      experiences: candidat.experiences.map((poste) => versExperienceResume(poste, maintenant)),
+      experiences,
+      exercicePrealable: bilanExercicePrealable(candidat.experiences, maintenant),
       disponibilites: candidat.disponibilites.map((creneau): DisponibiliteResume => ({
         id: creneau.id,
         jourSemaine: creneau.jourSemaine,

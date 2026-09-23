@@ -42,7 +42,10 @@ case "$EVENEMENT" in
 esac
 
 DEBUT="$(date -v+${DECALAGE:-2}d +%Y-%m-%d 2>/dev/null || date -d "+${DECALAGE:-2} days" +%Y-%m-%d)"
-LIVRAISON="$(uuidgen | tr 'A-Z' 'a-z')"
+# `uuidgen` n'existe ni dans Git Bash sous Windows ni dans une image Alpine
+# minimale. Node est de toute facon requis pour lancer le projet : il sert de
+# repli plutot que d'imposer un paquet de plus.
+LIVRAISON="$( { uuidgen 2>/dev/null || node -e "console.log(require('crypto').randomUUID())"; } | tr 'A-Z' 'a-z')"
 MAINTENANT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 CORPS=$(cat <<JSON

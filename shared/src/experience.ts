@@ -82,6 +82,81 @@ export interface ExperienceResume {
   verifieePar: string | null;
   /** Durée en mois, pondérée par la quotité. Calculée côté serveur. */
   dureeMois: number;
+  /**
+   * La même durée en heures de travail effectif.
+   *
+   * Pas une coquetterie d'affichage : c'est l'unité dans laquelle se lit
+   * l'exercice préalable exigé avant une mise à disposition (voir
+   * `SEUIL_EXERCICE_PREALABLE_HEURES`). En mois, un mi-temps et un temps plein
+   * se ressemblent ; en heures, ils ne se confondent plus.
+   */
+  dureeHeures: number;
   /** Poste toujours occupé : la durée court encore. */
   enCours: boolean;
+}
+
+/**
+ * Durée annuelle légale du travail en France, en heures.
+ *
+ * 1 607 h : 35 heures hebdomadaires sur l'année, journée de solidarité
+ * comprise. C'est la base de conversion retenue partout ici — une seule, pour
+ * que la fiche du candidat, l'écran de l'agence et celui de l'établissement
+ * affichent le même nombre.
+ */
+export const HEURES_PAR_AN_LEGALES = 1607;
+
+/** Un mois de travail à temps plein, en heures. */
+export const HEURES_PAR_MOIS = HEURES_PAR_AN_LEGALES / 12;
+
+/**
+ * L'exercice préalable exigé avant une mise à disposition en intérim.
+ *
+ * La loi Valletoux (loi 2023-1268 du 27 décembre 2023, art. 8) interdit
+ * l'intérim en début de carrière pour les professionnels de santé : une durée
+ * minimale d'exercice est requise avant qu'une agence puisse les mettre à
+ * disposition d'un établissement de santé ou d'un ESMS. La durée elle-même est
+ * renvoyée à un décret, et dépend du métier.
+ *
+ * Elle est posée ici à **deux ans**, soit 3 214 heures. Deux réserves, qui
+ * doivent être dites plutôt que noyées : la valeur est à confirmer sur le texte
+ * applicable au métier concerné, et le décret raisonne en durée d'exercice, pas
+ * en heures. La conversion n'est donc pas la loi — c'est la façon dont nous la
+ * mesurons, et elle a un mérite précis : le temps partiel est la norme dans ce
+ * secteur, et deux ans à mi-temps ne sont pas deux ans d'exercice.
+ *
+ * Conséquence pratique : ce seuil s'**affiche**, il ne ferme rien. Un candidat
+ * en dessous reste proposable — c'est à l'agence de trancher sur pièce, pas à
+ * un calcul dérivé de dates déclaratives.
+ */
+export const SEUIL_EXERCICE_PREALABLE_HEURES = 2 * HEURES_PAR_AN_LEGALES;
+
+/** Conversion d'une durée en mois vers des heures de travail effectif. */
+export function heuresDepuisMois(mois: number): number {
+  return mois * HEURES_PAR_MOIS;
+}
+
+/**
+ * Où en est un candidat de l'exercice préalable exigé.
+ *
+ * Deux totaux, et la distinction compte. `heuresVerifiees` ne retient que ce que
+ * l'agence a contrôlé sur certificat de travail : c'est le seul chiffre
+ * opposable. `heuresDeclarees` ajoute ce qui attend d'être vérifié, pour que la
+ * fiche puisse montrer au candidat ce qui lui manque en contrôle plutôt qu'en
+ * expérience.
+ *
+ * Seul l'exercice rattaché au référentiel est compté. Un poste de caissière pèse
+ * pour moitié au barème, mais il ne vaut rien ici : la loi parle d'exercice du
+ * métier, pas d'ancienneté au travail.
+ */
+export interface ExercicePrealable {
+  /** Heures rattachées au référentiel et vérifiées par l'agence. */
+  heuresVerifiees: number;
+  /** Les mêmes, vérification comprise ou non. */
+  heuresDeclarees: number;
+  /** Le seuil applicable, rappelé pour que l'écran n'ait rien à recalculer. */
+  seuilHeures: number;
+  /** Vrai dès que `heuresVerifiees` atteint le seuil. */
+  seuilAtteint: boolean;
+  /** Ce qui manque encore, en heures vérifiées. Zéro une fois le seuil franchi. */
+  heuresManquantes: number;
 }

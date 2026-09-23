@@ -6,6 +6,8 @@
  * ici qu'on décide ce qui compte, et ce genre de décision se relit.
  */
 
+import { heuresDepuisMois } from '@releve/shared';
+
 const MS_PAR_JOUR = 24 * 3600 * 1000;
 
 /** Longueur moyenne d'un mois. Les mois civils varient, la mesure non. */
@@ -127,6 +129,62 @@ export function bilanExperience(
     moisAutres,
     moisRetenus: Math.min(pondere, moisCalendaires(periodes)),
   };
+}
+
+/**
+ * Un poste tel que l'exercice préalable le compte.
+ *
+ * `duReferentiel` ne dit pas la même chose que `qualifiante` plus haut, et les
+ * confondre fausserait tout. `qualifiante` répond à « ce poste relève-t-il du
+ * diplôme **exigé par cette mission** » — une question qui n'a de sens que face
+ * à un besoin. Ici il s'agit de « ce poste relève-t-il du métier », sans
+ * mission en vue : c'est une propriété de la personne, et elle vaut pour toutes
+ * les missions à la fois.
+ */
+export interface PosteExerce {
+  debutLe: Date;
+  finLe: Date | null;
+  quotitePourcent: number;
+  /** Rattaché à une qualification du référentiel, n'importe laquelle. */
+  duReferentiel: boolean;
+}
+
+/**
+ * Heures d'exercice du métier, pondérées par la quotité.
+ *
+ * Ni plafond ni pondération hors référentiel, à la différence du barème : on ne
+ * départage personne ici, on mesure une durée face à un seuil légal. Le plafond
+ * de cinq ans existe pour ne pas écarter les plus jeunes sur un écart que
+ * l'établissement ne constatera jamais ; l'appliquer à un seuil d'exercice
+ * reviendrait à déclarer qu'au-delà de cinq ans on n'a plus exercé.
+ *
+ * Les postes hors référentiel sont simplement ignorés. Ils pèsent pour moitié
+ * au barème, parce qu'ils disent quelque chose de quelqu'un au travail ; la loi,
+ * elle, parle d'exercice du métier, et une année de caisse n'en est pas une.
+ */
+export function heuresExercice(postes: PosteExerce[], reference: Date = new Date()): number {
+  let mois = 0;
+
+  for (const poste of postes) {
+    if (!poste.duReferentiel) {
+      continue;
+    }
+
+    const bornes = intervalle(
+      { ...poste, qualifiante: true },
+      reference,
+    );
+
+    if (!bornes) {
+      continue;
+    }
+
+    const quotite = Math.min(Math.max(poste.quotitePourcent, 0), 100) / 100;
+
+    mois += enMois(bornes[1] - bornes[0]) * quotite;
+  }
+
+  return Math.round(heuresDepuisMois(mois));
 }
 
 /** Rendu lisible d'une durée en mois : « 3 ans et 2 mois ». */

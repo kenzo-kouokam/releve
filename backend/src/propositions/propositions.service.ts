@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MatchingService } from '../matching/matching.service';
 import { dureeHeures, MissionsService } from '../missions/missions.service';
 import { EvenementsService } from '../evenements/evenements.service';
+import { heuresExercice } from '../matching/experience';
 
 /** Etats dans lesquels une mission accepte encore des candidatures. */
 const ETATS_OUVERTS = ['PUBLIEE', 'EN_MATCHING', 'PROPOSEE'] as const;
@@ -41,6 +42,17 @@ const avecRelations = Prisma.validator<Prisma.PropositionDefaultArgs>()({
           select: {
             obtenueLe: true,
             qualification: { select: { id: true, code: true, libelle: true } },
+          },
+        },
+        // Seules les lignes verifiees, comme partout ailleurs : ce que
+        // l'etablissement lit sur une fiche doit etre opposable.
+        experiences: {
+          where: { verifieeLe: { not: null } },
+          select: {
+            debutLe: true,
+            finLe: true,
+            quotitePourcent: true,
+            qualificationId: true,
           },
         },
         _count: { select: { missions: true } },
@@ -119,6 +131,27 @@ export class PropositionsService {
       candidat.qualifications[0];
 
     const pointsForts: PointFortCandidat[] = [];
+
+    // L'exercice du metier vient en tete : c'est la duree que la loi regarde
+    // avant une mise a disposition, et celle qui interesse l'etablissement
+    // avant l'anciennete du diplome — un diplome de 2014 jamais exerce ne vaut
+    // pas dix ans de terrain.
+    const heures = heuresExercice(
+      candidat.experiences.map((poste) => ({
+        debutLe: poste.debutLe,
+        finLe: poste.finLe,
+        quotitePourcent: poste.quotitePourcent,
+        duReferentiel: poste.qualificationId !== null,
+      })),
+    );
+
+    if (heures > 0) {
+      pointsForts.push({
+        icone: 'clock',
+        libelle: 'Exercice du metier',
+        valeur: `${heures.toLocaleString('fr-FR')} h verifiees`,
+      });
+    }
 
     if (pertinente?.obtenueLe) {
       const annees = anneesDepuis(pertinente.obtenueLe);
