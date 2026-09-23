@@ -137,6 +137,15 @@ export interface MissionResume {
  * vraiment, a partir de ses qualifications en base. Rien n'est decoratif.
  */
 export interface PrerequisMission {
+  /**
+   * De quel prerequis il s'agit, pour que l'ecran puisse y reagir.
+   *
+   * Sans elle, la fiche devrait reconnaitre une ligne a son libelle, qui est
+   * ecrit pour etre lu et changera. Chacune de ces cles correspond a une porte
+   * que l'API tient de son cote : le refus ne depend jamais de ce que le front
+   * en fait.
+   */
+  cle: 'diplome' | 'statut' | 'exercice';
   libelle: string;
   verifie: boolean;
 }

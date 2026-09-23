@@ -213,6 +213,18 @@ const localisation = computed(() => {
 
 /* -------------------------------------------------------------------- experience */
 
+/**
+ * « Hors referentiel », choisi explicitement.
+ *
+ * Distinct de la chaine vide, qui veut dire « rien de choisi ». Les deux se
+ * confondaient : « Aucun / hors referentiel » etait la premiere option du menu,
+ * donc pre-selectionnee, et un poste declare sans y toucher partait hors
+ * referentiel en silence. Anodin tant que cela ne coutait que la moitie des
+ * points ; bloquant depuis que la duree d'exercice prealable ferme la porte —
+ * onze mille heures d'aide-soignant ont ainsi compte pour zero.
+ */
+const HORS_REFERENTIEL = 'AUCUN';
+
 const nouveauPoste = reactive({
   employeur: '',
   intitule: '',
@@ -229,6 +241,26 @@ const nouveauPoste = reactive({
  * dans un diff, et la regle `no-irregular-whitespace` le refuse a juste titre.
  */
 const ESPACE_FINE = String.fromCharCode(0x202f);
+
+/**
+ * Les lignes s'additionnent-elles au total ?
+ *
+ * Pas toujours, et il faut le dire : deux postes menés en parallèle comptent
+ * chacun leurs heures sur leur ligne, mais le total est plafonné au temps
+ * réellement écoulé. Sans cette phrase, l'écran donne l'impression de compter
+ * faux.
+ */
+const periodesSeRecouvrent = computed(() => {
+  const bilan = profil.value?.exercicePrealable;
+
+  if (!bilan) return false;
+
+  const somme = (profil.value?.experiences ?? [])
+    .filter((poste) => poste.qualificationId !== null && poste.verifieeLe !== null)
+    .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
+
+  return somme > bilan.heuresVerifiees + 1;
+});
 
 /** Remplissage de la jauge, borné : au-delà du seuil elle reste pleine. */
 const partExercice = computed(() => {
@@ -280,7 +312,9 @@ function declarerPoste(): Promise<void> {
           intitule: nouveauPoste.intitule,
           debutLe: nouveauPoste.debutLe,
           quotitePourcent: nouveauPoste.quotitePourcent,
-          ...(nouveauPoste.qualificationId
+          // La sentinelle reste cote ecran : l'API ne connait que « un
+          // identifiant » ou « rien ».
+          ...(nouveauPoste.qualificationId && nouveauPoste.qualificationId !== HORS_REFERENTIEL
             ? { qualificationId: nouveauPoste.qualificationId }
             : {}),
           ...(nouveauPoste.finLe ? { finLe: nouveauPoste.finLe } : {}),
@@ -490,6 +524,12 @@ function retirerPoste(id: string): Promise<void> {
           </template>
         </p>
 
+        <p v-if="periodesSeRecouvrent" class="commentaire">
+          Le total est inférieur à la somme des lignes : deux de vos postes se recouvrent dans le
+          temps. Chacun garde ses heures, mais la durée retenue ne dépasse pas le temps réellement
+          écoulé.
+        </p>
+
         <p class="note">
           Cette durée est celle de l'exercice du métier, hors postes sans rapport, et comptée au
           prorata du temps de travail : deux ans à mi-temps valent un an. Base de conversion :
@@ -552,15 +592,18 @@ function retirerPoste(id: string): Promise<void> {
 
         <label class="large">
           <span>Diplôme correspondant</span>
-          <select id="poste-diplome" v-model="nouveauPoste.qualificationId">
-            <option value="">Aucun / hors référentiel</option>
+          <select id="poste-diplome" v-model="nouveauPoste.qualificationId" required>
+            <option value="" disabled>À sélectionner</option>
             <option v-for="option in referentiel ?? []" :key="option.id" :value="option.id">
               {{ option.libelle }}
             </option>
+            <option :value="HORS_REFERENTIEL">Aucun / hors référentiel</option>
           </select>
           <em class="aide">
-            Un poste sans correspondance compte pour moitié : il dit quelque chose de vous au
-            travail, rien de ce métier-ci.
+            À renseigner : un poste laissé sans correspondance ne compte que pour moitié au
+            classement, et <strong>pas du tout</strong> dans la durée d'exercice exigée avant une
+            mise à disposition. Un poste d'aide-soignant se rattache au DEAS, même si l'intitulé du
+            contrat disait autre chose.
           </em>
         </label>
 

@@ -573,11 +573,32 @@ export class CandidatsService {
 
     const poste = await this.exigerExperience(id, experienceId);
 
+    // Le rattachement n'est touche que s'il est fourni : `undefined` laisse la
+    // ligne telle quelle, `null` la detache. Sans cette distinction, tout appel
+    // qui se contente de verifier effacerait le diplome au passage.
+    const rattachement =
+      donnees.qualificationId === undefined ? {} : { qualificationId: donnees.qualificationId };
+
+    if (donnees.qualificationId) {
+      // Une qualification d'un autre referentiel que celui de l'agence n'existe
+      // pas : `findUniqueOrThrow` rendrait une 500, on veut une 400.
+      const existe = await this.prisma.qualification.count({
+        where: { id: donnees.qualificationId },
+      });
+
+      if (existe === 0) {
+        throw new BadRequestException('Qualification inconnue du referentiel');
+      }
+    }
+
     await this.prisma.experienceProfessionnelle.update({
       where: { id: poste.id },
-      data: donnees.verifiee
-        ? { verifieeLe: new Date(), verifieePar: utilisateur.email }
-        : { verifieeLe: null, verifieePar: null },
+      data: {
+        ...rattachement,
+        ...(donnees.verifiee
+          ? { verifieeLe: new Date(), verifieePar: utilisateur.email }
+          : { verifieeLe: null, verifieePar: null }),
+      },
     });
 
     return this.detail(id, agenceId);

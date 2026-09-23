@@ -119,6 +119,43 @@ export async function reinitialiser(): Promise<Jeu> {
     },
   });
 
+  /**
+   * Quatre ans d'exercice verifie, pour chacun des deux candidats.
+   *
+   * Meme raison que les coordonnees posees d'office un peu plus haut : sans
+   * cela, toute fiche serait desormais ecartee pour « duree d exercice
+   * insuffisante » — un motif exact, mais qui masquerait tous les autres et ne
+   * testerait plus rien. Un candidat qu'une agence a le droit de mettre a
+   * disposition a forcement exerce avant ; le jeu d'essai doit ressembler a ce
+   * qu'il represente.
+   *
+   * Quatre ans et non deux : le seuil est de 3 214 h, et deux annees civiles
+   * exactes tombent deux heures en dessous. Un jeu d'essai n'a pas a se tenir
+   * sur cette arete.
+   */
+  const ilYAAns = (annees: number): Date => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - annees);
+
+    return date;
+  };
+
+  for (const candidat of [candidatA, candidatB]) {
+    await prisma.experienceProfessionnelle.create({
+      data: {
+        candidatId: candidat.id,
+        qualificationId: qualification.id,
+        employeur: 'EHPAD des Lilas',
+        intitule: 'Aide-soignante',
+        debutLe: ilYAAns(4),
+        finLe: null,
+        quotitePourcent: 100,
+        verifieeLe: new Date(),
+        verifieePar: 'fixtures',
+      },
+    });
+  }
+
   const clientA = await prisma.client.create({
     data: {
       agenceId: agenceA.id,

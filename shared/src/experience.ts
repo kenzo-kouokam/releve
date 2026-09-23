@@ -63,6 +63,31 @@ export type ExperienceCreate = z.infer<typeof experienceCreateSchema>;
  */
 export const experienceVerificationSchema = z.object({
   verifiee: z.boolean(),
+
+  /**
+   * Rattachement au référentiel, corrigé par l'agence.
+   *
+   * Absent, le rattachement existant est laissé tel quel ; `null` le retire.
+   *
+   * Pourquoi l'agence peut le corriger, alors que le poste est déclaré par le
+   * candidat. Le menu du formulaire proposait « Aucun / hors référentiel » en
+   * premier choix, donc pré-sélectionné : un poste saisi sans y toucher partait
+   * hors référentiel, en silence. Tant que cela ne coûtait que la moitié des
+   * points, la correction pouvait attendre ; depuis que la durée d'exercice
+   * préalable ferme la porte, un poste mal rattaché vaut zéro heure et écarte
+   * la personne de toute mission. Le cas s'est produit : deux postes
+   * d'aide-soignant vérifiés, onze mille heures, comptées pour rien.
+   *
+   * L'agence est au bon endroit pour le faire — c'est elle qui lit le
+   * certificat de travail, et elle seule sait à quel diplôme le poste
+   * correspond vraiment. La seule autre issue serait de demander au candidat de
+   * supprimer sa ligne et de la ressaisir, en perdant la trace du contrôle.
+   */
+  qualificationId: z
+    .string()
+    .uuid('Identifiant de qualification invalide')
+    .nullable()
+    .optional(),
 });
 
 export type ExperienceVerification = z.infer<typeof experienceVerificationSchema>;

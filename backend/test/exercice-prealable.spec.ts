@@ -134,6 +134,59 @@ describe('exercice prealable', () => {
     expect(heures).toBeGreaterThan(2 * HEURES_PAR_AN_LEGALES - 40);
   });
 
+  /**
+   * Deux postes a plein temps qui se recouvrent ne font pas deux carrieres.
+   *
+   * Trouve sur une fiche reelle : deux postes d'aide-soignant, 2022-2026 et
+   * 2023-2026, annonces comme onze mille heures pour quatre ans de metier. Sur
+   * un seuil legal la consequence n'est pas cosmetique — il suffirait de saisir
+   * deux fois le meme poste pour franchir la porte deux fois plus vite.
+   */
+  it('ne compte pas deux fois deux postes qui se recouvrent', () => {
+    const heures = heuresExercice(
+      [
+        poste({
+          debutLe: new Date('2022-09-05T00:00:00Z'),
+          finLe: new Date('2026-09-05T00:00:00Z'),
+        }),
+        poste({
+          debutLe: new Date('2023-09-25T00:00:00Z'),
+          finLe: new Date('2026-08-24T00:00:00Z'),
+        }),
+      ],
+      REFERENCE,
+    );
+
+    const seul = heuresExercice(
+      [
+        poste({
+          debutLe: new Date('2022-09-05T00:00:00Z'),
+          finLe: new Date('2026-09-05T00:00:00Z'),
+        }),
+      ],
+      REFERENCE,
+    );
+
+    // Le second poste est inclus dans le premier : il n'ajoute rien.
+    expect(heures).toBe(seul);
+  });
+
+  it('additionne deux mi-temps menes en parallele', () => {
+    // Deux mi-temps sur la meme annee font bien un temps plein : c'est le cas
+    // que le plafond calendaire ne doit pas ecraser.
+    const bornes = {
+      debutLe: new Date('2024-09-23T00:00:00Z'),
+      finLe: new Date('2026-09-23T00:00:00Z'),
+    };
+    const deuxMiTemps = heuresExercice(
+      [poste({ ...bornes, quotitePourcent: 50 }), poste({ ...bornes, quotitePourcent: 50 })],
+      REFERENCE,
+    );
+    const unPlein = heuresExercice([poste(bornes)], REFERENCE);
+
+    expect(deuxMiTemps).toBe(unPlein);
+  });
+
   it('borne une quotite aberrante a 100 %', () => {
     const aberrante = heuresExercice([poste({ quotitePourcent: 150 })], REFERENCE);
     const plein = heuresExercice([poste()], REFERENCE);

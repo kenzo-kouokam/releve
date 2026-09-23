@@ -18,6 +18,33 @@ const JETON_SERVICE = 'jeton-de-service-de-test';
  * et la transition qui manquait — l'agence qui propose — est precisement celle
  * qui declenche le premier workflow.
  */
+/**
+ * Quatre ans d'exercice verifie pour un candidat cree a la volee.
+ *
+ * Depuis que la duree d'exercice prealable ferme la porte, un candidat sans
+ * terrain verifie est ecarte de toute mission : une proposition le concernant
+ * part en 400, et le test echoue sur un motif qui n'a rien a voir avec ce
+ * qu'il verifie. Le jeu d'essai partage en pose pour ses deux candidats ; ceux
+ * qu'un test ajoute lui-meme en ont besoin aussi.
+ */
+async function poserExercice(candidatId: string, qualificationId: string): Promise<void> {
+  const debut = new Date();
+  debut.setFullYear(debut.getFullYear() - 4);
+
+  await prisma.experienceProfessionnelle.create({
+    data: {
+      candidatId,
+      qualificationId,
+      employeur: 'EHPAD des Lilas',
+      intitule: 'Aide-soignante',
+      debutLe: debut,
+      quotitePourcent: 100,
+      verifieeLe: new Date(),
+      verifieePar: 'test',
+    },
+  });
+}
+
 describe('evenements et routes internes', () => {
   let app: INestApplication;
   let jeu: Jeu;
@@ -258,6 +285,8 @@ describe('evenements et routes internes', () => {
         },
       });
 
+      await poserExercice(deuxieme.id, jeu.qualification);
+
       const reponse = await avec(app, agence)
         .post(`/api/missions/${id}/propositions`)
         .send({ candidatIds: [jeu.candidatA, deuxieme.id] })
@@ -485,6 +514,8 @@ describe('evenements et routes internes', () => {
           verifieePar: 'test',
         },
       });
+
+      await poserExercice(autre.id, jeu.qualification);
 
       const doublure = await avec(app, agence)
         .post(`/api/missions/${id}/propositions`)

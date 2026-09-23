@@ -164,27 +164,37 @@ export interface PosteExerce {
  */
 export function heuresExercice(postes: PosteExerce[], reference: Date = new Date()): number {
   let mois = 0;
+  const periodes: [number, number][] = [];
 
   for (const poste of postes) {
     if (!poste.duReferentiel) {
       continue;
     }
 
-    const bornes = intervalle(
-      { ...poste, qualifiante: true },
-      reference,
-    );
+    const bornes = intervalle({ ...poste, qualifiante: true }, reference);
 
     if (!bornes) {
       continue;
     }
+
+    periodes.push(bornes);
 
     const quotite = Math.min(Math.max(poste.quotitePourcent, 0), 100) / 100;
 
     mois += enMois(bornes[1] - bornes[0]) * quotite;
   }
 
-  return Math.round(heuresDepuisMois(mois));
+  // Plafond calendaire, comme dans le bareme, et pour la meme raison : la somme
+  // des durees peut depasser le temps reellement ecoule. Deux mi-temps menes en
+  // parallele font bien un temps plein ; deux temps pleins superposes sur la
+  // meme annee ne font pas deux ans de metier.
+  //
+  // Le cas s'est presente sur une fiche reelle — deux postes d'aide-soignant se
+  // recouvrant sur trois ans — et la mesure annoncait onze mille heures pour
+  // quatre ans de carriere. Sur un seuil legal, l'erreur ouvre la porte a
+  // quelqu'un qui n'y a pas droit, et il suffit de saisir deux fois le meme
+  // poste pour la franchir deux fois plus vite.
+  return Math.round(heuresDepuisMois(Math.min(mois, moisCalendaires(periodes))));
 }
 
 /** Rendu lisible d'une durée en mois : « 3 ans et 2 mois ». */

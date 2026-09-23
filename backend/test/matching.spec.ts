@@ -152,10 +152,6 @@ describe('classement des candidats', () => {
 
       const id = await publier();
 
-      const avantVerification = await avec(app, agence)
-        .get(`/api/missions/${id}/candidats`)
-        .expect(200);
-
       const points = (corps: {
         retenus: {
           candidat: { id: string };
@@ -166,7 +162,24 @@ describe('classement des candidats', () => {
           .find((ligne) => ligne.candidat.id === jeu.candidatA)!
           .score.composantes.find((c) => c.cle === 'experience')!.points;
 
-      expect(points(avantVerification.body)).toBe(0);
+      const avantVerification = await avec(app, agence)
+        .get(`/api/missions/${id}/candidats`)
+        .expect(200);
+
+      // Mesure relative, et non « zero point ».
+      //
+      // Depuis que la duree d'exercice prealable ferme la porte, un candidat
+      // retenu a forcement du terrain verifie derriere lui : le jeu d'essai lui
+      // en donne quatre ans, sans quoi il ne figurerait pas dans `retenus`. Un
+      // profil eligible a zero point d'experience n'existe plus, et l'exiger
+      // ici testerait une situation que la regle interdit.
+      //
+      // L'invariant, lui, est intact et c'est celui qu'on verifie : le poste
+      // fraichement declare ne rapporte rien tant que l'agence ne l'a pas vu.
+      const base = points(avantVerification.body);
+
+      expect(base).toBeGreaterThan(0);
+      expect(base).toBeLessThan(40);
 
       await prisma.experienceProfessionnelle.update({
         where: { id: poste.id },
@@ -175,38 +188,61 @@ describe('classement des candidats', () => {
 
       const apres = await avec(app, agence).get(`/api/missions/${id}/candidats`).expect(200);
 
-      // Plus de cinq ans de terrain sur le diplome exige : la composante est au
-      // maximum.
+      // Huit ans de plus sur le diplome exige : la composante passe au maximum.
       expect(points(apres.body)).toBe(40);
+      expect(points(apres.body)).toBeGreaterThan(base);
     });
 
+    /**
+     * La ponderation, mesuree en comparant la meme annee comptee deux fois.
+     *
+     * Une valeur absolue ne dirait plus rien : le candidat porte deja les
+     * quatre ans verifies que la duree d'exercice prealable lui impose, et une
+     * annee de plus sature vite le plafond. On pose donc la meme periode, une
+     * fois hors referentiel et une fois sur le diplome exige, et on regarde
+     * l'ecart. C'est exactement ce que la ponderation pretend produire.
+     *
+     * La periode est placee bien avant les quatre ans du jeu d'essai, et non
+     * dedans : le plafond calendaire compte l'union des periodes, et une annee
+     * incluse dans une autre n'ajouterait rien a mesurer.
+     */
     it('ne compte qu a moitie une experience hors du metier exige', async () => {
-      await prisma.experienceProfessionnelle.create({
-        data: {
-          candidatId: jeu.candidatA,
-          // Sans rattachement au referentiel : un poste qui dit quelque chose
-          // de la personne au travail, rien de ce metier-ci.
-          qualificationId: null,
-          employeur: 'Supermarche',
-          intitule: 'Hotesse de caisse',
-          debutLe: new Date('2018-01-01T00:00:00.000Z'),
-          quotitePourcent: 100,
-          verifieeLe: new Date(),
-          verifieePar: 'agence',
-        },
+      const annee = {
+        candidatId: jeu.candidatA,
+        employeur: 'Supermarche',
+        intitule: 'Hotesse de caisse',
+        debutLe: new Date('2010-01-01T00:00:00.000Z'),
+        finLe: new Date('2011-01-01T00:00:00.000Z'),
+        quotitePourcent: 100,
+        verifieeLe: new Date(),
+        verifieePar: 'agence',
+      };
+
+      const composanteExperience = async (): Promise<{ points: number; explication: string }> => {
+        const id = await publier();
+        const reponse = await avec(app, agence).get(`/api/missions/${id}/candidats`).expect(200);
+
+        return reponse.body.retenus
+          .find((ligne: { candidat: { id: string } }) => ligne.candidat.id === jeu.candidatA)
+          .score.composantes.find((c: { cle: string }) => c.cle === 'experience');
+      };
+
+      // Sans rattachement au referentiel : un poste qui dit quelque chose de la
+      // personne au travail, rien de ce metier-ci.
+      const horsMetier = await prisma.experienceProfessionnelle.create({
+        data: { ...annee, qualificationId: null },
       });
+      const sansRattachement = await composanteExperience();
 
-      const id = await publier();
-      const reponse = await avec(app, agence).get(`/api/missions/${id}/candidats`).expect(200);
+      await prisma.experienceProfessionnelle.update({
+        where: { id: horsMetier.id },
+        data: { qualificationId: jeu.qualification },
+      });
+      const surLeMetier = await composanteExperience();
 
-      const composante = reponse.body.retenus
-        .find((ligne: { candidat: { id: string } }) => ligne.candidat.id === jeu.candidatA)
-        .score.composantes.find((c: { cle: string }) => c.cle === 'experience');
-
-      // Huit ans hors metier, ramenes a quatre : en dessous du plafond de cinq.
-      expect(composante.points).toBeGreaterThan(0);
-      expect(composante.points).toBeLessThan(40);
-      expect(composante.explication).toMatch(/moitie/);
+      expect(sansRattachement.points).toBeGreaterThan(0);
+      expect(sansRattachement.points).toBeLessThan(surLeMetier.points);
+      expect(sansRattachement.explication).toMatch(/moitie/);
     });
 
     it('ecarte, avec le motif, un profil sans le diplome exige', async () => {

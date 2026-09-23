@@ -79,6 +79,21 @@ const erreur = ref('');
 const horsRayon = computed(() => mission.value?.horsRayon === true);
 
 /**
+ * La durée d'exercice préalable est-elle atteinte ?
+ *
+ * Même principe que pour le rayon : la réponse vient du prérequis servi par
+ * l'API, pas d'un calcul ici. C'est une porte légale — la mise à disposition
+ * n'est pas permise en dessous du seuil (loi Valletoux, art. 8) — et la
+ * candidature est refusée de toute façon. L'annoncer avant le clic évite un
+ * bouton qui promet puis refuse.
+ */
+const exercice = computed(() =>
+  (mission.value?.prerequis ?? []).find((prerequis) => prerequis.cle === 'exercice'),
+);
+
+const exerciceInsuffisant = computed(() => exercice.value?.verifie === false);
+
+/**
  * La candidature est un appel API, pas un lien.
  *
  * La porte d'eligibilite est cote serveur : elle repond 403 avec le motif exact
@@ -222,6 +237,19 @@ async function partager(): Promise<void> {
             déclaré. Vous pouvez l'élargir depuis votre profil.
           </p>
           <AppBouton variante="secondaire" to="/mon-profil">Ajuster mon rayon</AppBouton>
+        </template>
+
+        <template v-else-if="exerciceInsuffisant">
+          <p class="refus" role="alert">
+            Vous n'avez pas encore la durée d'exercice suffisante pour postuler sur ce poste.
+          </p>
+          <p class="explication">
+            {{ exercice?.libelle }}. L'intérim en établissement de santé ou médico-social suppose
+            une durée minimale d'exercice préalable du métier. Seuls les postes vérifiés par
+            l'agence, sur certificat de travail, sont comptés : si vous avez déjà exercé,
+            déclarez-le depuis votre profil et l'agence contrôlera la pièce.
+          </p>
+          <AppBouton variante="secondaire" to="/mon-profil">Compléter mon parcours</AppBouton>
         </template>
 
         <template v-else>

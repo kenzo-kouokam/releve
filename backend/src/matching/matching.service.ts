@@ -152,6 +152,18 @@ export class MatchingService {
         // besoin, ce qui est exactement le propos.
         qualifiante: poste.qualificationId === qualificationRequiseId,
       })),
+      // Tous postes du referentiel confondus, et non ceux de la mission : c'est
+      // la duree d'exercice du metier que la loi regarde, pas l'adequation au
+      // besoin. Une aide-soignante de huit ans qui postule sur une mission
+      // DEAES n'est pas en debut de carriere.
+      heuresExercice: heuresExercice(
+        fiche.experiences.map((poste) => ({
+          debutLe: poste.debutLe,
+          finLe: poste.finLe,
+          quotitePourcent: poste.quotitePourcent,
+          duReferentiel: poste.qualificationId !== null,
+        })),
+      ),
       creneaux: fiche.disponibilites,
       absences: fiche.indisponibilites,
       engagements: fiche.missions,

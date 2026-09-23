@@ -260,6 +260,63 @@ describe('missions et candidatures', () => {
       expect(reponse.body.message).toMatch(/DEAS/);
     });
 
+    /**
+     * La duree d'exercice prealable ferme la candidature, pas seulement le
+     * classement.
+     *
+     * C'est une porte legale et non une penalite de score : en dessous du
+     * seuil, la mise a disposition n'est pas permise, diplome ou pas. Le
+     * message doit le dire au candidat et chiffrer ce qui manque — c'est la
+     * seule information dont il puisse faire quelque chose.
+     */
+    it('refuse une duree d exercice insuffisante, avec le motif chiffre', async () => {
+      await diplomer();
+      // Le jeu d'essai donne quatre ans d'exercice verifie a chaque candidat :
+      // on les retire pour eprouver cette porte-la.
+      await prisma.experienceProfessionnelle.deleteMany({ where: { candidatId: jeu.candidatA } });
+
+      const id = await publier();
+      const reponse = await avec(app, candidat)
+        .post(`/api/missions/${id}/candidatures`)
+        .send({})
+        .expect(403);
+
+      expect(reponse.body.message).toMatch(/exercice/i);
+      expect(reponse.body.message).toMatch(/3\s?214/);
+    });
+
+    it('annonce la duree d exercice dans les prerequis de la fiche', async () => {
+      await diplomer();
+      await prisma.experienceProfessionnelle.deleteMany({ where: { candidatId: jeu.candidatA } });
+
+      const id = await publier();
+      const reponse = await avec(app, candidat).get(`/api/missions/${id}`).expect(200);
+
+      const exercice = reponse.body.prerequis.find(
+        (prerequis: { cle: string }) => prerequis.cle === 'exercice',
+      );
+
+      // Annonce avant le clic : la fiche doit pouvoir le dire sans attendre un
+      // refus.
+      expect(exercice).toBeDefined();
+      expect(exercice.verifie).toBe(false);
+    });
+
+    it('laisse postuler une fois la duree d exercice atteinte', async () => {
+      await diplomer();
+
+      const id = await publier();
+      const reponse = await avec(app, candidat).get(`/api/missions/${id}`).expect(200);
+
+      const exercice = reponse.body.prerequis.find(
+        (prerequis: { cle: string }) => prerequis.cle === 'exercice',
+      );
+
+      expect(exercice.verifie).toBe(true);
+
+      await avec(app, candidat).post(`/api/missions/${id}/candidatures`).send({}).expect(201);
+    });
+
     it('refuse un diplome expire', async () => {
       await diplomer(new Date('2020-01-01'));
       const id = await publier();

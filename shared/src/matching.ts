@@ -80,7 +80,14 @@ export interface ScoreDetail {
  * plus courte sans explication.
  */
 export interface MotifExclusion {
-  cle: 'statut' | 'diplome' | 'indisponible' | 'deja-engage' | 'hors-rayon' | 'sans-adresse';
+  cle:
+    | 'statut'
+    | 'diplome'
+    | 'experience'
+    | 'indisponible'
+    | 'deja-engage'
+    | 'hors-rayon'
+    | 'sans-adresse';
   libelle: string;
 }
 

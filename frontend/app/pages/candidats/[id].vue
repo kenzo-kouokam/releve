@@ -146,6 +146,27 @@ function basculerVerificationPoste(experienceId: string, verifiee: boolean): Pro
   );
 }
 
+/**
+ * Rattacher un poste au bon diplome, ou l'en detacher.
+ *
+ * C'est l'agence qui lit le certificat de travail : elle seule sait a quel
+ * diplome un poste correspond vraiment. Sans ce geste, un poste saisi sans
+ * rattachement — le cas par defaut de l'ancien formulaire — ne pouvait etre
+ * corrige qu'en le supprimant, ce qui effacait aussi la trace du controle.
+ */
+function rattacherPoste(
+  experienceId: string,
+  verifiee: boolean,
+  valeur: string,
+): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'PATCH',
+      body: { verifiee, qualificationId: valeur === '' ? null : valeur },
+    }),
+  );
+}
+
 function retirerPoste(experienceId: string): Promise<void> {
   return appliquer(() =>
     requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
@@ -166,6 +187,29 @@ const ESPACE_FINE = String.fromCharCode(0x202f);
 function enHeures(heures: number): string {
   return `${heures.toLocaleString('fr-FR')}${ESPACE_FINE}h`;
 }
+
+/**
+ * Les lignes s'additionnent-elles au total ?
+ *
+ * Pas toujours, et il faut le dire : deux postes menes en parallele comptent
+ * chacun leurs heures sur leur ligne, mais le total est plafonne au temps
+ * reellement ecoule — deux temps pleins superposes sur une annee ne font pas
+ * deux ans de metier. Sans cette phrase, l'ecran donne l'impression de compter
+ * faux.
+ */
+const periodesSeRecouvrent = computed(() => {
+  const bilan = candidat.value?.exercicePrealable;
+
+  if (!bilan) return false;
+
+  const somme = (candidat.value?.experiences ?? [])
+    .filter((poste) => poste.qualificationId !== null && poste.verifieeLe !== null)
+    .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
+
+  // Une heure de tolerance : les arrondis de chaque ligne ne sont pas un
+  // recouvrement.
+  return somme > bilan.heuresVerifiees + 1;
+});
 
 /** Remplissage de la jauge, borne : au-dela du seuil elle reste pleine. */
 const partExercice = computed(() => {
@@ -459,6 +503,12 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
           </p>
         </div>
 
+        <p v-if="periodesSeRecouvrent" class="aide">
+          Le total est inferieur a la somme des lignes : deux postes se recouvrent dans le temps.
+          Chacun garde ses heures, mais la duree retenue ne depasse pas le temps reellement ecoule
+          — deux temps pleins menes la meme annee ne font pas deux ans de metier.
+        </p>
+
         <p class="aide">
           Seul l exercice rattache au referentiel est compte, au prorata du temps de travail, sur
           une base de 1 607 heures par an. Ce seuil s affiche mais ne ferme rien : c est a vous de
@@ -487,6 +537,26 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
                   &middot; verifie par {{ poste.verifieePar }}
                 </template>
               </p>
+
+              <label class="rattachement">
+                <span>Diplome correspondant</span>
+                <select
+                  :value="poste.qualificationId ?? ''"
+                  :disabled="enCours"
+                  @change="
+                    rattacherPoste(
+                      poste.id,
+                      poste.verifieeLe !== null,
+                      ($event.target as HTMLSelectElement).value,
+                    )
+                  "
+                >
+                  <option value="">Aucun / hors referentiel</option>
+                  <option v-for="q in referentiel ?? []" :key="q.id" :value="q.id">
+                    {{ q.code }} - {{ q.libelle }}
+                  </option>
+                </select>
+              </label>
             </div>
 
             <span v-if="poste.verifieeLe" class="etat verifiee">Verifie</span>
@@ -913,6 +983,23 @@ button:disabled {
 
 .exercice .detail {
   margin: 0;
+}
+
+/* Le rattachement se corrige sur place : c'est un geste de verification, pas un
+ * formulaire a part. */
+.rattachement {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.rattachement select {
+  max-width: 320px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
 }
 
 .aide {
