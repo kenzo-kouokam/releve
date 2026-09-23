@@ -60,6 +60,7 @@ const fichePourScore = Prisma.validator<Prisma.CandidatDefaultArgs>()({
         finLe: true,
         quotitePourcent: true,
         qualificationId: true,
+        exerciceMetier: true,
       },
     },
     disponibilites: {
@@ -161,7 +162,7 @@ export class MatchingService {
           debutLe: poste.debutLe,
           finLe: poste.finLe,
           quotitePourcent: poste.quotitePourcent,
-          duReferentiel: poste.qualificationId !== null,
+          compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
         })),
       ),
       creneaux: fiche.disponibilites,
@@ -197,7 +198,7 @@ export class MatchingService {
         debutLe: poste.debutLe,
         finLe: poste.finLe,
         quotitePourcent: poste.quotitePourcent,
-        duReferentiel: poste.qualificationId !== null,
+        compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
       })),
     );
 

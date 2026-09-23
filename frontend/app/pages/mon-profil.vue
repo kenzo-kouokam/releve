@@ -214,16 +214,20 @@ const localisation = computed(() => {
 /* -------------------------------------------------------------------- experience */
 
 /**
- * « Hors referentiel », choisi explicitement.
+ * Les deux reponses possibles quand aucun diplome du referentiel ne s'applique.
  *
- * Distinct de la chaine vide, qui veut dire « rien de choisi ». Les deux se
- * confondaient : « Aucun / hors referentiel » etait la premiere option du menu,
- * donc pre-selectionnee, et un poste declare sans y toucher partait hors
- * referentiel en silence. Anodin tant que cela ne coutait que la moitie des
- * points ; bloquant depuis que la duree d'exercice prealable ferme la porte —
- * onze mille heures d'aide-soignant ont ainsi compte pour zero.
+ * Toutes deux distinctes de la chaine vide, qui veut dire « rien de choisi » :
+ * « Aucun / hors referentiel » etait la premiere option du menu, donc
+ * pre-selectionnee, et un poste declare sans y toucher partait hors referentiel
+ * en silence — onze mille heures d'aide-soignant ont ainsi compte pour zero.
+ *
+ * Et surtout, elles ne disent pas la meme chose. Un faisant fonction
+ * d'aide-soignant, un agent de service, une auxiliaire de vie exercent le
+ * metier sans detenir le DEAS ni le DEAES ; une hotesse de caisse, non. Le menu
+ * ne savait pas les distinguer, et les comptait tous les deux pour zero heure.
  */
-const HORS_REFERENTIEL = 'AUCUN';
+const SECTEUR = 'SECTEUR';
+const HORS_SECTEUR = 'HORS_SECTEUR';
 
 const nouveauPoste = reactive({
   employeur: '',
@@ -256,7 +260,7 @@ const periodesSeRecouvrent = computed(() => {
   if (!bilan) return false;
 
   const somme = (profil.value?.experiences ?? [])
-    .filter((poste) => poste.qualificationId !== null && poste.verifieeLe !== null)
+    .filter((poste) => poste.compteDansExercice && poste.verifieeLe !== null)
     .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
 
   return somme > bilan.heuresVerifiees + 1;
@@ -312,11 +316,14 @@ function declarerPoste(): Promise<void> {
           intitule: nouveauPoste.intitule,
           debutLe: nouveauPoste.debutLe,
           quotitePourcent: nouveauPoste.quotitePourcent,
-          // La sentinelle reste cote ecran : l'API ne connait que « un
-          // identifiant » ou « rien ».
-          ...(nouveauPoste.qualificationId && nouveauPoste.qualificationId !== HORS_REFERENTIEL
+          // Les sentinelles restent cote ecran : l'API recoit un identifiant de
+          // diplome, ou bien le drapeau « exercice du secteur ».
+          ...(nouveauPoste.qualificationId &&
+          nouveauPoste.qualificationId !== SECTEUR &&
+          nouveauPoste.qualificationId !== HORS_SECTEUR
             ? { qualificationId: nouveauPoste.qualificationId }
             : {}),
+          exerciceMetier: nouveauPoste.qualificationId === SECTEUR,
           ...(nouveauPoste.finLe ? { finLe: nouveauPoste.finLe } : {}),
         },
       }).then((fiche) => {
@@ -518,7 +525,8 @@ function retirerPoste(id: string): Promise<void> {
         </p>
         <p v-else class="commentaire">
           Il manque {{ enHeures(profil.exercicePrealable.heuresManquantes) }} d'exercice vérifié
-          pour atteindre la durée attendue avant une mise à disposition.
+          avant de pouvoir postuler : la mise à disposition en intérim suppose une durée minimale
+          d'exercice préalable du métier.
           <template v-if="heuresEnAttente > 0">
             {{ enHeures(heuresEnAttente) }} attendent d'être vérifiées par l'agence.
           </template>
@@ -553,9 +561,13 @@ function retirerPoste(id: string): Promise<void> {
               <template v-if="poste.qualificationLibelle">
                 · {{ poste.qualificationLibelle }}
               </template>
+              <template v-else-if="poste.exerciceMetier">
+                · expérience du secteur : compte dans la durée d'exercice, et pour moitié au
+                classement
+              </template>
               <template v-else>
-                · hors référentiel : compte pour moitié au classement, et pas du tout dans la
-                durée d'exercice ci-dessus
+                · hors du secteur : compte pour moitié au classement, et pas du tout dans la durée
+                d'exercice ci-dessus
               </template>
             </p>
           </div>
@@ -597,13 +609,17 @@ function retirerPoste(id: string): Promise<void> {
             <option v-for="option in referentiel ?? []" :key="option.id" :value="option.id">
               {{ option.libelle }}
             </option>
-            <option :value="HORS_REFERENTIEL">Aucun / hors référentiel</option>
+            <option :value="SECTEUR">
+              Expérience professionnelle du secteur (sans diplôme du référentiel)
+            </option>
+            <option :value="HORS_SECTEUR">Un autre métier, hors du secteur</option>
           </select>
           <em class="aide">
-            À renseigner : un poste laissé sans correspondance ne compte que pour moitié au
-            classement, et <strong>pas du tout</strong> dans la durée d'exercice exigée avant une
-            mise à disposition. Un poste d'aide-soignant se rattache au DEAS, même si l'intitulé du
-            contrat disait autre chose.
+            À renseigner. Un poste d'aide-soignant se rattache au DEAS, même si l'intitulé du
+            contrat disait autre chose. Sans diplôme applicable — faisant fonction, agent de
+            service, auxiliaire de vie —, choisissez <strong>expérience du secteur</strong> : elle
+            compte dans la durée d'exercice. <strong>Un autre métier</strong> ne compte que pour
+            moitié au classement, et pas du tout dans cette durée.
           </em>
         </label>
 

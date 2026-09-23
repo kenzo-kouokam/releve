@@ -154,17 +154,33 @@ function basculerVerificationPoste(experienceId: string, verifiee: boolean): Pro
  * rattachement — le cas par defaut de l'ancien formulaire — ne pouvait etre
  * corrige qu'en le supprimant, ce qui effacait aussi la trace du controle.
  */
+const SECTEUR = 'SECTEUR';
+const HORS_SECTEUR = 'HORS_SECTEUR';
+
 function rattacherPoste(
   experienceId: string,
   verifiee: boolean,
   valeur: string,
 ): Promise<void> {
+  const diplome = valeur !== SECTEUR && valeur !== HORS_SECTEUR;
+
   return appliquer(() =>
     requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
       method: 'PATCH',
-      body: { verifiee, qualificationId: valeur === '' ? null : valeur },
+      body: {
+        verifiee,
+        qualificationId: diplome ? valeur : null,
+        exerciceMetier: valeur === SECTEUR,
+      },
     }),
   );
+}
+
+/** Ce que le menu doit montrer comme selectionne, pour une ligne donnee. */
+function choixPoste(poste: { qualificationId: string | null; exerciceMetier: boolean }): string {
+  if (poste.qualificationId) return poste.qualificationId;
+
+  return poste.exerciceMetier ? SECTEUR : HORS_SECTEUR;
 }
 
 function retirerPoste(experienceId: string): Promise<void> {
@@ -203,7 +219,7 @@ const periodesSeRecouvrent = computed(() => {
   if (!bilan) return false;
 
   const somme = (candidat.value?.experiences ?? [])
-    .filter((poste) => poste.qualificationId !== null && poste.verifieeLe !== null)
+    .filter((poste) => poste.compteDansExercice && poste.verifieeLe !== null)
     .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
 
   // Une heure de tolerance : les arrondis de chaque ligne ne sont pas un
@@ -510,9 +526,10 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
         </p>
 
         <p class="aide">
-          Seul l exercice rattache au referentiel est compte, au prorata du temps de travail, sur
-          une base de 1 607 heures par an. Ce seuil s affiche mais ne ferme rien : c est a vous de
-          trancher sur piece, le calcul ne fait que rendre lisible ce que les dates declarent.
+          Comptent les postes rattaches a un diplome du referentiel, et ceux que vous reconnaissez
+          comme exercice du secteur — faisant fonction, agent de service, auxiliaire de vie —, au
+          prorata du temps de travail, sur une base de 1 607 heures par an. C est a vous de
+          trancher sur piece : le calcul ne fait que rendre lisible ce que les dates declarent.
         </p>
 
         <p v-if="!candidat.experiences.length" class="vide">Aucun poste declare.</p>
@@ -532,7 +549,10 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
                 <template v-if="poste.qualificationLibelle">
                   &middot; {{ poste.qualificationLibelle }}
                 </template>
-                <template v-else>&middot; hors referentiel, ne compte pas ici</template>
+                <template v-else-if="poste.exerciceMetier">
+                  &middot; exercice du secteur, sans diplome rattache
+                </template>
+                <template v-else>&middot; hors du secteur, ne compte pas ici</template>
                 <template v-if="poste.verifieePar">
                   &middot; verifie par {{ poste.verifieePar }}
                 </template>
@@ -541,7 +561,7 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
               <label class="rattachement">
                 <span>Diplome correspondant</span>
                 <select
-                  :value="poste.qualificationId ?? ''"
+                  :value="choixPoste(poste)"
                   :disabled="enCours"
                   @change="
                     rattacherPoste(
@@ -551,10 +571,11 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
                     )
                   "
                 >
-                  <option value="">Aucun / hors referentiel</option>
                   <option v-for="q in referentiel ?? []" :key="q.id" :value="q.id">
                     {{ q.code }} - {{ q.libelle }}
                   </option>
+                  <option :value="SECTEUR">Experience professionnelle du secteur</option>
+                  <option :value="HORS_SECTEUR">Un autre metier, hors du secteur</option>
                 </select>
               </label>
             </div>

@@ -145,6 +145,8 @@ function versExperienceResume(experience: ExperienceChargee, reference: Date): E
     intitule: experience.intitule,
     qualificationId: experience.qualificationId,
     qualificationLibelle: experience.qualification?.libelle ?? null,
+    exerciceMetier: experience.exerciceMetier,
+    compteDansExercice: experience.qualificationId !== null || experience.exerciceMetier,
     debutLe: enDateIso(experience.debutLe)!,
     finLe: enDateIso(experience.finLe),
     quotitePourcent: experience.quotitePourcent,
@@ -160,9 +162,11 @@ function versExperienceResume(experience: ExperienceChargee, reference: Date): E
 /**
  * Ou en est le candidat de l'exercice prealable exige.
  *
- * Ne comptent que les postes **rattaches au referentiel** : la loi parle
- * d'exercice du metier, et un poste hors referentiel — qui pese pourtant pour
- * moitie au bareme — ne dit rien de celui-ci.
+ * Ne comptent que les postes qui relevent du metier : ceux rattaches a une
+ * qualification du referentiel, et ceux que l'agence a reconnus comme exercice
+ * du secteur sans diplome applicable — faisant fonction, agent de service,
+ * auxiliaire de vie. Un poste hors secteur pese pour moitie au bareme, parce
+ * qu'il dit quelque chose de quelqu'un au travail, mais rien du metier.
  *
  * Aucun plafond n'est applique, a la difference du bareme. Le plafond de cinq
  * ans existe pour eviter de departager deux professionnelles sur une difference
@@ -180,7 +184,7 @@ function bilanExercicePrealable(
     debutLe: ligne.debutLe,
     finLe: ligne.finLe,
     quotitePourcent: ligne.quotitePourcent,
-    duReferentiel: ligne.qualificationId !== null,
+    compteCommeExercice: ligne.qualificationId !== null || ligne.exerciceMetier,
   });
 
   const heuresVerifiees = heuresExercice(
@@ -544,6 +548,10 @@ export class CandidatsService {
         employeur: donnees.employeur,
         intitule: donnees.intitule,
         qualificationId: donnees.qualificationId ?? null,
+        // Sans portee quand un diplome est rattache : le calcul lit
+        // « qualificationId non nul OU exerciceMetier », jamais les deux
+        // separement, pour qu'ils ne puissent pas se contredire.
+        exerciceMetier: donnees.exerciceMetier,
         debutLe: versDate(donnees.debutLe)!,
         finLe: versDate(donnees.finLe) ?? null,
         quotitePourcent: donnees.quotitePourcent,
@@ -576,8 +584,14 @@ export class CandidatsService {
     // Le rattachement n'est touche que s'il est fourni : `undefined` laisse la
     // ligne telle quelle, `null` la detache. Sans cette distinction, tout appel
     // qui se contente de verifier effacerait le diplome au passage.
-    const rattachement =
-      donnees.qualificationId === undefined ? {} : { qualificationId: donnees.qualificationId };
+    const rattachement = {
+      ...(donnees.qualificationId === undefined
+        ? {}
+        : { qualificationId: donnees.qualificationId }),
+      ...(donnees.exerciceMetier === undefined
+        ? {}
+        : { exerciceMetier: donnees.exerciceMetier }),
+    };
 
     if (donnees.qualificationId) {
       // Une qualification d'un autre referentiel que celui de l'agence n'existe

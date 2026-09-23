@@ -24,6 +24,22 @@ export const experienceCreateSchema = z
      */
     qualificationId: z.string().uuid('Identifiant de qualification invalide').optional(),
 
+    /**
+     * Le poste relève du secteur, sans qu'aucun diplôme du référentiel s'y
+     * applique.
+     *
+     * Le troisième cas, et il manquait. Un faisant fonction d'aide-soignant, un
+     * agent de service hospitalier, une auxiliaire de vie à domicile exercent le
+     * métier sans détenir le DEAS ni le DEAES : les ranger avec un poste de
+     * caisse effaçait des années de terrain. Sans portée tant que
+     * `qualificationId` est renseigné — un poste diplômant relève du métier par
+     * construction.
+     *
+     * Déclaratif comme le reste, et sans effet tant que l'agence n'a pas vérifié
+     * la ligne : c'est elle qui lit le certificat et tranche.
+     */
+    exerciceMetier: z.boolean().default(false),
+
     debutLe: z.string().trim().regex(MOTIF_DATE_ISO, 'Date invalide (format AAAA-MM-JJ)'),
     /** Absente quand le poste est toujours occupé. */
     finLe: z.string().trim().regex(MOTIF_DATE_ISO, 'Date invalide (format AAAA-MM-JJ)').optional(),
@@ -88,6 +104,15 @@ export const experienceVerificationSchema = z.object({
     .uuid('Identifiant de qualification invalide')
     .nullable()
     .optional(),
+
+  /**
+   * Requalifie le poste en exercice du secteur, sans diplôme rattaché.
+   *
+   * Même logique que `qualificationId` : absent, la valeur existante est
+   * laissée telle quelle. C'est l'agence qui tranche, sur le certificat de
+   * travail, si un poste sans diplôme relève du métier ou d'autre chose.
+   */
+  exerciceMetier: z.boolean().optional(),
 });
 
 export type ExperienceVerification = z.infer<typeof experienceVerificationSchema>;
@@ -99,6 +124,18 @@ export interface ExperienceResume {
   qualificationId: string | null;
   /** Libellé de la qualification rattachée, null hors référentiel. */
   qualificationLibelle: string | null;
+  /**
+   * Relève du secteur sans diplôme rattaché. Sans portée quand
+   * `qualificationId` est renseigné : un poste diplômant relève du métier par
+   * construction.
+   */
+  exerciceMetier: boolean;
+  /**
+   * Ce que la ligne pèse dans la durée d'exercice : `qualificationId` renseigné
+   * ou `exerciceMetier`. Calculé au serveur pour que les trois écrans classent
+   * une ligne de la même façon.
+   */
+  compteDansExercice: boolean;
   debutLe: string;
   finLe: string | null;
   quotitePourcent: number;
@@ -149,9 +186,15 @@ export const HEURES_PAR_MOIS = HEURES_PAR_AN_LEGALES / 12;
  * mesurons, et elle a un mérite précis : le temps partiel est la norme dans ce
  * secteur, et deux ans à mi-temps ne sont pas deux ans d'exercice.
  *
- * Conséquence pratique : ce seuil s'**affiche**, il ne ferme rien. Un candidat
- * en dessous reste proposable — c'est à l'agence de trancher sur pièce, pas à
- * un calcul dérivé de dates déclaratives.
+ * Ce seuil **ferme** la candidature : en dessous, `motifsExclusion` écarte le
+ * profil du classement et `postuler` répond 403 avec le motif chiffré. Ce n'est
+ * pas une pénalité de score mais une porte, parce que la mise à disposition
+ * n'est pas permise — le reste du profil n'y change rien.
+ *
+ * Ce que l'agence garde en main : ce qui est *compté*. Une ligne ne pèse qu'une
+ * fois vérifiée sur certificat, et c'est elle qui décide si un poste sans
+ * diplôme relève du métier (`exerciceMetier`) ou d'autre chose. Le calcul rend
+ * lisibles des dates déclarées ; il ne juge pas à la place de qui lit la pièce.
  */
 export const SEUIL_EXERCICE_PREALABLE_HEURES = 2 * HEURES_PAR_AN_LEGALES;
 

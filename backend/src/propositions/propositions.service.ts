@@ -53,6 +53,7 @@ const avecRelations = Prisma.validator<Prisma.PropositionDefaultArgs>()({
             finLe: true,
             quotitePourcent: true,
             qualificationId: true,
+            exerciceMetier: true,
           },
         },
         _count: { select: { missions: true } },
@@ -141,7 +142,7 @@ export class PropositionsService {
         debutLe: poste.debutLe,
         finLe: poste.finLe,
         quotitePourcent: poste.quotitePourcent,
-        duReferentiel: poste.qualificationId !== null,
+        compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
       })),
     );
 

@@ -599,6 +599,26 @@ model ExperienceProfessionnelle {
   /// de terrain surestimerait la moitie du vivier.
   quotitePourcent Int @default(100)
 
+  /// Le poste releve-t-il du secteur, sans diplome du referentiel ?
+  ///
+  /// Troisieme cas, entre les deux que le modele savait dire. Un poste rattache
+  /// a une qualification releve du metier, c'est acquis ; un poste de caisse
+  /// n'en releve pas, c'est acquis aussi. Entre les deux vivent le faisant
+  /// fonction d'aide-soignant, l'agent de service hospitalier, l'auxiliaire de
+  /// vie a domicile : du soin, exerce pour de bon, sans qu'aucun des deux
+  /// diplomes ne s'applique. Les ranger avec la caisse revenait a effacer des
+  /// annees de terrain — et depuis que la duree d'exercice prealable ferme la
+  /// porte, a ecarter la personne de toute mission.
+  ///
+  /// Ne vaut que lorsque `qualificationId` est nul : un poste diplomant releve
+  /// du metier par construction, et le calcul lit `qualificationId != null ||
+  /// exerciceMetier` plutot que de faire confiance a deux champs qui pourraient
+  /// se contredire.
+  ///
+  /// Comme le reste, cela ne compte qu'une fois verifie par l'agence : c'est
+  /// elle qui lit le certificat et tranche si le poste releve du secteur.
+  exerciceMetier Boolean @default(false)
+
   description String?
 
   /// Controle par l'agence, sur certificat de travail ou attestation. Tant

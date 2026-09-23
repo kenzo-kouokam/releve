@@ -302,6 +302,56 @@ describe('missions et candidatures', () => {
       expect(exercice.verifie).toBe(false);
     });
 
+    /**
+     * L'exercice du secteur ouvre la porte au meme titre qu'un poste diplomant.
+     *
+     * Un faisant fonction d'aide-soignant n'a pas le diplome du poste qu'il a
+     * tenu pendant quatre ans ; il l'a tenu quand meme. La ligne est reconnue
+     * par l'agence, sur certificat, et compte alors dans la duree.
+     */
+    it('compte un poste du secteur reconnu par l agence', async () => {
+      await diplomer();
+      await prisma.experienceProfessionnelle.deleteMany({ where: { candidatId: jeu.candidatA } });
+
+      const debut = new Date();
+      debut.setFullYear(debut.getFullYear() - 4);
+
+      const poste = await prisma.experienceProfessionnelle.create({
+        data: {
+          candidatId: jeu.candidatA,
+          qualificationId: null,
+          employeur: 'Hopital des Lilas',
+          intitule: 'Faisant fonction d aide-soignant',
+          debutLe: debut,
+          quotitePourcent: 100,
+          verifieeLe: new Date(),
+          verifieePar: 'test',
+        },
+      });
+
+      const id = await publier();
+
+      // Hors secteur par defaut : quatre ans de terrain, zero heure retenue.
+      const avant = await avec(app, candidat).get(`/api/missions/${id}`).expect(200);
+
+      expect(
+        avant.body.prerequis.find((p: { cle: string }) => p.cle === 'exercice').verifie,
+      ).toBe(false);
+
+      await prisma.experienceProfessionnelle.update({
+        where: { id: poste.id },
+        data: { exerciceMetier: true },
+      });
+
+      const apres = await avec(app, candidat).get(`/api/missions/${id}`).expect(200);
+
+      expect(
+        apres.body.prerequis.find((p: { cle: string }) => p.cle === 'exercice').verifie,
+      ).toBe(true);
+
+      await avec(app, candidat).post(`/api/missions/${id}/candidatures`).send({}).expect(201);
+    });
+
     it('laisse postuler une fois la duree d exercice atteinte', async () => {
       await diplomer();
 

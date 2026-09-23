@@ -134,7 +134,8 @@ export function bilanExperience(
 /**
  * Un poste tel que l'exercice préalable le compte.
  *
- * `duReferentiel` ne dit pas la même chose que `qualifiante` plus haut, et les
+ * `compteCommeExercice` ne dit pas la même chose que `qualifiante` plus haut,
+ * et les
  * confondre fausserait tout. `qualifiante` répond à « ce poste relève-t-il du
  * diplôme **exigé par cette mission** » — une question qui n'a de sens que face
  * à un besoin. Ici il s'agit de « ce poste relève-t-il du métier », sans
@@ -145,8 +146,16 @@ export interface PosteExerce {
   debutLe: Date;
   finLe: Date | null;
   quotitePourcent: number;
-  /** Rattaché à une qualification du référentiel, n'importe laquelle. */
-  duReferentiel: boolean;
+  /**
+   * Le poste relève du métier : soit il est rattaché à une qualification du
+   * référentiel — n'importe laquelle —, soit l'agence l'a reconnu comme exercice
+   * du secteur sans diplôme applicable.
+   *
+   * Ce second cas n'existait pas, et son absence coûtait cher : un faisant
+   * fonction d'aide-soignant se rangeait avec une hôtesse de caisse, et ses
+   * années de terrain valaient zéro heure.
+   */
+  compteCommeExercice: boolean;
 }
 
 /**
@@ -158,16 +167,18 @@ export interface PosteExerce {
  * l'établissement ne constatera jamais ; l'appliquer à un seuil d'exercice
  * reviendrait à déclarer qu'au-delà de cinq ans on n'a plus exercé.
  *
- * Les postes hors référentiel sont simplement ignorés. Ils pèsent pour moitié
- * au barème, parce qu'ils disent quelque chose de quelqu'un au travail ; la loi,
+ * Les postes hors secteur sont simplement ignorés. Ils pèsent pour moitié au
+ * barème, parce qu'ils disent quelque chose de quelqu'un au travail ; la loi,
  * elle, parle d'exercice du métier, et une année de caisse n'en est pas une.
+ * Un poste du secteur sans diplôme rattaché, lui, compte : c'est bien le métier
+ * qui a été exercé.
  */
 export function heuresExercice(postes: PosteExerce[], reference: Date = new Date()): number {
   let mois = 0;
   const periodes: [number, number][] = [];
 
   for (const poste of postes) {
-    if (!poste.duReferentiel) {
+    if (!poste.compteCommeExercice) {
       continue;
     }
 

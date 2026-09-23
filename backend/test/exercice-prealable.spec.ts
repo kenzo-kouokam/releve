@@ -27,7 +27,7 @@ function poste(surcharge: Partial<PosteExerce> = {}): PosteExerce {
     debutLe: new Date('2024-09-23T00:00:00Z'),
     finLe: new Date('2026-09-23T00:00:00Z'),
     quotitePourcent: 100,
-    duReferentiel: true,
+    compteCommeExercice: true,
     ...surcharge,
   };
 }
@@ -81,14 +81,37 @@ describe('exercice prealable', () => {
     expect(moitie).toBe(Math.round(plein / 2));
   });
 
-  it('ignore un poste hors referentiel', () => {
+  it('ignore un poste hors du secteur', () => {
     // Trois ans de caisse : du travail, mais pas de ce metier-ci.
     const heures = heuresExercice(
-      [poste({ debutLe: new Date('2023-09-23T00:00:00Z'), duReferentiel: false })],
+      [poste({ debutLe: new Date('2023-09-23T00:00:00Z'), compteCommeExercice: false })],
       REFERENCE,
     );
 
     expect(heures).toBe(0);
+  });
+
+  /**
+   * Le troisieme cas, celui qui manquait.
+   *
+   * Un faisant fonction d'aide-soignant n'a ni le DEAS ni le DEAES, et il a
+   * pourtant exerce le metier. Tant que le modele ne savait dire que « rattache
+   * a un diplome » ou « rien », ses annees se rangeaient avec un poste de caisse
+   * et valaient zero heure — donc aucune mission.
+   */
+  it('compte un poste du secteur sans diplome rattache', () => {
+    const bornes = {
+      debutLe: new Date('2022-09-23T00:00:00Z'),
+      finLe: new Date('2026-09-23T00:00:00Z'),
+    };
+    const duSecteur = heuresExercice([poste({ ...bornes, compteCommeExercice: true })], REFERENCE);
+    const horsSecteur = heuresExercice(
+      [poste({ ...bornes, compteCommeExercice: false })],
+      REFERENCE,
+    );
+
+    expect(duSecteur).toBeGreaterThanOrEqual(SEUIL_EXERCICE_PREALABLE_HEURES);
+    expect(horsSecteur).toBe(0);
   });
 
   it('n applique aucun plafond, contrairement au bareme', () => {

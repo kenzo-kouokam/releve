@@ -241,7 +241,13 @@ export class MissionsService {
       // constate qui ouvre la porte, pas ce que la personne declare.
       this.prisma.experienceProfessionnelle.findMany({
         where: { candidatId, verifieeLe: { not: null } },
-        select: { debutLe: true, finLe: true, quotitePourcent: true, qualificationId: true },
+        select: {
+          debutLe: true,
+          finLe: true,
+          quotitePourcent: true,
+          qualificationId: true,
+          exerciceMetier: true,
+        },
       }),
     ]);
 
@@ -250,7 +256,7 @@ export class MissionsService {
         debutLe: poste.debutLe,
         finLe: poste.finLe,
         quotitePourcent: poste.quotitePourcent,
-        duReferentiel: poste.qualificationId !== null,
+        compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
       })),
     );
 
