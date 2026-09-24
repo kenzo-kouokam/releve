@@ -154,33 +154,17 @@ function basculerVerificationPoste(experienceId: string, verifiee: boolean): Pro
  * rattachement — le cas par defaut de l'ancien formulaire — ne pouvait etre
  * corrige qu'en le supprimant, ce qui effacait aussi la trace du controle.
  */
-const SECTEUR = 'SECTEUR';
-const HORS_SECTEUR = 'HORS_SECTEUR';
-
 function rattacherPoste(
   experienceId: string,
   verifiee: boolean,
   valeur: string,
 ): Promise<void> {
-  const diplome = valeur !== SECTEUR && valeur !== HORS_SECTEUR;
-
   return appliquer(() =>
     requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
       method: 'PATCH',
-      body: {
-        verifiee,
-        qualificationId: diplome ? valeur : null,
-        exerciceMetier: valeur === SECTEUR,
-      },
+      body: { verifiee, ...versRattachement(valeur) },
     }),
   );
-}
-
-/** Ce que le menu doit montrer comme selectionne, pour une ligne donnee. */
-function choixPoste(poste: { qualificationId: string | null; exerciceMetier: boolean }): string {
-  if (poste.qualificationId) return poste.qualificationId;
-
-  return poste.exerciceMetier ? SECTEUR : HORS_SECTEUR;
 }
 
 function retirerPoste(experienceId: string): Promise<void> {
@@ -192,49 +176,10 @@ function retirerPoste(experienceId: string): Promise<void> {
 }
 
 /**
- * Espace insecable fine (U+202F), posee avant l'unite.
- *
- * Ecrite par son code plutot qu'en clair : le caractere lui-meme est invisible
- * dans un diff, et la regle `no-irregular-whitespace` le refuse a juste titre.
+ * La mise en forme de l'exercice prealable vit dans `utils/exercice` :
+ * `enHeures`, `partExercice`, `periodesSeRecouvrent`, `choixPoste` et
+ * `versRattachement`. Elle etait recopiee ici et sur la fiche du candidat.
  */
-const ESPACE_FINE = String.fromCharCode(0x202f);
-
-/** Les heures, avec une espace insecable fine avant l'unite. */
-function enHeures(heures: number): string {
-  return `${heures.toLocaleString('fr-FR')}${ESPACE_FINE}h`;
-}
-
-/**
- * Les lignes s'additionnent-elles au total ?
- *
- * Pas toujours, et il faut le dire : deux postes menes en parallele comptent
- * chacun leurs heures sur leur ligne, mais le total est plafonne au temps
- * reellement ecoule — deux temps pleins superposes sur une annee ne font pas
- * deux ans de metier. Sans cette phrase, l'ecran donne l'impression de compter
- * faux.
- */
-const periodesSeRecouvrent = computed(() => {
-  const bilan = candidat.value?.exercicePrealable;
-
-  if (!bilan) return false;
-
-  const somme = (candidat.value?.experiences ?? [])
-    .filter((poste) => poste.compteDansExercice && poste.verifieeLe !== null)
-    .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
-
-  // Une heure de tolerance : les arrondis de chaque ligne ne sont pas un
-  // recouvrement.
-  return somme > bilan.heuresVerifiees + 1;
-});
-
-/** Remplissage de la jauge, borne : au-dela du seuil elle reste pleine. */
-const partExercice = computed(() => {
-  const bilan = candidat.value?.exercicePrealable;
-
-  if (!bilan || bilan.seuilHeures === 0) return 0;
-
-  return Math.min(100, Math.round((bilan.heuresVerifiees / bilan.seuilHeures) * 100));
-});
 
 function retirerQualification(qualificationId: string): Promise<void> {
   return appliquer(() =>
@@ -491,7 +436,7 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
             :aria-valuemax="candidat.exercicePrealable.seuilHeures"
             aria-label="Exercice du metier verifie"
           >
-            <span :style="{ width: `${partExercice}%` }" />
+            <span :style="{ width: `${partExercice(candidat.exercicePrealable)}%` }" />
           </div>
 
           <p class="detail">
@@ -519,7 +464,7 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
           </p>
         </div>
 
-        <p v-if="periodesSeRecouvrent" class="aide">
+        <p v-if="periodesSeRecouvrent(candidat.exercicePrealable, candidat.experiences)" class="aide">
           Le total est inferieur a la somme des lignes : deux postes se recouvrent dans le temps.
           Chacun garde ses heures, mais la duree retenue ne depasse pas le temps reellement ecoule
           — deux temps pleins menes la meme annee ne font pas deux ans de metier.

@@ -214,20 +214,13 @@ const localisation = computed(() => {
 /* -------------------------------------------------------------------- experience */
 
 /**
- * Les deux reponses possibles quand aucun diplome du referentiel ne s'applique.
+ * La mise en forme de l'exercice préalable vit dans `utils/exercice` :
+ * `enHeures`, `partExercice`, `heuresEnAttente`, `periodesSeRecouvrent` et les
+ * deux sentinelles du menu.
  *
- * Toutes deux distinctes de la chaine vide, qui veut dire « rien de choisi » :
- * « Aucun / hors referentiel » etait la premiere option du menu, donc
- * pre-selectionnee, et un poste declare sans y toucher partait hors referentiel
- * en silence — onze mille heures d'aide-soignant ont ainsi compte pour zero.
- *
- * Et surtout, elles ne disent pas la meme chose. Un faisant fonction
- * d'aide-soignant, un agent de service, une auxiliaire de vie exercent le
- * metier sans detenir le DEAS ni le DEAES ; une hotesse de caisse, non. Le menu
- * ne savait pas les distinguer, et les comptait tous les deux pour zero heure.
+ * Elle était recopiée ici et sur la fiche de l'agence. Deux copies ne divergent
+ * pas le jour où on les écrit ; elles divergent le jour où l'une est corrigée.
  */
-const SECTEUR = 'SECTEUR';
-const HORS_SECTEUR = 'HORS_SECTEUR';
 
 const nouveauPoste = reactive({
   employeur: '',
@@ -237,61 +230,6 @@ const nouveauPoste = reactive({
   finLe: '',
   quotitePourcent: 100,
 });
-
-/**
- * Espace insecable fine (U+202F), posee avant l'unite.
- *
- * Ecrite par son code plutot qu'en clair : le caractere lui-meme est invisible
- * dans un diff, et la regle `no-irregular-whitespace` le refuse a juste titre.
- */
-const ESPACE_FINE = String.fromCharCode(0x202f);
-
-/**
- * Les lignes s'additionnent-elles au total ?
- *
- * Pas toujours, et il faut le dire : deux postes menés en parallèle comptent
- * chacun leurs heures sur leur ligne, mais le total est plafonné au temps
- * réellement écoulé. Sans cette phrase, l'écran donne l'impression de compter
- * faux.
- */
-const periodesSeRecouvrent = computed(() => {
-  const bilan = profil.value?.exercicePrealable;
-
-  if (!bilan) return false;
-
-  const somme = (profil.value?.experiences ?? [])
-    .filter((poste) => poste.compteDansExercice && poste.verifieeLe !== null)
-    .reduce((cumul, poste) => cumul + poste.dureeHeures, 0);
-
-  return somme > bilan.heuresVerifiees + 1;
-});
-
-/** Remplissage de la jauge, borné : au-delà du seuil elle reste pleine. */
-const partExercice = computed(() => {
-  const bilan = profil.value?.exercicePrealable;
-
-  if (!bilan || bilan.seuilHeures === 0) return 0;
-
-  return Math.min(100, Math.round((bilan.heuresVerifiees / bilan.seuilHeures) * 100));
-});
-
-/** Ce qui est déclaré mais pas encore contrôlé : un manque de pièce, pas de terrain. */
-const heuresEnAttente = computed(() => {
-  const bilan = profil.value?.exercicePrealable;
-
-  return bilan ? Math.max(0, bilan.heuresDeclarees - bilan.heuresVerifiees) : 0;
-});
-
-/**
- * Les heures, séparées par un espace insécable fin avant l'unité.
- *
- * `toLocaleString('fr-FR')` met déjà une espace insécable étroite comme
- * séparateur de milliers ; celle avant « h » est posée ici pour la même raison,
- * qu'un retour à la ligne ne vienne pas couper « 3 214 » de son unité.
- */
-function enHeures(heures: number): string {
-  return `${heures.toLocaleString('fr-FR')}${ESPACE_FINE}h`;
-}
 
 /** Durée telle que le barème la comptera, pour ne pas afficher deux chiffres. */
 function dureeLisible(mois: number): string {
@@ -517,7 +455,7 @@ function retirerPoste(id: string): Promise<void> {
           :aria-valuemax="profil.exercicePrealable.seuilHeures"
           aria-label="Exercice du métier vérifié"
         >
-          <span :style="{ width: `${partExercice}%` }" />
+          <span :style="{ width: `${partExercice(profil.exercicePrealable)}%` }" />
         </div>
 
         <p v-if="profil.exercicePrealable.seuilAtteint" class="commentaire">
@@ -527,12 +465,12 @@ function retirerPoste(id: string): Promise<void> {
           Il manque {{ enHeures(profil.exercicePrealable.heuresManquantes) }} d'exercice vérifié
           avant de pouvoir postuler : la mise à disposition en intérim suppose une durée minimale
           d'exercice préalable du métier.
-          <template v-if="heuresEnAttente > 0">
-            {{ enHeures(heuresEnAttente) }} attendent d'être vérifiées par l'agence.
+          <template v-if="heuresEnAttente(profil.exercicePrealable) > 0">
+            {{ enHeures(heuresEnAttente(profil.exercicePrealable)) }} attendent d'être vérifiées par l'agence.
           </template>
         </p>
 
-        <p v-if="periodesSeRecouvrent" class="commentaire">
+        <p v-if="periodesSeRecouvrent(profil.exercicePrealable, profil.experiences)" class="commentaire">
           Le total est inférieur à la somme des lignes : deux de vos postes se recouvrent dans le
           temps. Chacun garde ses heures, mais la durée retenue ne dépasse pas le temps réellement
           écoulé.
