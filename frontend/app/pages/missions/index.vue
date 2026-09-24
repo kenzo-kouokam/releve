@@ -234,7 +234,7 @@ h1 {
   font-family: var(--sans);
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   white-space: nowrap;
   background: var(--surface);
   border: 1px solid var(--line);

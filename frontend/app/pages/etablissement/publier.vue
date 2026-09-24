@@ -598,7 +598,7 @@ h1 {
 .montant {
   margin: 0;
   font-size: 17px;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
 }
 
 .saisie {
@@ -606,7 +606,7 @@ h1 {
   gap: 8px;
   align-items: baseline;
   font-size: 13px;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
 }
 
 .saisie input {

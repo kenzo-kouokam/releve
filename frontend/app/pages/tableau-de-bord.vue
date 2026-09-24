@@ -234,7 +234,7 @@ h1 {
 
 .encart {
   padding: 30px;
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
   border-radius: 22px;
 }
@@ -294,7 +294,7 @@ h1 {
 }
 
 .action:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface);
 }
 

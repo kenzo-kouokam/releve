@@ -27,7 +27,7 @@ const { teinte = 'neutre' } = defineProps<{ teinte?: Teinte }>();
 }
 
 .vert {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--dom-soft);
   border-color: var(--dom-soft);
 }

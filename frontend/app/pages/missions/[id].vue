@@ -330,7 +330,7 @@ async function partager(): Promise<void> {
   padding: 11px 15px;
   margin: 0 0 18px;
   font-size: 13.5px;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
   border: 1px solid var(--line-forte);
   border-radius: 12px;

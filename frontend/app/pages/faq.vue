@@ -137,6 +137,7 @@ summary:focus-visible {
   padding: 28px;
   margin-top: 32px;
   background: var(--dom-fonce);
+  color: var(--sur-dom);
   border-radius: 20px;
 }
 
@@ -144,7 +145,7 @@ summary:focus-visible {
   margin: 0 0 6px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--surface);
+  color: var(--sur-dom);
 }
 
 .corps-aide {
@@ -160,14 +161,14 @@ summary:focus-visible {
   padding: 14px 24px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   text-decoration: none;
   background: var(--surface);
   border-radius: 12px;
 }
 
 .bouton-clair:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 

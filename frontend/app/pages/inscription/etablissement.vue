@@ -41,6 +41,8 @@ const form = reactive({
 });
 
 const erreurs = ref<Record<string, string>>({});
+const voirMotDePasse = ref(false);
+const voirConfirmation = ref(false);
 const erreurGenerale = ref('');
 const envoi = ref(false);
 
@@ -258,13 +260,27 @@ async function soumettre(): Promise<void> {
 
           <label>
             <span>Mot de passe</span>
-            <input v-model="form.motDePasse" type="password" autocomplete="new-password" />
+            <div class="champ-mot-de-passe">
+              <input
+                v-model="form.motDePasse"
+                :type="voirMotDePasse ? 'text' : 'password'"
+                autocomplete="new-password"
+              />
+              <AppBasculeMotDePasse v-model:visible="voirMotDePasse" />
+            </div>
             <em v-if="erreurs.motDePasse">{{ erreurs.motDePasse }}</em>
           </label>
 
           <label>
             <span>Confirmation</span>
-            <input v-model="form.confirmation" type="password" autocomplete="new-password" />
+            <div class="champ-mot-de-passe">
+              <input
+                v-model="form.confirmation"
+                :type="voirConfirmation ? 'text' : 'password'"
+                autocomplete="new-password"
+              />
+              <AppBasculeMotDePasse v-model:visible="voirConfirmation" champ="la confirmation" />
+            </div>
             <em v-if="erreurs.confirmation">{{ erreurs.confirmation }}</em>
           </label>
         </div>
@@ -363,7 +379,7 @@ h1 {
 }
 
 .etapes li.actif .puce {
-  color: #fff;
+  color: var(--surface);
   background: var(--dom);
   border-color: var(--dom);
 }

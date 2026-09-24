@@ -7,6 +7,7 @@ const { connexion, renvoyerVerification } = useSession();
 
 const email = ref('');
 const motDePasse = ref('');
+const voirMotDePasse = ref(false);
 const erreur = ref('');
 const envoi = ref(false);
 
@@ -76,14 +77,17 @@ async function renvoyer(): Promise<void> {
 
         <div class="champ">
           <label for="mot-de-passe">Mot de passe</label>
-          <input
-            id="mot-de-passe"
-            v-model="motDePasse"
-            type="password"
-            autocomplete="current-password"
-            placeholder="••••••••••"
-            required
-          />
+          <div class="champ-mot-de-passe">
+            <input
+              id="mot-de-passe"
+              v-model="motDePasse"
+              :type="voirMotDePasse ? 'text' : 'password'"
+              autocomplete="current-password"
+              placeholder="••••••••••"
+              required
+            />
+            <AppBasculeMotDePasse v-model:visible="voirMotDePasse" />
+          </div>
         </div>
 
         <p class="oubli">

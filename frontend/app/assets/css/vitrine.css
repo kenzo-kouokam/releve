@@ -77,19 +77,19 @@
 }
 
 .vitrine-bouton:hover {
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
   border-color: var(--dom-fonce);
 }
 
 .vitrine-bouton.secondaire {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface);
   border-color: var(--line-forte);
 }
 
 .vitrine-bouton.secondaire:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface);
   border-color: var(--dom);
 }

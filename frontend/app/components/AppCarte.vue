@@ -25,7 +25,7 @@ const { variante = 'simple' } = defineProps<{ variante?: 'simple' | 'posee' | 'p
 
 .pleine {
   padding: 20px;
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
   border-radius: var(--r-carte-large);
 }

@@ -10,6 +10,8 @@ const jeton = computed(() => String(route.query.jeton ?? ''));
 
 const nouveau = ref('');
 const confirmation = ref('');
+const voirNouveau = ref(false);
+const voirConfirmation = ref(false);
 const erreur = ref('');
 const envoi = ref(false);
 const fait = ref(false);
@@ -79,22 +81,28 @@ async function soumettre(): Promise<void> {
       <AppCarte class="formulaire">
         <form @submit.prevent="soumettre">
           <label class="champ" for="nouveau">Nouveau mot de passe</label>
-          <input
-            id="nouveau"
-            v-model="nouveau"
-            type="password"
-            autocomplete="new-password"
-            required
-          />
+          <div class="champ-mot-de-passe">
+            <input
+              id="nouveau"
+              v-model="nouveau"
+              :type="voirNouveau ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            />
+            <AppBasculeMotDePasse v-model:visible="voirNouveau" champ="le nouveau mot de passe" />
+          </div>
 
           <label class="champ" for="confirmation">Confirmer le mot de passe</label>
-          <input
-            id="confirmation"
-            v-model="confirmation"
-            type="password"
-            autocomplete="new-password"
-            required
-          />
+          <div class="champ-mot-de-passe">
+            <input
+              id="confirmation"
+              v-model="confirmation"
+              :type="voirConfirmation ? 'text' : 'password'"
+              autocomplete="new-password"
+              required
+            />
+            <AppBasculeMotDePasse v-model:visible="voirConfirmation" champ="la confirmation" />
+          </div>
 
           <p v-if="erreur" class="erreur">{{ erreur }}</p>
 

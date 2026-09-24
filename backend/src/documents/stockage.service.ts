@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { chiffrer, dechiffrer, estChiffre, lireCle } from './coffre';
 
 /**
@@ -82,8 +82,29 @@ export class StockageService {
     };
   }
 
+  /**
+   * Rend le contenu dechiffre d'une piece.
+   *
+   * Un fichier absent leve une 404 et non l'erreur brute de Node. La base et le
+   * disque peuvent se desynchroniser — une remise a zero de l'une sans l'autre
+   * suffit —, et la ligne survit alors a son binaire. Sans ce garde-fou, la
+   * fiche affiche la piece, le clic rend « Internal server error », et personne
+   * ne sait s'il faut redeposer le document ou prevenir quelqu'un.
+   */
   async lire(reference: string): Promise<Buffer> {
-    return dechiffrer(await readFile(this.absolu(reference)), this.cle);
+    try {
+      return dechiffrer(await readFile(this.absolu(reference)), this.cle);
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.logger.warn(`Fichier introuvable pour la reference ${reference}`);
+
+        throw new NotFoundException(
+          "Le fichier de cette piece n'est plus disponible : demandez un nouveau depot",
+        );
+      }
+
+      throw cause;
+    }
   }
 
   /**

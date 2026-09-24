@@ -597,6 +597,7 @@ dd {
 
 .valider:hover:not(:disabled) {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
 }
 
 .valider:disabled {

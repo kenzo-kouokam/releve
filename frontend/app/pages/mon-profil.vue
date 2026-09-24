@@ -1017,7 +1017,7 @@ input[type='checkbox'] {
 }
 
 .succes {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
   border: 1px solid var(--line-forte);
 }

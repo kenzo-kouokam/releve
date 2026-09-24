@@ -37,10 +37,10 @@ Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
 | **J3–J5 — Comptes, mission, profil**         | Inscription des deux profils, dépôt de besoin, candidature, validation, espace personnel de l'intérimaire | **Livré**                     |
 | **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, référentiel de compétences, moteur de matching à score explicable | **Livré**                     |
 | J7–J9 — Tableau de bord, vitrine, conformité | Tableau de bord candidat, pages publiques, n8n, RGAA / RGESN / RGPD                                       | **Partiel** — voir ci-dessous |
-| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **API livrée** — 1 workflow sur 3 commencé, aucun activé |
-| J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | À faire · 4 j·dev             |
+| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **Livré** — 3 workflows actifs ; Slack et Airtable en attente d'identifiants |
+| J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | **Tests livrés** — reste les pièces écrites |
 
-**511 tests au vert** : 462 sur l'API, 49 sur les règles partagées. Le front n'en a aucun.
+**703 tests au vert** : 499 sur l'API, 155 sur le front, 49 sur les règles partagées. Voir « Tests ».
 
 Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
 fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
@@ -111,7 +111,7 @@ navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, c
 dérouler une inscription complète sans écrire à une vraie adresse.
 
 ```bash
-pnpm test                    # 511 tests : règles partagées + intégration API
+pnpm test                    # 703 tests : règles partagées, API, front
 ```
 
 La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
@@ -146,6 +146,77 @@ fond en comble une mission créée pendant une démonstration. Le cas s'est prod
 
 Les quatre comptes ont leurs écrans : back-office pour les deux premiers, espace établissement
 pour le troisième, espace candidat — tableau de bord, missions, suivi, profil — pour le dernier.
+
+---
+
+## Tests
+
+**703 cas sur 35 fichiers**, tous au vert.
+
+| Suite       | Cas | Fichiers | Durée   | Ce qu'elle exige             |
+| ----------- | --: | -------: | ------- | ---------------------------- |
+| API         | 499 |       27 | ~5 min  | Docker : PostgreSQL, Redis, Mailpit |
+| Front       | 155 |        5 | 0,5 s   | rien                         |
+| Partagé     |  49 |        3 | 0,5 s   | rien                         |
+
+```bash
+pnpm test            # les trois suites
+pnpm test:frontend   # 155 cas en une demi-seconde, sans base
+pnpm test:backend    # 499 cas d'intégration
+```
+
+Les tests d'API tournent **contre un vrai PostgreSQL**, jamais des doublures. Ce n'est pas une
+préférence de style : beaucoup de règles de sécurité de ce projet vivent dans les requêtes Prisma —
+le filtre `agenceId`, le `where` sur les expériences vérifiées —, et un test mocké ne les verrait
+jamais. La base `passerelle_test` est créée et migrée au premier lancement, puis vidée entre les
+suites.
+
+### Les cinq qui comptent
+
+Classés sur une seule question : qu'est-ce qui casse, et à quel point silencieusement, si ce test
+disparaît ?
+
+**1. `cloisonnement.spec.ts` — 13 cas.** Un seul `agenceId` oublié dans une requête, et tout un
+vivier de candidats fuit. Il éprouve la lecture, l'écriture, la création et les comptes rattachés.
+Il exige **404 et non 403** sur la fiche d'une autre agence : un 403 confirmerait que
+l'enregistrement existe.
+
+**2. La frontière du front — 116 cas.** Deux portes. `auth-middleware.spec.ts` (72) tient la matrice
+d'accès des quatre profils : ce que l'API refuse, elle le refuse *après* que l'écran est apparu.
+`bff-session.spec.ts` et `bff-relais.spec.ts` (44) tiennent la garde des jetons — l'en-tête
+`Authorization` se compose depuis le cookie `httpOnly` et **jamais** depuis un en-tête fourni par la
+page, sans quoi une faille XSS suffirait à se faire passer pour quelqu'un d'autre. S'y ajoute la
+déduplication du rafraîchissement : le jeton de session est à usage unique, et six appels
+concurrents au chargement d'une page déclencheraient six échanges — donc une détection de rejeu, et
+une déconnexion pour avoir simplement ouvert une page.
+
+**3. `documents.spec.ts` + `coffre.spec.ts` — 34 cas.** Données de santé, donc RGPD. `coffre`
+éprouve la primitive AES-256-GCM seule — marqueur, IV, tag, clé — et `documents` la chaîne complète
+par l'API. Un autre candidat reçoit **404, pas 403** : aucune fuite d'existence.
+
+**4. `score.spec.ts` + `exercice-prealable.spec.ts` + `matching.spec.ts` — 64 cas.** Le cœur métier
+et la porte légale. `score` teste le barème isolé de la base : on discute un poids sans monter un
+environnement. `exercice-prealable` verrouille le seuil de 3 214 h de la loi Valletoux, y compris
+les deux pièges trouvés en l'écrivant — le double comptage de deux postes qui se chevauchent, et
+l'écart de 2 h entre deux années civiles exactes et deux années légales.
+
+**5. `missions.spec.ts` — 38 cas.** La porte de la candidature : diplôme, durée d'exercice, rayon,
+disponibilité, double engagement. C'est le test qui empêche qu'un écran promette ce que l'API
+refusera.
+
+### Ce qui n'est pas couvert
+
+- **Le rendu des composants.** Les tests du front couvrent le calcul — matrice d'accès, relais,
+  en-têtes, mise en forme — pas l'affichage. Ce qui l'atténue : `frontend/scripts/sonde-responsive.mjs`
+  pilote Chrome et mesure le débordement et les gouttières page par page. C'est un outil d'audit
+  lancé à la main, pas une suite qui tourne à chaque commit.
+- **Les workflows n8n eux-mêmes.** La signature HMAC est éprouvée dans les deux sens, rejet d'une
+  signature forgée compris, mais exécuter les trois workflows demanderait un n8n disponible et des
+  identifiants Slack et Airtable.
+- **Un test instable, et documenté.** « Ne répète pas la même mission au passage suivant » compare
+  une date posée par PostgreSQL à une date posée par Node. Il passe en isolation et a échoué une
+  fois sous charge ; le correctif propre est de poser la date en SQL. C'est écrit dans le code, pas
+  caché.
 
 ---
 
@@ -234,7 +305,7 @@ La donnée brute n'est pas exploitable telle quelle. Sur un balayage réel du 16
   contient le **code INSEE** (`74280`), pas le nom — le nom n'existe que dans le libellé, derrière
   le numéro de département.
 
-Ces règles sont des fonctions pures, sans base ni réseau, couvertes par 21 tests unitaires.
+Ces règles sont des fonctions pures, sans base ni réseau, couvertes par 22 tests (`normalisation.spec.ts`).
 
 ### Le dédoublonnage se fait au calcul, pas à l'import
 
@@ -623,183 +694,60 @@ et non au compte.
 
 ## Structure du dépôt
 
-Trois paquets à la racine : le serveur, le client, et ce qu'ils partagent.
+Trois paquets : le serveur, le client, et ce qu'ils partagent. Seuls les fichiers qui portent une
+décision sont cités — le reste se lit dans l'arborescence.
 
 ```
-backend/                          API NestJS
-  donnees/
-    offres-echantillon.json       102 offres réelles, rejouables sans réseau
-  prisma/
-    schema.prisma                 modèle complet du produit + 3 invariants métier
-    migrations/                   … pivot EHPAD, établissements de santé, compétences, conservation
-    seed.ts                       agence, deux diplômes, six établissements (EHPAD, clinique, CH), candidats ; amorce le marché
+backend/                       API NestJS
+  prisma/schema.prisma         modèle complet + les trois invariants métier
+  prisma/seed.ts               agence, deux diplômes, six établissements, candidats, marché amorcé
+  donnees/offres-echantillon.json  102 offres réelles, rejouables sans réseau
   src/
-    auth/                         authentification, rôles, sessions, mots de passe
-      auth.decorateurs.ts         @Public, @Roles, @UtilisateurCourant, @AgenceCourante
+    auth/                      jetons, rôles, sessions, inscriptions, Argon2id
+      jwt-auth.guard.ts        garde globale : fermé par défaut
       jetons-usage-unique.service.ts  hachage, péremption, consommation unique
-      verification-email.service.ts  confirmation d'adresse
-      reinitialisation.service.ts  mot de passe oublié
-      jwt-auth.guard.ts           garde globale : fermé par défaut
-      roles.guard.ts              contrôle de rôle
-      sessions.service.ts         jetons de rafraîchissement, rotation, révocation
-      inscriptions.service.ts     auto-inscription entreprise et intérimaire
-      mots-de-passe.ts            Argon2id
-    candidats/                    vivier : fiche, qualifications, disponibilités
-    clients/                      etablissements clients et lieux d'intervention
-    contact/                      formulaire public de la vitrine, relayé par courriel
-    notifications/                annonce quotidienne des missions correspondantes
-      annonce-planifiee.service.ts  7 h, sous ANNONCE_MISSIONS_AUTOMATIQUE
-    evenements/                   journal des transitions, webhooks signés, routes de service
-      evenements.service.ts       consigne puis émet — le journal d'abord, toujours
-      webhooks.service.ts         émission signée HMAC, non bloquante
-      destinataires.service.ts    qui est concerné par une mission, et à quel titre
-      interne.controller.ts       /api/interne/* derrière X-Service-Token
-    mail/                         sortie courriel, un seul point de sortie
-      gabarits.ts                 les messages en clair, texte et HTML
-      notifications-compte.service.ts  ce qu'on écrit à quelqu'un sur son compte
-    competences/                  référentiel métier tiré des offres France Travail
-      lexique.ts                  le vocabulaire cherché, et pourquoi il est écrit à la main
-      agregation.ts               le calcul, hors de Nest : partagé avec le seed
-    matching/                     porte d'éligibilité et score explicable
-      score.ts                    le barème, sans Prisma ni Nest : testable seul
-    missions/                     dépôt de besoin, visibilité par profil, annulation
-    documents/                    pièces justificatives : stockage, dépôt, conservation
-      stockage.service.ts         disque, noms opaques, racine jamais servie
-      conservation.service.ts     relance à un an, réponse au lien, effacement sans réponse
-      conservation.controller.ts  les deux routes publiques, ouvertes par jeton et non par session
-      echeances.ts                les deux dates du cycle, calculées en un seul endroit
-    mon-profil/                   ce que l'intérimaire modifie sur sa propre fiche
-    propositions/                 candidatures, décision du client, mission confirmée
-    donnees-publiques/            France Travail : collecte, baromètre, vitrine publique
-      france-travail.client.ts    OAuth2 et pagination de l'API Offres d'emploi
-      normalisation.ts            salaires, empreinte, lieux (pur, testé sans base)
-      offres.service.ts           import, expiration, médianes, taux suggéré
-      geocodage-offres.service.ts communes situées une fois, réutilisées ensuite
-      import-planifie.service.ts  deux balayages par jour, sous IMPORT_OFFRES_AUTOMATIQUE
-      vitrine.service.ts          missions publiques, et suggestions du marché au candidat
-      cache.service.ts            Redis, namespacé par base, dégradation propre
-      offres.controller.ts        GET /api/offres, /offres/options, /offres/suggestions
-      tension.controller.ts       GET /api/tension et /api/tension/suggestion
-    geocodage/                    Base Adresse Nationale : adresse -> point
-      ban.client.ts               appel BAN et règles de rejet (pur, testé sans réseau)
-      geocodage.service.ts        écriture lat/lon/geom, rattrapage en lot
-    cli/main.ts                   importer:offres, exporter:offres, barometre, geocoder,
-                                  geocoder:offres, notifier:missions, purger:documents,
-                                  conservation:relancer, conservation:purger
-    qualifications/               référentiel partagé — deux diplômes : DEAS et AVS
-    utilisateurs/                 gestion des comptes
-    common/
-      zod-validation.pipe.ts      valide avec les schémas de @releve/shared
-    health/                       sonde /api/sante
-  test/                           146 tests d'intégration
-    fixtures.ts                   deux agences symétriques, app de test
-    cloisonnement.spec.ts         étanchéité entre agences
-    roles.spec.ts                 gardes de rôle et routes publiques
-    inscription.spec.ts           parcours des deux profils, permissions
-    missions.spec.ts              la boucle complète, vue par les trois profils
-    score.spec.ts                 le barème seul, sans base ni réseau
-    geocodage.spec.ts             lecture d'une réponse BAN, sans réseau
-    matching.spec.ts              classement, écartés motivés, score figé
-    mon-profil.spec.ts            ce que le candidat ne peut pas s'accorder
-    verification-email.spec.ts    le lien : usage unique, péremption, non-énumération
-    reinitialisation.spec.ts      mot de passe oublié, et le cloisonnement des deux usages
-    disponibilites.spec.ts        chevauchements, travail de nuit
-    donnees-publiques.spec.ts     import, médianes, exposition API
-    normalisation.spec.ts         salaires et empreintes, sans base ni réseau
-    comptes.spec.ts               garde-fous d'administration
-    sessions.spec.ts              rotation, rejeu, révocation
-    debit.spec.ts                 limitation de débit, compteurs partagés
+    matching/score.ts          le barème, sans Prisma ni Nest : testable seul
+    matching/experience.ts     durées, quotité, plafond calendaire, seuil Valletoux
+    documents/coffre.ts        AES-256-GCM au repos : marqueur, IV, tag
+    documents/stockage.service.ts  disque, noms opaques, racine jamais servie
+    documents/conservation.service.ts  relance à un an, réponse au lien, effacement
+    evenements/webhooks.service.ts  émission signée HMAC, non bloquante
+    evenements/interne.controller.ts  /api/interne/* derrière X-Service-Token
+    donnees-publiques/normalisation.ts  salaires, empreinte, lieux (pur, testé sans base)
+    geocodage/ban.client.ts    appel BAN et règles de rejet (pur, testé sans réseau)
+    competences/agregation.ts  le calcul, hors de Nest : partagé avec le seed
+    mail/gabarits.ts           les messages en clair, un seul point de sortie
+    cli/main.ts                importer:offres, barometre, geocoder, notifier:missions,
+                               purger:documents, conservation:*, chiffrer:documents
+  test/                        27 fichiers, 499 cas — voir « Tests »
 
-frontend/                         Front Nuxt
-  server/                         Nitro : le navigateur ne voit jamais l'API
-    middleware/session.ts         rafraîchit la session avant tout traitement
-    routes/bff/[...chemin].ts     relais authentifié vers l'API
-    routes/bff/auth/              connexion, déconnexion, inscription, vérification, mot de passe
-    utils/session.ts              cookies httpOnly, rafraîchissement mutualisé
+frontend/                      Front Nuxt
+  server/                      Nitro : le navigateur ne voit jamais l'API
+    routes/bff/[...chemin].ts  relais authentifié — l'Authorization vient du cookie, jamais du client
+    utils/session.ts           cookies httpOnly, rafraîchissement mutualisé
+    middleware/entetes-securite.ts  CSP, HSTS, nosniff, referrer, permissions
   app/
-    assets/
-      css/main.css                tokens du canvas : couleurs, rayons, thème sombre, accessibilité
-      css/vitrine.css             échelle typographique commune aux six pages publiques
-      icons/*.svg                 exports Figma, recolorés par currentColor
-    components/                   AppBouton, AppCarte, AppBadge, AppAvatar, AppBarreApp
-      AppLogo.vue                 marque du canvas, couleurs liées aux tokens
-      AppIcon.vue                 inline les tracés pour qu'ils suivent la couleur
-      AppAttenteVerification.vue  « consultez votre boîte mail » après inscription
-      AppOffresMarche.vue         encart candidat : offres France Travail, source citée
-    data/vitrine.ts               tout le contenu éditorial des pages publiques, en un seul endroit
-    data/legal.ts                 les faits juridiques, à compléter en un seul fichier
-    utils/mise-en-forme.ts        dates, durées et montants : une seule définition
-    layouts/default.vue           deux coques : publique, et applicative à barre latérale
-    plugins/affichage.client.ts   applique contraste et animations dès le démarrage
-    composables/
-      useSession.ts               identité connectée (aucun jeton côté page)
-      useApi.ts                   appel via le relais /bff
-      useCompletude.ts            avancement du dossier, partagé par la barre latérale et le profil
-      usePreferencesAffichage.ts  contraste renforcé, animations réduites
-    middleware/
-      auth.global.ts              tout est fermé sauf liste blanche ; vitrine ouverte à tous,
-                                  y compris la section /offres déclarée en préfixe
-    pages/                        33 routes
-      accueil.vue                 vitrine : promesse, trois étapes, dossier candidat
-      fonctionnement.vue          le parcours en six étapes
-      a-propos.vue                positionnement, et « déclaré n'est pas vérifié »
-      faq.vue                     six questions, accordéon natif
-      offres/index.vue            nos missions ouvertes, sans session, trois menus déroulants
-      contact.vue                 coordonnées et formulaire, relayé par l'API
-      mentions-legales.vue        rubriques légales, champs « À compléter », en noindex
-      conditions-utilisation.vue  conditions générales, en noindex
-      politique-confidentialite.vue  traitements réels, durée de conservation, ce qui reste à préciser
-      conservation.vue            cible du lien de relance : garder les pièces un an de plus, ou les effacer
-      connexion.vue
-      inscription/index.vue       l'ecran de choix entre les deux parcours
-      inscription/interimaire.vue dossier candidat
-      inscription/etablissement.vue compte etablissement, inactif jusqu'a verification
-      verification.vue            cible du lien reçu : confirme, puis redirige selon le rôle
-      mot-de-passe-oublie.vue     demande d'un lien, réponse identique dans tous les cas
-      reinitialisation.vue        choix du nouveau mot de passe depuis le lien
-      bienvenue.vue               splash, enchaîne vers /connexion
-      index.vue                   vivier candidats
-      candidats/[id].vue          fiche candidat complète
-      clients/index.vue           liste des clients
-      clients/[id].vue            fiche client et ses lieux
-      tension.vue                 baromètre du marché, données France Travail
-      tableau-de-bord.vue         accueil du candidat : complétude, compteurs, missions proches
-      missions/                   liste et fiche, côté intérimaire
-      candidature/[id].vue        accusé de réception d'une candidature
-      suivi.vue                   mission confirmée, contact et itinéraire
-      mon-profil.vue              coordonnées, secteur, disponibilités, diplômes, parcours
-      etablissement/              accueil, dépôt de besoin, profil d'un candidat
-      mon-espace.vue              espace des profils externes
-      comptes.vue                 administration des accès
-      mon-compte.vue              identité, réglages d'affichage, mot de passe
+    middleware/auth.global.ts  tout est fermé sauf liste blanche, dans les deux sens
+    assets/css/main.css        tokens du canvas : couleurs, rayons, thème sombre, accessibilité
+    data/vitrine.ts            tout le contenu éditorial des pages publiques
+    data/legal.ts              les faits juridiques, à compléter en un seul fichier
+    utils/exercice.ts          la durée d'exercice telle que les écrans la donnent à lire
+    composables/useApi.ts      appel via le relais /bff, aucun jeton côté page
+    pages/                     36 routes : vitrine, back-office, espace candidat, espace client
+  scripts/sonde-responsive.mjs  Chrome piloté par CDP : débordement et gouttières
+  test/                        5 fichiers, 155 cas
 
+shared/                        @releve/shared — contrat API ↔ front, sans Prisma
+  src/habilitation.ts          statut juridique et pièce d'autorisation, par famille
+  src/experience.ts            heures légales, seuil d'exercice préalable
+  src/siret.ts                 14 chiffres et clé de Luhn
+  src/matching.ts              score décomposé, motifs d'exclusion
+  src/*.ts                     un fichier par domaine : candidat, client, mission, document…
 
-shared/                           @releve/shared — contrat API ↔ front
-  src/
-    enums.ts                      énumérations et libellés d'affichage
-    motifs.ts                     expressions régulières de saisie
-    siret.ts                      validation SIRET (14 chiffres + clé de Luhn)
-    auth.ts, utilisateur.ts, inscription.ts
-    candidat.ts, disponibilite.ts
-    client.ts, lieu.ts, qualification.ts
-    mission.ts, proposition.ts    dépôt de besoin, candidature, décision
-    matching.ts, profil.ts        score décomposé, espace personnel
-    habilitation.ts               statut juridique et pièces de l'autorisation
-    verification.ts               confirmation d'adresse et destination par rôle
-    reinitialisation.ts           mot de passe oublié
-    document.ts                   types de pièces, formats admis, plafond de taille
-    conservation.ts               durée de conservation, délai de réponse, décision
-    conditions.ts                 version des conditions générales en ligne
-    contact.ts                    sujets figés, bornes de saisie, adresse de l'agence
-    notifications.ts              réglage des courriels de service, forme d'une mission annoncée
-    tension.ts                    baromètre et suggestion de taux
-    pagination.ts
-  test/                           32 tests unitaires des règles partagées
-
-docs/
-  analyse-de-marche.html          concurrence, positionnement, proposition de valeur
-  questions-a-trancher.md         décisions en attente, par échéance
-docker-compose.yml                PostgreSQL + PostGIS, Redis
+docs/analyse-de-marche.html    concurrence, positionnement, proposition de valeur
+docs/questions-a-trancher.md   décisions en attente, par échéance
+n8n/                           les trois workflows, exportés
+docker-compose.yml             PostgreSQL + PostGIS, Redis, Mailpit, n8n
 ```
 
 ---
@@ -843,6 +791,25 @@ d'exercice préalable à l'intérim vise les professionnels de santé en établi
 en ESMS. Elle s'applique donc à **toutes** nos mises à disposition, et le code n'a pas à la
 conditionner au type — c'est une simplification réelle par rapport au régime précédent, où, sous
 l'aide à domicile, la règle ne mordait que sur une partie des structures.
+
+**Elle ferme la candidature.** `motifsExclusion` écarte un profil sous le seuil, et `postuler`
+répond `403` avec le motif chiffré — « 1 200 h vérifiées sur les 3 214 h exigées, soit 2 014 h
+manquantes ». La fiche de la mission l'annonce même avant le clic, plutôt que de laisser un bouton
+promettre puis refuser.
+
+Le seuil est posé à **deux ans, soit 3 214 heures** — 2 × 1 607 h, la durée annuelle légale du
+travail. Deux réserves, qui doivent être dites : le décret raisonne en *durée d'exercice*, pas en
+heures, et la valeur dépend du métier. La conversion n'est donc pas la loi, c'est notre façon de la
+mesurer — et elle a un mérite précis, le temps partiel étant la norme dans ce secteur : deux ans à
+mi-temps ne sont pas deux ans d'exercice. La constante est isolée dans
+`shared/src/experience.ts`, documentée et facile à changer.
+
+Trois catégories d'expérience, et la distinction compte : un poste **rattaché à un diplôme** du
+référentiel, un poste **du secteur sans diplôme applicable** — faisant fonction, agent de service,
+auxiliaire de vie —, et un poste **hors secteur**. Les deux premières comptent dans la durée, la
+troisième ne pèse que pour moitié au barème. Ranger un faisant fonction avec une hôtesse de caisse
+effaçait des années de terrain, et le cas s'est produit : onze mille heures d'aide-soignant comptées
+pour zéro, faute d'un menu dont la première option était présélectionnée.
 
 **Le statut juridique est une autre question.** Il ne décide pas de ce que l'établissement a le
 droit de faire — l'autorisation s'en charge — mais de la convention collective applicable, donc du
@@ -1028,6 +995,27 @@ verrouillé » trahirait son existence.
 rôle ; on refuse de retirer les droits du dernier administrateur actif d'une agence ; le rôle d'un
 compte client ou candidat ne se change pas, ce serait une escalade de privilèges déguisée.
 
+**Pièces justificatives chiffrées au repos.** Ce sont des données de santé au sens large — NIR,
+diplômes, pièce d'identité, RIB. Elles sont chiffrées en **AES-256-GCM** avant d'atteindre le
+disque : `documents/coffre.ts` pose un marqueur `RELEVE01`, un IV de 12 octets et le tag
+d'authentification, et `stockage.service.ts` ne rend jamais que du clair déchiffré à la volée. Trois
+propriétés tiennent cet édifice, chacune testée :
+
+- la racine de stockage n'est **jamais servie statiquement** — un document ne sort que par une route
+  qui a vérifié la session, et toujours en `Content-Disposition: attachment` ;
+- l'empreinte SHA-256 conservée en base est celle du **clair**, de sorte qu'une rotation de clé ne
+  la périme pas ;
+- un candidat qui demande la pièce d'un autre reçoit **404, pas 403** : un 403 confirmerait que le
+  document existe.
+
+La clé vient de `STOCKAGE_CLE`. Les fichiers déposés avant la mise en place se reprennent par
+`pnpm cli chiffrer:documents`, qui écrit à côté puis renomme — jamais en place, pour qu'une coupure
+de courant ne laisse pas un fichier à moitié chiffré. `--constater` compte sans rien écrire.
+
+**À énoncer :** la clé vit dans l'environnement, pas dans un coffre à secrets. Quelqu'un qui obtient
+à la fois le disque et le fichier d'environnement lit tout. Ce chiffrement protège contre une
+sauvegarde égarée ou un accès au seul volume, pas contre une compromission complète de la machine.
+
 ---
 
 ## Règles métier appliquées
@@ -1052,7 +1040,26 @@ charges : si l'agence veut pouvoir activer sans justificatif, elle se retire en 
 ## API
 
 Base : `http://localhost:3001/api`. Toutes les routes sauf mention contraire exigent
-`Authorization: Bearer <jeton>`.
+`Authorization: Bearer <jeton>`. **82 routes**, documentées exhaustivement par Swagger sur
+<http://localhost:3001/api/docs> — la liste complète n'est pas recopiée ici, elle se périmerait.
+
+| Groupe                    | Routes | Accès                                                     |
+| ------------------------- | -----: | --------------------------------------------------------- |
+| `/auth`, `/sante`         |     15 | public pour l'inscription et les liens, session ensuite    |
+| `/candidats`              |     13 | back-office                                                |
+| `/mon-profil`             |     12 | candidat, sur sa seule fiche                               |
+| `/missions`               |      9 | agence, client et candidat — chacun voit autre chose       |
+| `/clients`                |      7 | back-office                                                |
+| `/competences`, `/utilisateurs` | 7 | back-office ; le référentiel est en lecture seule          |
+| `/interne`                |      6 | `X-Service-Token` — n8n, jamais un navigateur              |
+| `/propositions`           |      5 | candidat et client, selon le sens de la décision           |
+| `/offres`                 |      3 | deux routes publiques, une réservée au candidat            |
+| `/tension`                |      2 | public                                                     |
+| `/conservation`           |      2 | **par jeton, sans session** — voir plus bas                |
+| `/contact`                |      1 | public, sous quota                                         |
+
+Ce qui suit n'est pas la liste : ce sont les décisions que les routes portent et qu'un fichier
+d'OpenAPI ne dit pas.
 
 ### Authentification
 
@@ -1077,65 +1084,7 @@ d'intégration tiennent ce verrou de bout en bout.
 Le **type d'établissement** reste demandé au formulaire, lui, parce qu'il décide de la pièce à
 réclamer ensuite — et qu'on y répond sans avoir de documents devant soi.
 
-| Méthode | Route                              | Accès                                          |
-| ------- | ---------------------------------- | ---------------------------------------------- |
-| `POST`  | `/auth/connexion`                  | public                                         |
-| `POST`  | `/auth/inscription/interimaire`    | public — dossier candidat                      |
-| `POST`  | `/auth/inscription/etablissement`  | public — EHPAD / hôpital / clinique, inactif   |
-| `POST`  | `/auth/verification/confirmer`     | public — le lien du courriel, ouvre la session |
-| `POST`  | `/auth/verification/renvoyer`      | public — toujours 204                          |
-| `POST`  | `/auth/mot-de-passe/oublie`        | public — toujours 204                          |
-| `POST`  | `/auth/mot-de-passe/reinitialiser` | public — le lien recu par courriel             |
-| `POST`  | `/auth/rafraichir`                 | public — porteur du jeton de session           |
-| `POST`  | `/auth/deconnexion`                | public — porteur du jeton de session           |
-| `GET`   | `/auth/moi`                        | authentifié                                    |
-| `GET`   | `/auth/mon-espace`                 | authentifié — vue selon le profil              |
-| `POST`  | `/auth/mot-de-passe`               | authentifié — changement par l'intéressé       |
-| `GET`   | `/auth/notifications`              | authentifié — réglage des courriels de service |
-| `PUT`   | `/auth/notifications`              | authentifié — activer ou couper                |
-| `GET`   | `/sante`                           | public                                         |
-
-### Candidats
-
-| Méthode  | Route                                                | Accès       |
-| -------- | ---------------------------------------------------- | ----------- |
-| `GET`    | `/candidats`                                         | back-office |
-| `GET`    | `/candidats/:id`                                     | back-office |
-| `POST`   | `/candidats`                                         | back-office |
-| `PATCH`  | `/candidats/:id`                                     | back-office |
-| `POST`   | `/candidats/:id/qualifications`                      | back-office |
-| `PATCH`  | `/candidats/:id/qualifications/:qualificationId`     | back-office |
-| `DELETE` | `/candidats/:id/qualifications/:qualificationId`     | back-office |
-| `POST`   | `/candidats/:id/experiences`                         | back-office |
-| `PATCH`  | `/candidats/:id/experiences/:experienceId`           | back-office |
-| `DELETE` | `/candidats/:id/experiences/:experienceId`           | back-office |
-| `PUT`    | `/candidats/:id/disponibilites`                      | back-office |
-| `POST`   | `/candidats/:id/indisponibilites`                    | back-office |
-| `DELETE` | `/candidats/:id/indisponibilites/:indisponibiliteId` | back-office |
-
-### Clients et lieux
-
-| Méthode | Route                        | Accès       |
-| ------- | ---------------------------- | ----------- |
-| `GET`   | `/clients`                   | back-office |
-| `GET`   | `/clients/:id`               | back-office |
-| `POST`  | `/clients`                   | back-office |
-| `PATCH` | `/clients/:id`               | back-office |
-| `GET`   | `/clients/:id/lieux`         | back-office |
-| `POST`  | `/clients/:id/lieux`         | back-office |
-| `PATCH` | `/clients/:id/lieux/:lieuId` | back-office |
-
 ### Référentiel et comptes
-
-| Méthode | Route                            | Accès          |
-| ------- | -------------------------------- | -------------- |
-| `GET`   | `/qualifications`                | authentifié    |
-| `POST`  | `/qualifications`                | administrateur |
-| `GET`   | `/competences`                   | authentifié    |
-| `GET`   | `/utilisateurs`                  | administrateur |
-| `POST`  | `/utilisateurs`                  | administrateur |
-| `PATCH` | `/utilisateurs/:id`              | administrateur |
-| `POST`  | `/utilisateurs/:id/mot-de-passe` | administrateur |
 
 `GET /competences` accepte `rome` (le métier visé), `recherche` (mot-clé, accents et casse
 ignorés) et `limite`. Il rend les compétences classées par ce que le marché demande le plus, avec
@@ -1145,18 +1094,6 @@ observation du marché mais une opinion.
 
 ### Missions
 
-| Méthode | Route                           | Accès                         |
-| ------- | ------------------------------- | ----------------------------- |
-| `GET`   | `/missions`                     | authentifié — vue par profil  |
-| `GET`   | `/missions/resume`              | authentifié — tableau de bord |
-| `GET`   | `/missions/options-publication` | back-office ou client         |
-| `GET`   | `/missions/:id`                 | authentifié — vue par profil  |
-| `POST`  | `/missions`                     | back-office ou client         |
-| `PATCH` | `/missions/:id`                 | back-office ou client         |
-| `POST`  | `/missions/:id/annuler`         | back-office ou client         |
-| `GET`   | `/missions/:id/candidats`       | back-office ou client         |
-| `POST`  | `/missions/:id/candidatures`    | candidat                      |
-
 **Ce que chaque profil voit est décidé dans le service, jamais dans le contrôleur.** L'agence voit
 son périmètre, le client ses missions, le candidat les missions ouvertes **de son agence** plus
 celles où il a postulé. Les consignes d'accès au domicile ne sortent que pour l'agence, le client
@@ -1164,35 +1101,12 @@ et le candidat retenu : quelqu'un qui consulte l'annonce n'a pas à lire le code
 
 ### Candidatures
 
-| Méthode | Route                       | Accès                              |
-| ------- | --------------------------- | ---------------------------------- |
-| `GET`   | `/propositions`             | authentifié — vue par profil       |
-| `GET`   | `/propositions/courante`    | candidat — prochaine confirmée     |
-| `GET`   | `/propositions/:id`         | authentifié — vue par profil       |
-| `POST`  | `/propositions/:id/valider` | back-office ou client              |
-| `POST`  | `/propositions/:id/refuser` | authentifié — sens selon le profil |
-
 Une candidature déposée par l'intéressé naît `ACCEPTEE_CANDIDAT` : en cliquant, il a déjà dit oui,
 seule la décision du client manque. Valider en retient un, écarte les autres et pourvoit la
 mission **en une transaction** — sinon deux validations concurrentes laisseraient deux personnes
 persuadées d'avoir la mission.
 
 ### Mon profil — espace de l'intérimaire
-
-| Méthode  | Route                                   | Accès    |
-| -------- | --------------------------------------- | -------- |
-| `GET`    | `/mon-profil`                           | candidat |
-| `GET`    | `/mon-profil/completude`                | candidat |
-| `PATCH`  | `/mon-profil`                           | candidat |
-| `PUT`    | `/mon-profil/disponibilites`            | candidat |
-| `POST`   | `/mon-profil/diplomes`                  | candidat |
-| `DELETE` | `/mon-profil/diplomes/:qualificationId` | candidat |
-| `POST`   | `/mon-profil/experiences`               | candidat |
-| `DELETE` | `/mon-profil/experiences/:experienceId` | candidat |
-| `GET`    | `/mon-profil/documents`                 | candidat |
-| `POST`   | `/mon-profil/documents/:type`           | candidat |
-| `GET`    | `/mon-profil/documents/:id/contenu`     | candidat |
-| `DELETE` | `/mon-profil/documents/:id`             | candidat |
 
 Routes séparées de `/candidats` plutôt que des gardes assouplies : le back-office garde ses règles
 intactes, et ce qu'un candidat peut toucher se lit d'un coup d'œil sur un seul fichier. **Ce qui en
@@ -1214,11 +1128,6 @@ qu'un PDF téléversé ne s'exécute pas dans le contexte de l'API.
 
 ### Conservation des pièces
 
-| Méthode | Route           | Accès                   |
-| ------- | --------------- | ----------------------- |
-| `GET`   | `/conservation` | jeton reçu par courriel |
-| `POST`  | `/conservation` | jeton reçu par courriel |
-
 **Les deux seules routes du produit autorisées par un jeton plutôt que par une session.** C'est
 voulu : on écrit à quelqu'un précisément parce qu'il ne s'est plus connecté depuis un an. Exiger une
 connexion pour répondre reviendrait à ne jamais obtenir de réponse, donc à effacer par défaut.
@@ -1228,10 +1137,6 @@ elle a changé depuis. Le `GET` **ne le consomme pas** — un client de messager
 liens brûlerait sinon la décision de quelqu'un qui n'a encore rien lu.
 
 ### Contact
-
-| Méthode | Route      | Accès  |
-| ------- | ---------- | ------ |
-| `POST`  | `/contact` | public |
 
 Le formulaire de la vitrine envoie vraiment : l'API relaie le message à la boîte de l'agence
 (`CONTACT_EMAIL`, sinon l'adresse déclarée dans `@releve/shared`). Il ouvrait jusqu'ici le logiciel
@@ -1253,12 +1158,6 @@ rejeter le message par n'importe quel relais qui vérifie SPF, et ouvrirait le s
 courrier au nom de n'importe qui.
 
 ### Offres publiques et suggestions du marché
-
-| Méthode | Route                 | Accès      |
-| ------- | --------------------- | ---------- |
-| `GET`   | `/offres`             | **ouvert** |
-| `GET`   | `/offres/options`     | **ouvert** |
-| `GET`   | `/offres/suggestions` | `CANDIDAT` |
 
 Les deux routes ouvertes servent **les missions de Relève**, jamais les offres France Travail :
 `/offres` les liste avec pagination et filtres (`departement`, `ville`, `metier`), `/offres/options`
@@ -1293,11 +1192,6 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 
 ### Tension du marché
 
-| Méthode | Route                 | Accès       |
-| ------- | --------------------- | ----------- |
-| `GET`   | `/tension`            | authentifié |
-| `GET`   | `/tension/suggestion` | authentifié |
-
 `/tension/suggestion` retombe sur la médiane nationale quand le département ne dit rien, et renvoie
 `perimetre: 'aucun'` plutôt que d'inventer un taux.
 
@@ -1306,8 +1200,8 @@ pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de res
 Deux sens de circulation. L'API **émet** un événement signé à chaque transition de mission ;
 l'automatisation **rappelle** l'API sur un préfixe à part. Aucun outil extérieur ne touche la base.
 
-| Événement              | Transition                                  |
-| ---------------------- | ------------------------------------------- |
+| Événement              | Transition                                   |
+| ---------------------- | -------------------------------------------- |
 | `mission.publiee`      | Création d'une mission (elle naît `PUBLIEE`) |
 | `proposition.envoyee`  | L'agence propose des candidats               |
 | `proposition.acceptee` | Un candidat postule de lui-même              |
@@ -1320,15 +1214,6 @@ Chaque envoi porte `X-Releve-Event`, `X-Releve-Delivery` et `X-Releve-Signature`
 du HMAC SHA-256 du **corps brut**. L'émission est asynchrone et ne lève jamais : une panne de
 l'automatisation ne doit pas faire échouer une validation de mission. Trois tentatives, puis l'échec
 est journalisé — la transition, elle, reste écrite dans `EvenementMission`, qui permet de rejouer.
-
-| Méthode | Route                                           | Accès             |
-| ------- | ----------------------------------------------- | ----------------- |
-| `POST`  | `/missions/:id/propositions`                    | back-office       |
-| `GET`   | `/interne/missions/non-pourvues`                | `X-Service-Token` |
-| `POST`  | `/interne/missions/:id/relances`                | `X-Service-Token` |
-| `POST`  | `/interne/missions/:id/escalade`                | `X-Service-Token` |
-| `POST`  | `/interne/missions/:id/alertes`                 | `X-Service-Token` |
-| `POST`  | `/interne/notifications/missions`               | `X-Service-Token` |
 
 `POST /missions/:id/propositions` est la route par laquelle **l'agence propose des candidats depuis
 le classement**, par lot. C'est elle qui fait naître une candidature `ENVOYEE` — jusque-là ce statut
@@ -1348,22 +1233,24 @@ workflows exportés vivent dans `n8n/`.
 
 #### Où en sont les workflows
 
-Le versant API est complet et testé. Le versant n8n ne l'est pas, et il faut le dire précisément
-plutôt que globalement : **un workflow sur trois est commencé, aucun ne tourne de bout en bout.**
+**Les trois workflows sont importés et actifs.** Ce qui a été vérifié à l'exécution, journal de n8n
+à l'appui : la signature HMAC dans les deux sens — un envoi signé passe, un envoi forgé est rejeté
+avant d'atteindre le moindre nœud —, l'aiguillage par type d'événement, le compteur Redis du plafond
+de trois alertes par jour, l'alerte urgente jusqu'au courriel reçu, et le rappel de WF2 vers l'API.
 
-| Workflow                           | État                                                              |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| **WF1** — alertes et clôture       | 18 nœuds, **4 encore `noOp`** ; workflow non activé (`active: false`) |
-| **WF2** — relance et escalade      | Pas commencé — les deux routes qu'il appelle existent et sont testées |
-| **WF3** — confirmation de mission  | Pas commencé — la route et le gabarit légal existent                |
+| Workflow                           | État                                                                |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| **WF1** — alertes et clôture       | Actif. Boucle complète prouvée sur `mission.publiee`                 |
+| **WF2** — relance et escalade      | Actif. Tourne au quart d'heure et rappelle l'API                     |
+| **WF3** — confirmation de mission  | Actif. Sous-workflow appelé par WF1 sur `mission.pourvue`            |
 
-Ce qui fonctionne dans WF1 : vérification de la signature HMAC, rejet d'un envoi non signé,
-aiguillage par type d'événement, compteur Redis du plafond de trois alertes par jour, e-mail
-d'alerte urgente et e-mail de clôture. Ce qui manque : les trois messages Slack vers l'agence et
-l'écriture Airtable de l'acceptation — c'est-à-dire tout ce qui demande un credential extérieur.
+Ce qui manque n'est plus du travail mais **deux identifiants** : Slack et Airtable. Les nœuds qui en
+dépendent échouent, et WF3 n'a donc jamais été atteint — WF1 s'arrête sur le nœud Slack avant de
+l'appeler. Ces identifiants ne figurent dans aucun export, par construction ; ils se saisissent dans
+n8n. La credential `crypto` du dépôt, elle, ne contient pas le secret : elle référence
+`{{ $env.N8N_WEBHOOK_SECRET }}`.
 
-Le sujet Epitech exige **au moins deux automatisations no-code**. En l'état il en manque deux, et
-WF2 est le moins coûteux : les routes existent, le contrat est documenté, il ne reste que les nœuds.
+Le sujet Epitech exige **au moins deux automatisations no-code** : l'exigence est tenue.
 
 #### L'annonce quotidienne, elle, n'attend plus personne
 
@@ -1389,6 +1276,7 @@ indésirable.
 « back-office » = `ADMIN_AGENCE` ou `CHARGE_RECRUTEMENT`.
 
 ---
+
 
 ## Scripts
 
@@ -1494,8 +1382,10 @@ mais à revoir si la suite s'allonge.
 le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
 travail. Sans conséquence technique, mais visible en soutenance.
 
-**Aucun test ne couvre le front.** Les 511 tests portent sur l'API et les règles partagées ; les
-35 pages Nuxt, le layout et les composants ne sont vérifiés que par le typecheck et le lint.
+**Le rendu des composants n'est pas testé.** Les 155 tests du front couvrent le calcul — matrice
+d'accès, relais BFF, en-têtes de sécurité, mise en forme —, jamais l'affichage. Les 36 pages, le
+layout et les composants ne sont vérifiés que par le typecheck, le lint et la sonde Chrome de
+`frontend/scripts/sonde-responsive.mjs`, lancée à la main.
 
 **La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le
 rapport de couverture est un livrable attendu.

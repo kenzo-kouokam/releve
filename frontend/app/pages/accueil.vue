@@ -243,7 +243,7 @@ h1 {
 
 .apercu {
   padding: 28px;
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
   border-radius: 24px;
 }
@@ -547,6 +547,7 @@ h2 {
   justify-content: space-between;
   padding: 56px;
   background: var(--dom-fonce);
+  color: var(--sur-dom);
   border-radius: 26px;
 }
 
@@ -566,7 +567,7 @@ h2 {
 .bloc-appel h2 {
   margin: 0 0 12px;
   font-size: clamp(26px, 4vw, 34px);
-  color: var(--surface);
+  color: var(--sur-dom);
 }
 
 .copie-appel p:last-child {
@@ -580,7 +581,7 @@ h2 {
   padding: 17px 30px;
   font-size: 16px;
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   white-space: nowrap;
   text-decoration: none;
   background: var(--surface);
@@ -588,7 +589,7 @@ h2 {
 }
 
 .bouton-clair:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 

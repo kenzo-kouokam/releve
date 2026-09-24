@@ -142,7 +142,7 @@ const chargement = computed(() => status.value === 'pending');
   padding: 1px 7px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--dom-soft);
   border-radius: 999px;
 }

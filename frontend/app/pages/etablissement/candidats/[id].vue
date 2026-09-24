@@ -328,7 +328,7 @@ h1 {
   height: 58px;
   margin: 0;
   font-size: 18px;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--dom-soft);
   border-radius: 999px;
 }

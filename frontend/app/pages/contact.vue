@@ -410,7 +410,7 @@ label em {
 }
 
 .envoyer:hover:not(:disabled) {
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
 }
 

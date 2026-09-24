@@ -444,13 +444,13 @@ async function sortir(): Promise<void> {
 }
 
 .menu a:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
 .menu a.router-link-active {
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
@@ -475,7 +475,7 @@ async function sortir(): Promise<void> {
 }
 
 .lien-bouton.secondaire {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface);
   border-color: var(--line-forte);
 }
@@ -492,6 +492,7 @@ async function sortir(): Promise<void> {
 
 .lien-bouton.primaire:hover {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
 }
 
 .lien-bouton:focus-visible {
@@ -671,13 +672,13 @@ async function sortir(): Promise<void> {
 }
 
 .laterale nav a:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
 .laterale nav a.router-link-exact-active {
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
