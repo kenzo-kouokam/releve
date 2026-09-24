@@ -1,0 +1,1165 @@
+<title>Relève face à Hublo et Mediflash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Palette et familles de la maison Releve : les documents du projet se
+     lisent en serie, pas comme trois productions separees. */
+  :root {
+    --ground: #f1f3f1;
+    --surface: #ffffff;
+    --surface-2: #e6ebe8;
+    --ink: #14201d;
+    --muted: #56665f;
+    --line: #d0d9d4;
+    --line-strong: #a9b7b0;
+    --nous: #1f6a5b;
+    --nous-soft: #dfeee8;
+    --risque: #9c4630;
+    --risque-soft: #f6e5de;
+    --tiers: #8a6a16;
+    --tiers-soft: #f3ead2;
+    --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+    --sans: 'Karla', 'Segoe UI', Helvetica, Arial, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --ground: #0f1614;
+      --surface: #18211e;
+      --surface-2: #212c28;
+      --ink: #e3ebe7;
+      --muted: #93a49d;
+      --line: #2b3833;
+      --line-strong: #46564f;
+      --nous: #62bba4;
+      --nous-soft: #14302a;
+      --risque: #e1917a;
+      --risque-soft: #35211a;
+      --tiers: #d7b45c;
+      --tiers-soft: #2e2714;
+    }
+  }
+  :root[data-theme='dark'] {
+    --ground: #0f1614;
+    --surface: #18211e;
+    --surface-2: #212c28;
+    --ink: #e3ebe7;
+    --muted: #93a49d;
+    --line: #2b3833;
+    --line-strong: #46564f;
+    --nous: #62bba4;
+    --nous-soft: #14302a;
+    --risque: #e1917a;
+    --risque-soft: #35211a;
+    --tiers: #d7b45c;
+    --tiers-soft: #2e2714;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    margin: 0;
+    padding-inline: 20px;
+    padding-block: 0 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+  .col {
+    max-width: 66ch;
+  }
+
+  p {
+    margin: 0 0 16px;
+  }
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    color: var(--nous);
+  }
+  a:focus-visible {
+    outline: 2px solid var(--nous);
+    outline-offset: 3px;
+  }
+
+  /* ------------------------------------------------------------- en-tete */
+  header.hero {
+    padding-block: 56px 36px;
+    border-bottom: 1px solid var(--line);
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(2.5rem, 6.6vw, 4rem);
+    line-height: 1.03;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    max-width: 18ch;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--nous);
+  }
+  .lede {
+    font-family: var(--serif);
+    font-size: clamp(1.14rem, 2.3vw, 1.38rem);
+    line-height: 1.45;
+    max-width: 50ch;
+    margin: 0 0 26px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .chips li {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    color: var(--muted);
+  }
+
+  /* ------------------------------------------------------------ sections */
+  section {
+    padding-block: 52px 0;
+  }
+
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sec-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 1.02rem;
+    margin: 0 0 8px;
+  }
+
+  /* ------------------------------------------------------------- lexique */
+  .lexique {
+    display: block;
+    border-left: 2px solid var(--line-strong);
+    padding: 2px 0 2px 14px;
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    max-width: 60ch;
+  }
+  .lexique b {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  /* ------------------------------------------------------- voies legales */
+  .voies {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .voie {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--line-strong);
+    padding: 16px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .voie.nous {
+    border-top-color: var(--nous);
+  }
+  .voie.conteste {
+    border-top-color: var(--risque);
+  }
+  .voie .rang {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .voie .nom {
+    font-family: var(--serif);
+    font-size: 1.24rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+  .voie .quoi {
+    font-size: 0.89rem;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+  .voie .verdict {
+    font-family: var(--mono);
+    font-size: 11px;
+    margin: auto 0 0;
+    padding-top: 10px;
+    color: var(--muted);
+  }
+  .voie.nous .verdict {
+    color: var(--nous);
+  }
+  .voie.conteste .verdict {
+    color: var(--risque);
+  }
+
+  /* --------------------------------------------------- fiches concurrents */
+  .fiche {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 24px;
+  }
+  .fiche-tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    margin-bottom: 14px;
+  }
+  .fiche-tete h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.55rem;
+    margin: 0;
+  }
+  .etiquette {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .etiquette.conteste {
+    background: var(--risque-soft);
+    color: var(--risque);
+  }
+
+  .fiche p {
+    max-width: 66ch;
+  }
+
+  .mesures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 30px;
+    margin: 18px 0;
+    padding: 16px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .mesures div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mesures dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    order: 2;
+  }
+  .mesures dd {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    order: 1;
+  }
+  .provenance {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: -6px 0 18px;
+    max-width: 66ch;
+    line-height: 1.5;
+  }
+
+  .enseignement {
+    margin: 0;
+    padding: 14px 16px;
+    background: var(--nous-soft);
+    border-left: 3px solid var(--nous);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    max-width: 66ch;
+  }
+  .enseignement b {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 5px;
+    color: var(--nous);
+  }
+
+  /* Encart de droit : le texte fait foi, il se distingue du commentaire. */
+  .juridique {
+    margin: 0 0 16px;
+    padding: 16px 18px;
+    background: var(--surface-2);
+    border-left: 3px solid var(--risque);
+    max-width: 66ch;
+  }
+  .juridique .ref {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--risque);
+    margin: 0 0 7px;
+  }
+  .juridique p:last-child {
+    margin: 0;
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+
+  /* ------------------------------------------------------------- tableau */
+  .scroller {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 780px;
+    font-size: 0.86rem;
+  }
+  th,
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line);
+    line-height: 1.45;
+  }
+  thead th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--muted);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  thead th.nous {
+    color: var(--nous);
+  }
+  tbody th {
+    font-weight: 700;
+    font-size: 0.84rem;
+    color: var(--ink);
+    width: 1%;
+    white-space: nowrap;
+  }
+  td.nous {
+    background: var(--nous-soft);
+  }
+  td.risque {
+    color: var(--muted);
+  }
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .apres-tableau {
+    font-size: 0.84rem;
+    color: var(--muted);
+    margin: 12px 0 0;
+    max-width: 66ch;
+    line-height: 1.5;
+  }
+
+  /* ------------------------------------------------------- positionnement */
+  .points {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .points li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 14px;
+    align-items: baseline;
+  }
+  .points .marque {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--nous);
+    letter-spacing: 0.08em;
+  }
+  .points .texte {
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+  .points .texte em {
+    font-style: normal;
+    color: var(--muted);
+  }
+
+  /* ------------------------------------------------ ce que nous assumons */
+  .aveux {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .aveux li {
+    background: var(--tiers-soft);
+    border-left: 3px solid var(--tiers);
+    padding: 16px 18px;
+  }
+  .aveux h3 {
+    margin: 0 0 6px;
+    font-size: 0.96rem;
+  }
+  .aveux p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  /* --------------------------------------------------------------- valeur */
+  .valeurs {
+    display: grid;
+    gap: 14px;
+  }
+  .valeur {
+    padding: 24px 26px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--nous);
+  }
+  .valeur .quoi {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 9px;
+  }
+  .valeur p:last-child {
+    font-family: var(--serif);
+    font-size: clamp(1.12rem, 2.2vw, 1.36rem);
+    line-height: 1.44;
+    margin: 0;
+    max-width: 54ch;
+  }
+  .brouillon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    align-items: baseline;
+    margin: 16px 0 0;
+    padding: 11px 14px;
+    background: var(--tiers-soft);
+    border-left: 3px solid var(--tiers);
+    font-size: 0.89rem;
+    line-height: 1.5;
+  }
+  .brouillon b {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tiers);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------ verifications */
+  .verifs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+  .verifs li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 14px;
+    align-items: baseline;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 15px 18px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .etat {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .etat.fait {
+    background: var(--nous-soft);
+    color: var(--nous);
+  }
+  .etat.ouvert {
+    background: var(--tiers-soft);
+    color: var(--tiers);
+  }
+
+  /* -------------------------------------------------------------- sources */
+  .sources {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+    max-width: 74ch;
+  }
+  .sources li {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--muted);
+    padding-left: 14px;
+    border-left: 1px solid var(--line-strong);
+  }
+  .sources b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+
+  /* ----------------------------------------------------------------- pied */
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+  }
+
+  @media (max-width: 560px) {
+    .fiche {
+      padding: 18px;
+    }
+    .valeur {
+      padding: 20px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="kicker">Relève &middot; Analyse de marché &middot; Epitech D-WEB-901 InteriMatch</p>
+    <h1>Relève face à <em>Hublo</em> et <em>Mediflash</em></h1>
+    <p class="lede">
+      Deux concurrents dominent le sujet, et aucun des deux ne vend ce que nous vendons. L&rsquo;un
+      demande à la structure de constituer son propre vivier. L&rsquo;autre contourne le salariat,
+      et le Conseil d&rsquo;État vient de lui donner tort.
+    </p>
+    <ul class="chips">
+      <li>Secteur : aide à domicile (SAAD)</li>
+      <li>Concurrence &amp; positionnement</li>
+      <li>Sources en section 8</li>
+    </ul>
+  </header>
+
+  <section id="objet">
+    <p class="sec-label">1 &middot; Objet</p>
+    <div class="col">
+      <p>
+        Ce document situe Relève par rapport aux acteurs déjà présents sur l&rsquo;aide à domicile.
+        Il traite la concurrence et le positionnement. Les chiffres du marché, la tension de
+        recrutement et le cadre réglementaire figurent dans le document <b>Étude de marché</b>, qui
+        le complète.
+      </p>
+      <p>
+        Chaque affirmation chiffrée renvoie à une source listée en fin de page. Les points qui
+        restent à vérifier avant la soutenance sont nommés explicitement, plutôt que dilués dans le
+        texte.
+      </p>
+      <p class="lexique">
+        <b>SAAD</b> &mdash; service d&rsquo;aide et d&rsquo;accompagnement à domicile. Structure
+        prestataire qui emploie les intervenantes et facture la prestation au bénéficiaire.
+        <br /><b>InteriMatch</b> est l&rsquo;intitulé du sujet Epitech ; <b>Relève</b> est le nom du
+        produit.
+      </p>
+    </div>
+  </section>
+
+  <section id="paysage">
+    <p class="sec-label">2 &middot; Paysage</p>
+    <h2>Des généralistes anciens, des spécialistes récents</h2>
+    <div class="col">
+      <h3>Les acteurs historiques de l&rsquo;intérim</h3>
+      <p>
+        Adecco, Randstad et Manpower dominent encore le marché. Leurs outils numériques sont souvent
+        datés, et surtout conçus pour tous les métiers à la fois. Rien n&rsquo;y traite les
+        contraintes propres au domicile : les créneaux fractionnés dans la journée, les zones
+        géographiques étroites, les disponibilités qui changent d&rsquo;une semaine à
+        l&rsquo;autre.
+      </p>
+      <h3>Les plateformes sectorielles</h3>
+      <p>
+        Brigad, Extracadabra, Bilhalp ou Staffmatch montrent qu&rsquo;une plateforme ciblée sur un
+        seul secteur trouve sa place face aux généralistes. Aucun n&rsquo;intervient sur notre
+        périmètre : ce ne sont pas des concurrents directs, mais la preuve que le modèle
+        fonctionne.
+      </p>
+    </div>
+  </section>
+
+  <section id="voies">
+    <p class="sec-label">3 &middot; Le fond du sujet</p>
+    <h2>Trois voies pour travailler ponctuellement</h2>
+    <div class="col">
+      <p>
+        Tout le débat concurrentiel tient dans ce choix. Un soignant qui veut intervenir
+        ponctuellement dispose de deux options établies. Mediflash en a ouvert une troisième, et
+        c&rsquo;est elle qui pose problème.
+      </p>
+    </div>
+
+    <ul class="voies">
+      <li class="voie">
+        <span class="rang">Voie 1</span>
+        <p class="nom">Contrat de travail</p>
+        <p class="quoi">
+          La structure recrute et embauche elle-même, en CDD ou en vacation. C&rsquo;est le terrain
+          de Hublo, qui vend l&rsquo;outil de mise en relation.
+        </p>
+        <p class="verdict">Cadre classique</p>
+      </li>
+      <li class="voie nous">
+        <span class="rang">Voie 2</span>
+        <p class="nom">Contrat de mission</p>
+        <p class="quoi">
+          Une agence d&rsquo;intérim salarie l&rsquo;intervenante et la met à disposition. Cadre
+          établi par le Code du travail.
+        </p>
+        <p class="verdict">Relève</p>
+      </li>
+      <li class="voie conteste">
+        <span class="rang">Voie 3</span>
+        <p class="nom">Auto-entrepreneur</p>
+        <p class="quoi">
+          L&rsquo;intervenante facture en indépendante, comme un chauffeur ou un livreur de
+          plateforme. C&rsquo;est la voie de Mediflash.
+        </p>
+        <p class="verdict">Tranchée par le Conseil d&rsquo;État</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="hublo">
+    <p class="sec-label">4 &middot; Concurrent direct</p>
+    <h2>Hublo &mdash; solide juridiquement, et ce n&rsquo;est pas là qu&rsquo;il faut
+      l&rsquo;attaquer</h2>
+
+    <div class="fiche">
+      <div class="fiche-tete">
+        <h3>Hublo</h3>
+        <span class="etiquette">ATS + réseau</span>
+        <span class="etiquette">Abonnement annuel</span>
+      </div>
+
+      <p>
+        Les professionnels adhèrent à un réseau et postulent aux missions publiées via
+        l&rsquo;application. Une fois sélectionnés, ils sont <b>embauchés directement par la
+        structure</b>, en CDD ou en vacation, sans passer par une agence. La structure paie un
+        abonnement annuel. C&rsquo;est un logiciel de gestion du recrutement adossé à un grand
+        réseau, pas une entreprise de travail temporaire.
+      </p>
+
+      <p class="lexique">
+        <b>ATS</b> &mdash; <i>applicant tracking system</i> : un logiciel qui collecte, organise,
+        filtre et suit les candidatures tout au long du recrutement.
+      </p>
+
+      <dl class="mesures">
+        <div><dt>Soignants inscrits</dt><dd>1 M+</dd></div>
+        <div><dt>EHPAD connectés</dt><dd>2 000+</dd></div>
+        <div><dt>Placement, vivier externe</dt><dd>30 € HT</dd></div>
+      </dl>
+
+      <p class="provenance">
+        Ces chiffres proviennent de la communication de l&rsquo;entreprise et varient selon les
+        sources et les années. Ils se citent comme des <b>déclarations</b>, avec leur date et leur
+        origine, jamais comme des mesures.
+      </p>
+
+      <p class="enseignement">
+        <b>Enseignement pour Relève</b>
+        La force de Hublo n&rsquo;est pas juridique : le salariat direct est parfaitement solide, et
+        il coûte même moins cher à l&rsquo;usage puisqu&rsquo;aucune marge d&rsquo;agence ne
+        s&rsquo;applique. <b>Sa faiblesse est ailleurs.</b> Le modèle suppose que la structure ait
+        déjà constitué un vivier de remplaçants, ou qu&rsquo;elle sache l&rsquo;animer. Un petit
+        SAAD sans service de ressources humaines n&rsquo;a ni le temps ni les moyens de le faire.
+        C&rsquo;est là que nous nous distinguons : nous apportons le vivier.
+      </p>
+    </div>
+  </section>
+
+  <section id="mediflash">
+    <p class="sec-label">5 &middot; Concurrent direct</p>
+    <h2>Mediflash &mdash; rapide, moins cher, et désormais jugé</h2>
+
+    <div class="fiche">
+      <div class="fiche-tete">
+        <h3>Mediflash</h3>
+        <span class="etiquette conteste">Statut tranché</span>
+        <span class="etiquette">Modèle plateforme</span>
+      </div>
+
+      <p>
+        Mediflash met en relation des professionnels sous statut d&rsquo;auto-entrepreneur avec des
+        établissements sanitaires et médico-sociaux, sur le modèle des plateformes de type Uber.
+        L&rsquo;argument commercial repose sur un coût réduit pour l&rsquo;établissement,
+        l&rsquo;absence de charges patronales, et une rémunération supérieure pour le professionnel
+        &mdash; gain que l&rsquo;entreprise évalue elle-même à environ 20 %.
+      </p>
+
+      <p>
+        Cette troisième voie est contestée, et de plus en plus fermement. La commission
+        d&rsquo;enquête parlementaire sur les Uber Files a auditionné les trois cofondateurs et cite
+        l&rsquo;entreprise dans son rapport. L&rsquo;inspection du travail du Grand Est a écrit à
+        des dizaines d&rsquo;EHPAD pour signaler du travail illégal.
+      </p>
+
+      <div class="juridique">
+        <p class="ref">Conseil d&rsquo;État, 5<sup>e</sup> et 6<sup>e</sup> chambres réunies, 11
+          février 2025, n° 491128 &mdash; vérifié sur Légifrance</p>
+        <p>
+          C&rsquo;est <b>Mediflash elle-même</b> qui demandait l&rsquo;abrogation du courrier
+          adressé le 30 décembre 2021 par les ministres du Travail et de la Santé aux directeurs
+          d&rsquo;établissements. <b>Le Conseil d&rsquo;État a rejeté sa requête.</b> Le
+          raisonnement s&rsquo;appuie sur l&rsquo;article R. 4311-4 du code de la santé publique :
+          l&rsquo;aide-soignant n&rsquo;exerce que sous la responsabilité d&rsquo;un infirmier, donc
+          sous son autorité et son contrôle. La relation est requalifiable en contrat de travail, et
+          la responsabilité de l&rsquo;établissement peut être engagée pour travail dissimulé.
+        </p>
+      </div>
+
+      <dl class="mesures">
+        <div><dt>Soignants inscrits</dt><dd>~40 000</dd></div>
+        <div><dt>Actifs chaque mois</dt><dd>~2 000</dd></div>
+        <div><dt>Gain de rémunération annoncé</dt><dd>~20 %</dd></div>
+      </dl>
+
+      <p class="provenance">
+        L&rsquo;écart entre l&rsquo;inscription et l&rsquo;usage réel &mdash; <b>5 %</b> des
+        inscrits sont actifs &mdash; est plus parlant que le chiffre brut. C&rsquo;est celui-là
+        qu&rsquo;il faut citer.
+      </p>
+
+      <p class="enseignement">
+        <b>Enseignement pour Relève</b>
+        Ce concurrent nous sert de contre-exemple. Choisir un vrai contrat de mission plutôt
+        qu&rsquo;une forme d&rsquo;évitement du salariat nous coûte en marge, et nous le savons.
+        Mais le modèle adverse n&rsquo;est plus seulement contesté : il est tranché. Notre choix est
+        défendable devant un jury, et il est durable.
+      </p>
+    </div>
+  </section>
+
+  <section id="comparatif">
+    <p class="sec-label">6 &middot; Comparatif</p>
+    <h2>Sept axes, trois modèles</h2>
+    <div class="col">
+      <p>
+        La colonne Relève décrit <b>une cible, pas un produit existant</b>. Les deux premières
+        décrivent des acteurs réels.
+      </p>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Critère</th>
+            <th scope="col">Hublo</th>
+            <th scope="col">Mediflash</th>
+            <th scope="col" class="nous">Relève</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Statut contractuel</th>
+            <td>Salariat direct par la structure, après mise en relation via le réseau Hublo.</td>
+            <td class="risque">
+              Auto-entrepreneur. Statut jugé illégal par le gouvernement pour plusieurs professions
+              réglementées.
+            </td>
+            <td class="nous">Contrat de mission d&rsquo;intérim, cadre établi par le Code du
+              travail.</td>
+          </tr>
+          <tr>
+            <th scope="row">Modèle économique</th>
+            <td>
+              Abonnement annuel payé par la structure, plus une facturation au placement pour le
+              vivier externe (30 € HT par aide-soignant, selon Hublo).
+            </td>
+            <td class="risque">
+              Commission sur mission. Argument commercial : un coût réduit grâce à l&rsquo;absence
+              de charges patronales.
+            </td>
+            <td class="nous">
+              Facturation de l&rsquo;heure travaillée avec un coefficient de délégation. Relève est
+              l&rsquo;employeur et verse le salaire.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Coût pour la structure</th>
+            <td>
+              Le plus bas à l&rsquo;usage, aucune marge d&rsquo;agence. Mais l&rsquo;abonnement est
+              dû même si le besoin ne se présente pas.
+            </td>
+            <td class="risque">
+              Réduit par construction, au prix d&rsquo;un risque de requalification qui pèse sur
+              l&rsquo;établissement.
+            </td>
+            <td class="nous">
+              Le plus élevé à l&rsquo;heure. En revanche rien n&rsquo;est payé sans mission, et
+              aucun recrutement à mener.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Sécurité juridique</th>
+            <td>Solide. Le salariat classique ne prête pas à discussion.</td>
+            <td class="risque">
+              Fragile. Statut contesté, courriers de l&rsquo;inspection du travail, décision du
+              Conseil d&rsquo;État défavorable.
+            </td>
+            <td class="nous">
+              Solide, sous réserve d&rsquo;obtenir la garantie financière obligatoire des
+              entreprises de travail temporaire.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Cible métier</th>
+            <td>Paramédical et médico-social généraliste : EHPAD, SSIAD, cliniques.</td>
+            <td class="risque">
+              Soignants du médico-social en établissement : infirmiers, aides-soignants, AES.
+            </td>
+            <td class="nous">Aide à domicile uniquement, côté structures SAAD prestataires.</td>
+          </tr>
+          <tr>
+            <th scope="row">Ce que la structure fournit</th>
+            <td>
+              Un vivier de remplaçants qu&rsquo;elle constitue et anime elle-même, ou
+              l&rsquo;adhésion à un réseau existant.
+            </td>
+            <td class="risque">Rien, hormis la publication du besoin.</td>
+            <td class="nous">Rien. Relève apporte son propre vivier, déjà vérifié.</td>
+          </tr>
+          <tr>
+            <th scope="row">Rapidité</th>
+            <td>
+              Rapide une fois le vivier constitué. Le délai réel dépend de cette phase amont.
+            </td>
+            <td class="risque">Quasi instantanée.</td>
+            <td class="nous">
+              Rapide par scoring automatique sur les compétences, la zone et les disponibilités.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="apres-tableau">
+      La ligne décisive est l&rsquo;avant-dernière. Hublo et Mediflash visent d&rsquo;abord
+      l&rsquo;établissement ; ni l&rsquo;un ni l&rsquo;autre n&rsquo;apporte de vivier constitué à
+      un SAAD sans service RH.
+    </p>
+  </section>
+
+  <section id="positionnement">
+    <p class="sec-label">7 &middot; Positionnement</p>
+    <h2>Quatre choix qui nous définissent</h2>
+    <div class="col">
+      <p>
+        Relève est une agence d&rsquo;intérim numérique spécialisée sur l&rsquo;aide à domicile,
+        adressée exclusivement aux structures SAAD prestataires. Les particuliers employeurs sortent
+        du périmètre, faute de certitude sur leur capacité à recourir à l&rsquo;intérim.
+      </p>
+    </div>
+
+    <ul class="points">
+      <li>
+        <span class="marque">01</span>
+        <span class="texte">
+          <b>Le contrat.</b>
+          <em>Une vraie mission d&rsquo;intérim, donc une protection sociale pour
+          l&rsquo;intervenante, là où Mediflash s&rsquo;appuie sur l&rsquo;auto-entrepreneuriat.</em>
+        </span>
+      </li>
+      <li>
+        <span class="marque">02</span>
+        <span class="texte">
+          <b>Le vivier.</b>
+          <em>Nous l&rsquo;apportons, alors que Hublo demande à la structure de constituer le
+          sien.</em>
+        </span>
+      </li>
+      <li>
+        <span class="marque">03</span>
+        <span class="texte">
+          <b>Le matching, conçu pour le domicile.</b>
+          <em>Créneaux fractionnés, trajets, zone, disponibilités mouvantes &mdash; et non un outil
+          générique appliqué à tous les métiers.</em>
+        </span>
+      </li>
+      <li>
+        <span class="marque">04</span>
+        <span class="texte">
+          <b>La vérification légale, intégrée au parcours d&rsquo;inscription.</b>
+          <em>L&rsquo;éligibilité se contrôle à l&rsquo;entrée, pas au moment du litige.</em>
+        </span>
+      </li>
+    </ul>
+
+    <div class="col" style="padding-top: 22px">
+      <p>
+        Nous visons enfin les <b>intervenantes elles-mêmes</b>, et pas seulement l&rsquo;employeur.
+        Beaucoup travaillent à temps partiel subi et cherchent à compléter leurs heures près de chez
+        elles. Un produit qui ne parle qu&rsquo;aux structures se prive de la moitié de son marché.
+      </p>
+    </div>
+  </section>
+
+  <section id="assumer">
+    <p class="sec-label">7.1 &middot; Honnêteté</p>
+    <h2>Ce que nous devons assumer</h2>
+    <div class="col">
+      <p>
+        Trois faiblesses réelles. Mieux vaut savoir les nommer que les découvrir à l&rsquo;oral.
+      </p>
+    </div>
+
+    <ul class="aveux">
+      <li>
+        <h3>Nous coûtons plus cher à l&rsquo;heure</h3>
+        <p>
+          Nous prenons une marge de délégation. Deux contreparties : la structure ne paie rien tant
+          qu&rsquo;aucune mission n&rsquo;est passée, et elle n&rsquo;a aucun recrutement à mener.
+        </p>
+      </li>
+      <li>
+        <h3>La garantie financière est une vraie barrière</h3>
+        <p>
+          Le statut d&rsquo;entreprise de travail temporaire impose une garantie couvrant les
+          salaires et les cotisations en cas de défaillance. Le jury peut nous interroger dessus.
+        </p>
+      </li>
+      <li>
+        <h3>La vérification légale joue dans les deux sens</h3>
+        <p>
+          Si la loi Valletoux s&rsquo;applique aux SAAD, elle réduit notre vivier éligible autant
+          qu&rsquo;elle rassure les structures. Elle ne vise que les AES et les aides-soignants, pas
+          les aides à domicile sans diplôme.
+        </p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="valeur">
+    <p class="sec-label">8 &middot; Proposition de valeur</p>
+    <h2>Deux formulations, une seule doit survivre</h2>
+
+    <div class="valeurs">
+      <div class="valeur">
+        <p class="quoi">Version courte &mdash; orientée structures</p>
+        <p>
+          Relève apporte aux services d&rsquo;aide à domicile le vivier de remplaçantes
+          qu&rsquo;ils n&rsquo;ont pas les moyens de constituer, sous un vrai contrat de mission.
+        </p>
+      </div>
+
+      <div class="valeur">
+        <p class="quoi">Version alternative &mdash; centrée sur l&rsquo;usage</p>
+        <p>
+          Relève permet à un service d&rsquo;aide à domicile de couvrir une absence par une
+          intervenante qualifiée, proche et légalement éligible.
+        </p>
+      </div>
+    </div>
+
+    <div class="col" style="padding-top: 18px">
+      <p>
+        Les deux évitent volontairement toute <b>promesse de délai</b> : un prototype de onze jours
+        ne peut pas prouver une mise en relation en quelques minutes, et un jury relèverait
+        l&rsquo;affirmation. Elles évitent aussi de se définir contre l&rsquo;abonnement de Hublo,
+        ce qui inviterait la réponse prévisible &mdash; une marge d&rsquo;agence coûte plus cher
+        qu&rsquo;un abonnement.
+      </p>
+    </div>
+
+    <p class="brouillon">
+      <b>À trancher</b>
+      <span>Une seule de ces deux formulations doit survivre au pitch. Décision d&rsquo;équipe.</span>
+    </p>
+  </section>
+
+  <section id="verifier">
+    <p class="sec-label">9 &middot; Solidité du dossier</p>
+    <h2>Ce qui est vérifié, ce qui reste ouvert</h2>
+
+    <ul class="verifs">
+      <li>
+        <span class="etat fait">Vérifié</span>
+        <span>
+          <b>Conseil d&rsquo;État, 11 février 2025, n° 491128.</b> Lu sur Légifrance et non repris
+          d&rsquo;une source secondaire. La requête de Mediflash a été rejetée ; le fondement est
+          l&rsquo;article R. 4311-4 du code de la santé publique.
+        </span>
+      </li>
+      <li>
+        <span class="etat ouvert">À confirmer</span>
+        <span>
+          <b>Champ d&rsquo;application de la loi Valletoux aux SAAD.</b> Il détermine si notre
+          filtre d&rsquo;éligibilité a un sens. Le périmètre porte sur les établissements et
+          services relevant de l&rsquo;article L. 312-1 du CASF ; la durée minimale est fixée par
+          l&rsquo;article R. 313-30-5, réécrit par le décret n° 2025-1147 du 28 novembre 2025. À
+          confirmer dans l&rsquo;<b>Étude de marché</b>.
+        </span>
+      </li>
+      <li>
+        <span class="etat ouvert">À dater</span>
+        <span>
+          <b>Les chiffres de Hublo.</b> Ils proviennent de sa propre communication et divergent
+          selon les sources. Ils doivent être cités avec leur date et leur origine.
+        </span>
+      </li>
+    </ul>
+  </section>
+
+  <section id="sources">
+    <p class="sec-label">10 &middot; Sources</p>
+    <h2>D&rsquo;où viennent les affirmations</h2>
+
+    <ul class="sources">
+      <li>
+        <b>Hublo</b>
+        Site de l&rsquo;entreprise, pages Remplacements et EHPAD médico-social, consultées en
+        septembre 2026. Témoignage d&rsquo;usage dans l&rsquo;aide à domicile : article de
+        l&rsquo;AIAD sur l&rsquo;adoption de Hublo.
+      </li>
+      <li>
+        <b>Mediflash &mdash; cadre juridique</b>
+        Le Média Social, <i>Ubérisation du médico-social, le cas Mediflash</i>. Rapport de la
+        commission d&rsquo;enquête parlementaire relative aux Uber Files, seizième législature,
+        audition des cofondateurs. Rue89 Strasbourg, dossier Mediflash, sur les courriers de
+        l&rsquo;inspection du travail du Grand Est.
+      </li>
+      <li>
+        <b>Mediflash &mdash; chiffres</b>
+        Déclarations du cofondateur Maxime Klein reprises par Gerontonews : environ quarante mille
+        inscrits, dont plus de deux mille actifs par mois.
+      </li>
+      <li>
+        <b>Conseil d&rsquo;État</b>
+        Décision n° 491128 du 11 février 2025, 5<sup>e</sup> et 6<sup>e</sup> chambres réunies,
+        consultée sur Légifrance.
+      </li>
+      <li>
+        <b>Loi Valletoux et durée minimale d&rsquo;exercice</b>
+        Loi n° 2023-1268 du 27 décembre 2023 visant à améliorer l&rsquo;accès aux soins par
+        l&rsquo;engagement territorial des professionnels. Article L. 313-23-4 et article R.
+        313-30-5 du code de l&rsquo;action sociale et des familles, ce dernier réécrit par le décret
+        n° 2025-1147 du 28 novembre 2025.
+      </li>
+      <li>
+        <b>Garantie financière et contrat de mission</b>
+        Code du travail. Références précises à compléter dans le document Étude de marché.
+      </li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Relève &mdash; Analyse de marché v2</span>
+    <span>Concurrence &amp; positionnement</span>
+    <span>Complément : Étude de marché</span>
+    <span>Epitech D-WEB-901 InteriMatch</span>
+  </footer>
+</div>

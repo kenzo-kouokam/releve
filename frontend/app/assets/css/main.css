@@ -1,0 +1,218 @@
+/*
+ * Palette relevee sur le canvas Claude Design « Relève app web design »
+ * (projet e3f578c4-45f4-4fd3-8f81-57fa3f3349b4). Le canvas n'expose aucune
+ * variable : les valeurs sont les hex bruts de ses douze ecrans, regroupes ici
+ * pour rester la seule source de verite du front.
+ */
+:root {
+  --ground: #f4f8f5;
+  --surface: #ffffff;
+  --surface-2: #e8f2ed;
+  --ink: #11221c;
+  --muted: #5b7168;
+  --line: #dce7e0;
+  --dom: #167a65;
+  --dom-soft: #e8f2ed;
+  --sans: 'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  /* Filet plus marque que --line : le canvas le reserve au contour des boutons
+   * secondaires et des zones en pointilles (depot de fichier). */
+  --line-forte: #cbddd3;
+
+  /* Vert sombre : survol des boutons pleins, et fond des cartes pleines
+   * (action urgente de l'accueil etablissement, bandeau de correspondance). */
+  --dom-fonce: #0e4c3f;
+
+  /* Le meme vert, mais en couleur de *texte*.
+   *
+   * `--dom-fonce` servait les deux roles a la fois : fond d'un bloc sombre, et
+   * couleur d'un libelle. Les deux tiennent en theme clair ; en sombre ils se
+   * contredisent, puisqu'un fond doit rester sombre quand un texte doit
+   * s'eclaircir. Le token restait donc sombre, et le lien de navigation actif
+   * comme le bouton secondaire tombaient a 1,4:1 sur leur fond — illisibles,
+   * tres en dessous des 4,5:1 du RGAA.
+   *
+   * La valeur en clair est identique a `--dom-fonce` : rien ne bouge de ce
+   * cote-la, seul le theme sombre est corrige. */
+  --dom-encre: #0e4c3f;
+
+  /* Le texte pose *sur* un aplat `--dom-fonce`.
+   *
+   * Troisieme role du meme vert, et le dernier. Ces blocs utilisaient
+   * `--surface` — blanc en clair, ce qui marchait. Mais `--surface` s'inverse
+   * en sombre alors que `--dom-fonce` reste sombre : le panneau « Besoin
+   * d'aide ? » et le survol des boutons principaux devenaient du sombre sur du
+   * sombre, a 1,6:1. Ce token-ci ne s'inverse pas : l'aplat est sombre dans les
+   * deux themes, donc son texte est clair dans les deux. */
+  --sur-dom: #ffffff;
+
+  /* Texte secondaire pose sur --dom-fonce, la ou --muted manquerait de
+   * contraste. */
+  --dom-contraste: #dcede8;
+
+  /* Vert clair du canvas, pour les accroches en capitales posees sur
+   * --dom-fonce (le rouge --eta y devient illisible). */
+  --dom-clair: #8fd3be;
+
+  /* Rouge de l'accroche « Le soin, sans attendre » et des etats urgents. Le
+   * canvas le decline en trio fond / filet / encre pour ses pastilles. */
+  --eta: #da2f20;
+  --eta-soft: #fdeae7;
+  --eta-line: #f6d3cd;
+  --eta-encre: #b5392b;
+
+  /* Le canvas distingue l'avatar de la personne connectee de celui des
+   * etablissements par cette teinte lavande, declinee en meme trio. */
+  --lavande: #edebf7;
+  --lavande-line: #dad5ee;
+  --lavande-encre: #5b53a3;
+
+  /* Troisieme trio du canvas : les encarts d'information a echeance
+   * (document a renouveler, disponibilite a confirmer). */
+  --ambre: #fff8e8;
+  --ambre-line: #f0e0b8;
+  --ambre-encre: #6b5a2e;
+
+  /* Rayons du canvas : champ, marque, tuile d'icone, carte, grande carte. */
+  --r-champ: 12px;
+  --r-marque: 13px;
+  --r-tuile: 14px;
+  --r-carte: 16px;
+  --r-carte-large: 24px;
+
+  --ombre-carte: 0 8px 24px rgba(17, 34, 28, 0.07);
+
+  /*
+   * Marge laterale entre le texte et le bord de l'ecran.
+   *
+   * Un jeton plutot qu'une valeur recopiee : elle l'etait a quatre endroits, et
+   * la feuille des pages vitrine l'avait tout simplement oubliee — le texte y
+   * touchait les deux bords des que la fenetre descendait sous la largeur
+   * maximale de la colonne. Une valeur unique rend l'oubli visible : un
+   * conteneur qui ne la porte pas se repere a l'oeil.
+   */
+  --gouttiere: 28px;
+}
+
+/* Sur un telephone, 28 px de chaque cote prennent 15 % d'un ecran de 360 px.
+ * Le jeton se redefinit, les conteneurs n'ont rien a savoir. */
+@media (max-width: 560px) {
+  :root {
+    --gouttiere: 20px;
+  }
+}
+
+/* Le canvas ne couvre pas le theme sombre : les teintes sont transposees a
+ * partir des memes hues pour que les ecrans deja codes restent lisibles. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0d1714;
+    --surface: #14201c;
+    --surface-2: #1b2a25;
+    --ink: #e4ede9;
+    --muted: #93a8a0;
+    --line: #26342e;
+    --line-forte: #32433c;
+    --dom: #4fb79c;
+    --dom-soft: #123028;
+    --dom-fonce: #0b463b;
+    /* Sur fond sombre, le vert de texte s'eclaircit. */
+    --dom-encre: #8fd3be;
+    --sur-dom: #eaf4ef;
+    --dom-contraste: #cfe3dc;
+    --dom-clair: #8fd3be;
+    --eta: #f07a68;
+    --eta-soft: #3a1c17;
+    --eta-line: #4d2721;
+    --eta-encre: #f2a093;
+    --lavande: #241f33;
+    --lavande-line: #3a3252;
+    --lavande-encre: #b3abe0;
+    --ambre: #2b2415;
+    --ambre-line: #4a3f22;
+    --ambre-encre: #e3cf9a;
+    --ombre-carte: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--dom);
+}
+
+/* Contraste renforce, regle depuis l'ecran « Mon compte ». Seuls les tokens
+ * bougent : le texte secondaire et les filets sont les deux endroits ou le
+ * canvas descend le plus bas en contraste. */
+:root[data-contraste='fort'] {
+  --ink: #05130e;
+  --muted: #3c5049;
+  --line: #9fb8ad;
+  --line-forte: #7fa295;
+  --eta: #b52416;
+  --ambre-encre: #4d4120;
+  --lavande-encre: #443c85;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-contraste='fort'] {
+    --ink: #f4faf7;
+    --muted: #c3d5ce;
+    --line: #4d635b;
+    --line-forte: #61796f;
+    --eta: #ffa693;
+    --ambre-encre: #f0dcaa;
+    --lavande-encre: #cec6f2;
+  }
+}
+
+/* Animations reduites, meme reglage. La regle double `prefers-reduced-motion`
+ * du systeme : quelqu'un peut vouloir ce confort ici sans l'imposer partout. */
+:root[data-animations='reduites'] *,
+:root[data-animations='reduites'] *::before,
+:root[data-animations='reduites'] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* Champ de mot de passe avec bascule de visibilite.
+ *
+ * Declare ici et non dans le composant : le bouton est un composant, mais le
+ * champ appartient a la page, qui le style dans un bloc `scoped`. Une regle
+ * scopee n'atteindrait pas l'un ou l'autre selon l'endroit ou on l'ecrit ; une
+ * regle globale atteint les deux.
+ *
+ * `input[type]` plutot que `input` : les pages posent leur remplissage par un
+ * selecteur `input` scope, de specificite (0,1,1) une fois l'attribut de scope
+ * ajoute. L'attribut ici porte la nôtre a (0,2,1), qui l'emporte sans avoir a
+ * ecrire `!important` — et sans dependre de l'ordre d'injection des styles.
+ */
+.champ-mot-de-passe {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.champ-mot-de-passe input[type] {
+  width: 100%;
+  /* La place du bouton, pour qu'un mot de passe long ne passe pas dessous. */
+  padding-right: 46px;
+}
+
+.champ-mot-de-passe > .bascule-visibilite {
+  position: absolute;
+  right: 6px;
+}

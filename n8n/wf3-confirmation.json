@@ -1,0 +1,470 @@
+{
+  "updatedAt": "2026-09-21T08:02:57.000Z",
+  "createdAt": "2026-09-18T10:07:31.749Z",
+  "id": "wf3ConfirmationReleve",
+  "name": "WF3 - Confirmation de mission",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "28b8d659-399a-4335-8075-458ce8fee681",
+      "name": "Appelé par WF1 (mission pourvue)",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "71e9ea26-825f-4f10-883e-58b05df45564",
+      "name": "Un candidat retenu ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "35d0c39a-f07d-4ce4-97e8-04f128fcc4ce",
+              "leftValue": "={{ $json.body.candidatRetenu?.candidatRef }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "124e59f4-a607-44bc-9f18-e91001f96c9d",
+      "name": "API : courriel de confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RELEVE_API_URL }}/interne/missions/{{ $json.body.mission.id }}/alertes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $env.INTERNAL_SERVICE_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ type: \"confirmation\", candidatRefs: [$json.body.candidatRetenu.candidatRef] }) }}",
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "9bc11f5e-98a5-4937-b579-93ee2e5768fd",
+      "name": "Slack : confirmation envoyée",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        120
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2S0X5W4W"
+        },
+        "text": "=:page_facing_up: *Confirmation envoyée* à {{ $('Appelé par WF1 (mission pourvue)').first().json.body.candidatRetenu.candidatRef }} — {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}\n>{{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.qualification }} · {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.commune }} · {{ DateTime.fromISO($('Appelé par WF1 (mission pourvue)').first().json.body.mission.dateDebut).setLocale('fr').toFormat('ccc dd LLL') }} {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.heureDebut }}–{{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.heureFin }}\n>{{ $json.envoyees }} courriel(s) parti(s){{ ($json.ignorees || []).length ? ' · ' + $json.ignorees.length + ' référence(s) ignorée(s)' : '' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "7858f560-2d28-44db-91e0-2effc7bb7bab",
+      "name": "Slack : incident (#ops)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        340
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "aBd8lcQaqq3LyRQb",
+          "name": "Slack — Relève"
+        }
+      },
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C2VTG9E1X"
+        },
+        "text": "=:warning: *WF3 — confirmation non envoyée* pour {{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}\n>{{ $json.error?.message ?? $json.error ?? 'erreur inconnue' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "2838c51a-cb01-4dba-9ded-25045bda81be",
+      "name": "Aucun candidat retenu",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        480,
+        420
+      ],
+      "parameters": {}
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $env.AIRTABLE_BASE_ID }}"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "Notifications"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "13e6ff74-b10f-404e-a1e5-1a3ad07cb01b",
+      "name": "Airtable : journal des notifications",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        220
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "airtableReleve",
+          "name": "Airtable — Relève"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bffccd98-c5ea-4951-b47f-a2b75d61c6a1",
+              "name": "Clé",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.deliveryId }}-confirmation",
+              "type": "string"
+            },
+            {
+              "id": "6739f26a-0317-4b99-9de8-783d4c438445",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "d65d688a-4212-485a-9d84-f12adccd20fe",
+              "name": "Workflow",
+              "value": "WF3",
+              "type": "string"
+            },
+            {
+              "id": "5bfe2792-f245-4385-ba4c-dbc6fc9ed4f7",
+              "name": "Événement",
+              "value": "mission.pourvue",
+              "type": "string"
+            },
+            {
+              "id": "d1a4eb21-d32a-48a3-b9f9-b7ab9d30f29b",
+              "name": "Mission",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "47a40a17-7a1f-47ff-b59f-0e96d14adb0a",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "043e616e-6a31-4225-b273-49a3ff675fdc",
+              "name": "Type",
+              "value": "confirmation",
+              "type": "string"
+            },
+            {
+              "id": "c9841cf4-cb1e-42ec-9270-e4c19365f904",
+              "name": "Candidats",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.candidatRetenu.candidatRef }}",
+              "type": "string"
+            },
+            {
+              "id": "d9bfd4cf-f6a9-4fa6-9056-0d23796e33dd",
+              "name": "Envoyés",
+              "value": "={{ $('API : courriel de confirmation').item.json.envoyees }}",
+              "type": "number"
+            },
+            {
+              "id": "b8f92415-0550-4ac7-9a88-479b2de1cf68",
+              "name": "Ignorés",
+              "value": "={{ $('API : courriel de confirmation').item.json.ignorees ?? 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "55b03a4e-8cc6-4ee5-8bb1-3bdc5cd5a928",
+              "name": "Statut",
+              "value": "ENVOYE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a19d1976-c0a2-4d41-a2af-6dcf40950ba7",
+      "name": "Journal : confirmation envoyée",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fcfa07af-899d-4337-bd53-c8877ee5b3ed",
+              "name": "Clé",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.deliveryId }}-confirmation",
+              "type": "string"
+            },
+            {
+              "id": "bfa0cafd-bd57-464c-b7fb-de8523d1a8bc",
+              "name": "Date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "91ec95a9-d861-492a-937d-ca0030f4b6e0",
+              "name": "Workflow",
+              "value": "WF3",
+              "type": "string"
+            },
+            {
+              "id": "e1ad76d1-cc8b-43d0-9fae-049e1fc7ad38",
+              "name": "Événement",
+              "value": "mission.pourvue",
+              "type": "string"
+            },
+            {
+              "id": "e8ecbcfd-6b9b-4e9b-9cdf-fec0ba28b92e",
+              "name": "Mission",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.mission.reference }}",
+              "type": "string"
+            },
+            {
+              "id": "20823d03-0d20-4dd5-b616-dc7963e22eab",
+              "name": "Canal",
+              "value": "E-mail candidat",
+              "type": "string"
+            },
+            {
+              "id": "37df0609-fbb4-4938-ac0a-2b36ab956cd8",
+              "name": "Type",
+              "value": "confirmation",
+              "type": "string"
+            },
+            {
+              "id": "101a5b1b-7065-42d0-a5be-b15ddc03583f",
+              "name": "Candidats",
+              "value": "={{ $('Appelé par WF1 (mission pourvue)').first().json.body.candidatRetenu.candidatRef }}",
+              "type": "string"
+            },
+            {
+              "id": "05dc857f-878e-40be-a842-6b9ebf12ec8b",
+              "name": "Envoyés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "8b959cf3-1591-4fb3-b982-c21b34a2b7d8",
+              "name": "Ignorés",
+              "value": "=0",
+              "type": "number"
+            },
+            {
+              "id": "b6d3bd7b-374a-40b1-bb5c-919fbe83d16a",
+              "name": "Statut",
+              "value": "ECHEC",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6cb7327b-9e81-483c-ade6-a5c545ae390b",
+      "name": "Journal : confirmation en échec",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        960,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Appelé par WF1 (mission pourvue)": {
+      "main": [
+        [
+          {
+            "node": "Un candidat retenu ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un candidat retenu ?": {
+      "main": [
+        [
+          {
+            "node": "API : courriel de confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Aucun candidat retenu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API : courriel de confirmation": {
+      "main": [
+        [
+          {
+            "node": "Slack : confirmation envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack : incident (#ops)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack : confirmation envoyée": {
+      "main": [
+        [
+          {
+            "node": "Journal : confirmation envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : confirmation envoyée": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack : incident (#ops)": {
+      "main": [
+        [
+          {
+            "node": "Journal : confirmation en échec",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Journal : confirmation en échec": {
+      "main": [
+        [
+          {
+            "node": "Airtable : journal des notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "versionCounter": 4,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

@@ -1,0 +1,77 @@
+export default defineNuxtConfig({
+  compatibilityDate: '2026-09-01',
+  devtools: { enabled: false },
+  // `host: '::'` et non l'ecoute par defaut, qui se lie au seul `::1`.
+  //
+  // Sous Windows, `localhost` resout vers les deux familles — `::1` en AAAA et
+  // `127.0.0.1` en A — et le navigateur choisit. Quand il retient l'adresse
+  // IPv4 alors que le serveur n'ecoute qu'en IPv6, la page ne s'ouvre pas :
+  // ERR_CONNECTION_REFUSED sur http://localhost:3000, sans la moindre trace
+  // cote serveur, qui n'a jamais vu passer la connexion. Le symptome est
+  // deroutant parce qu'il ressemble a un serveur arrete alors qu'il tourne.
+  //
+  // `::` ecoute en IPv6 et accepte l'IPv4 par adresses mappees : les deux
+  // chemins aboutissent. C'est deja ce que fait l'API sur le port 3001, d'ou
+  // le fait qu'elle, elle ait toujours repondu.
+  devServer: { port: 3000, host: '::' },
+  css: ['~/assets/css/main.css', '~/assets/css/vitrine.css', '~/assets/css/legal.css'],
+  runtimeConfig: {
+    // Prive, donc jamais serialise vers le navigateur : depuis le passage au
+    // relais /bff, seul Nitro appelle l'API. Une valeur publique inviterait a
+    // refaire un appel direct, qui court-circuiterait les cookies httpOnly.
+    apiBase: process.env.NUXT_API_BASE ?? 'http://localhost:3001/api',
+    public: {
+      // Racine publique du site, seule valeur publique du fichier.
+      //
+      // Elle ne sert pas a appeler quoi que ce soit : elle prefixe les adresses
+      // des donnees structurees (schema.org) et des liens canoniques, qui
+      // doivent etre absolues et pointer vers le domaine servi, pas vers la
+      // machine du visiteur. D'ou le passage par le navigateur — le balisage
+      // est aussi relu apres hydratation.
+      //
+      // A renseigner au deploiement : `NUXT_PUBLIC_SITE_URL=https://…`, sans
+      // barre finale. La valeur de developpement rend un balisage coherent,
+      // validable dans l'outil de test de Google, mais evidemment pas indexable.
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+    },
+  },
+  // `@releve/shared` est compile en CommonJS et lie par le workspace : Vite le
+  // traite alors comme du source et rate ses exports nommes, avec une erreur du
+  // type « doesn't provide an export named ». D'ou le pre-bundling explicite.
+  //
+  // `force` regle le second piege, plus vicieux que le premier. Vite calcule
+  // l'empreinte de son cache de dependances sur le fichier de verrouillage et
+  // la configuration, pas sur le contenu d'un paquet lie : un fichier ajoute a
+  // `@releve/shared` n'invalide donc rien. Le serveur continue de servir au
+  // navigateur un pre-bundle d'avant, ou le nouveau symbole n'existe pas — la
+  // page se rend cote serveur, puis son hydratation echoue sur
+  // « X is undefined », et l'ecran reste la, inerte, sans erreur visible.
+  // Un redemarrage n'y change rien : le cache est sur disque et lui survit.
+  //
+  // Le cout est de reconstruire les dependances a chaque demarrage du serveur
+  // de developpement, quelques centaines de millisecondes. Sans effet sur le
+  // `build` de production, qui repart toujours de zero.
+  vite: {
+    optimizeDeps: { include: ['@releve/shared'], force: true },
+  },
+  typescript: {
+    strict: true,
+  },
+  app: {
+    head: {
+      title: 'Relève',
+      htmlAttrs: { lang: 'fr' },
+      meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
+      // Le canvas est dessine en Plus Jakarta Sans : sans ce chargement, le
+      // front retombait sur Segoe UI, aucune police n'ayant jamais ete servie.
+      link: [
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
+        },
+      ],
+    },
+  },
+});

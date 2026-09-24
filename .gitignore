@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.output/
+.nuxt/
+.nitro/
+.cache/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# volumes docker locaux
+.data/
+
+# Pieces justificatives deposees par les candidats. Jamais versionnees : ce
+# sont des donnees personnelles sensibles (NIR, piece d'identite, RIB).
+backend/donnees/documents/

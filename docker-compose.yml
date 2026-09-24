@@ -1,0 +1,97 @@
+name: passerelle
+
+services:
+  db:
+    # Image PostGIS : le geomatching candidat -> lieu d'intervention en depend.
+    image: postgis/postgis:16-3.4
+    container_name: passerelle-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: passerelle
+      POSTGRES_PASSWORD: passerelle
+      POSTGRES_DB: passerelle
+    ports:
+      # 5434 : 5432 et 5433 sont deja pris sur les postes de dev (Postgres local / WSL).
+      - '5434:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U passerelle -d passerelle']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # File de jobs BullMQ : matching differe, notifications, relances.
+    image: redis:7-alpine
+    container_name: passerelle-redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+
+  mailpit:
+    # Serveur SMTP de developpement : il accepte tout et n'envoie rien dehors.
+    # Les mails de verification s'ouvrent dans l'interface web, ce qui permet de
+    # derouler le parcours complet sans compte chez un fournisseur — et sans
+    # risquer d'ecrire a une vraie adresse depuis un jeu de test.
+    image: axllent/mailpit:latest
+    container_name: passerelle-mailpit
+    restart: unless-stopped
+    ports:
+      # 8025 : la boite de reception, dans le navigateur.
+      - '8025:8025'
+      # 1025 : le SMTP auquel l'API parle.
+      - '1025:1025'
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  n8n:
+    # Automatisations : notification des candidats proposes, relance des
+    # missions non pourvues. L'API reste la source de verite : n8n recoit des
+    # webhooks signes et rappelle l'API sur /api/interne, jamais la base.
+    # Version figee : un workflow exporte doit se reimporter a l'identique.
+    image: docker.n8n.io/n8nio/n8n:2.39.5
+    container_name: passerelle-n8n
+    restart: unless-stopped
+    ports:
+      - '5678:5678'
+    environment:
+      GENERIC_TIMEZONE: Europe/Paris
+      TZ: Europe/Paris
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      # Pas de cookie « secure » : l'interface locale est servie en http.
+      N8N_SECURE_COOKIE: 'false'
+      # Aucune telemetrie envoyee a n8n.
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+      # Les workflows lisent leur configuration via $env.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      # L'API tourne sur la machine hote, pas dans Docker.
+      RELEVE_API_URL: http://host.docker.internal:3001/api
+      # Seuil de relance en minutes : 1440 (24 h) par defaut, 5 en demonstration.
+      RELANCE_SEUIL_MIN: ${RELANCE_SEUIL_MIN:-1440}
+      # Secrets partages avec l'API, lus dans backend/.env (voir pnpm infra:up).
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      # Base Airtable « Tampon » (journal des notifications et relances).
+      # Identifiant non secret ; le jeton, lui, reste dans les credentials n8n.
+      AIRTABLE_BASE_ID: ${AIRTABLE_BASE_ID:-}
+    extra_hosts:
+      # Necessaire sous Linux et WSL ; deja resolu nativement sur macOS et Windows.
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Exports versionnes des workflows (livrable) : n8n export:workflow --output.
+      - ./n8n:/home/node/workflows
+
+volumes:
+  db_data:
+  redis_data:
+  n8n_data:
