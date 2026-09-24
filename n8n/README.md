@@ -47,6 +47,25 @@ La base Airtable est désignée par `AIRTABLE_BASE_ID` dans `backend/.env` (iden
 
 Le plafond de 3 alertes urgentes par jour s'appuie sur des compteurs Redis `n8n:alertes:<candidat>:<date>`, qui expirent au bout de 48 h.
 
+## Demonstration en direct
+
+`demo-live.sh` joue les parcours reels contre l'API locale, en s'arretant apres chaque
+etape pour dire ou regarder (Slack, Mailpit, Airtable, n8n) :
+
+```bash
+./n8n/demo-live.sh parcours     # publication urgente -> proposition -> acceptation -> validation
+./n8n/demo-live.sh annulation   # publication -> propositions -> annulation (WF3 ne part pas)
+./n8n/demo-live.sh plafond      # 4 alertes le meme jour : la 4e est bloquee
+./n8n/demo-live.sh signature    # un appel non signe est rejete
+./n8n/demo-live.sh relance      # mode d'emploi de la demonstration WF2
+./n8n/demo-live.sh nettoyer     # remise a zero avant une repetition
+```
+
+Sophie est le seul compte candidat verifie du seed : une fois retenue sur une date,
+elle ne peut plus etre proposee sur la meme periode, d'ou `nettoyer` avant chaque
+repetition. Laisser quelques secondes entre deux etapes : enchainees en moins d'une
+seconde, WF1 n'a pas encore memorise le message Slack qu'il doit mettre a jour.
+
 ## Publication
 
 WF1 et WF3 doivent être **publiés** pour fonctionner : WF1 écoute le webhook de production, et WF3 est appelé par WF1 (un workflow non publié ne peut pas être appelé). WF2 se publie quand on veut la planification automatique ; en démonstration, « Execute workflow » suffit.
