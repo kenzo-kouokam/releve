@@ -690,6 +690,22 @@ navigateur : **contraste renforcé** (redéfinit les tokens de texte secondaire 
 **réduction des animations**. Ils sont conservés dans le stockage local, donc attachés à l'appareil
 et non au compte.
 
+## Référencement et partage social
+
+Une première attention a été portée au référencement et à la manière dont le site vitrine est présenté lorsqu’il est partagé sur des plateformes externes.
+
+Sur la page d’accueil uniquement du site vitrine, nous avons ajouté plusieurs balises et données structurées :
+
+- les balises Open Graph, afin de contrôler les informations affichées lors du partage de la page sur les réseaux sociaux ;
+- la balise twitter:card, afin de définir le format d’aperçu utilisé lors d’un partage sur Twitter/X ;
+- un schéma Schema.org, afin de fournir aux moteurs de recherche des informations structurées sur le contenu de la page.
+
+Ces éléments ont volontairement été intégrés uniquement sur la page d’accueil. L’objectif n’était pas de mettre en place une stratégie SEO complète sur l'ensemble du site, mais de montrer que les problématiques de référencement, de partage social et de données structurées avaient été prises en compte dans la conception du site vitrine.
+
+### Les améliorations futures
+
+Le référencement pourrait également être approfondi dans une prochaine version. La page d’accueil dispose déjà de balises Open Graph, de twitter:card et de données structurées Schema.org, mais cette démarche pourrait être étendue aux autres pages du site vitrine et complétée par un travail SEO plus global.
+
 ---
 
 ## Structure du dépôt
@@ -1481,8 +1497,37 @@ pnpm --filter @releve/shared build   # puis relancer pnpm dev
 `force` reconstruit les dépendances à chaque démarrage, pour quelques centaines de millisecondes.
 Sans effet sur le `build` de production, qui repart toujours de zéro.
 
----
+## Application mobile
 
+Le développement de l’application mobile n’était pas demandé dans les objectifs initiaux du projet. Nous avons néanmoins choisi de réaliser cette application afin d’aller plus loin dans le développement de la solution et de proposer une véritable interface utilisateur accessible depuis un smartphone.
+
+L’objectif était notamment de pouvoir concrétiser les fonctionnalités développées côté backend et de proposer une expérience adaptée aux différents utilisateurs de la plateforme. L’application distingue ainsi un espace destiné aux établissements et un espace destiné aux candidats, avec des fonctionnalités adaptées à chacun.
+
+### État actuel et limites
+
+L’application mobile est fonctionnelle sur plusieurs parcours, mais certaines fonctionnalités restent à finaliser ou à améliorer.
+
+Dans l’espace candidat, la récupération des annonces depuis le backend est prévue et devrait fonctionner pleinement dans une prochaine version. L’objectif est que les candidats puissent récupérer les missions publiées par les établissements, les consulter et, à terme, effectuer les différentes actions prévues autour de ces missions.
+
+Les chiffres clés affichés sur les dashboards constituent également un point qui devra être finalisé. Le fonctionnement prévu repose sur la récupération des données réelles depuis le backend afin d’afficher des indicateurs correspondant à l’activité de la plateforme. Dans une prochaine version, ces données devront donc être davantage fiabilisées et complétées afin que les chiffres affichés correspondent précisément aux données enregistrées.
+
+Ces éléments ne remettent pas en cause la structure mise en place : les écrans, la navigation et les appels à l’API ont été développés afin de permettre leur finalisation dans la suite du projet.
+
+### Améliorations futures
+
+Plusieurs améliorations pourraient être apportées à la solution dans une prochaine version.
+
+La première serait de finaliser complètement la récupération des annonces dans l’espace candidat et de permettre un parcours complet autour des missions, depuis leur consultation jusqu’à la candidature.
+
+Les dashboards pourraient également être améliorés afin de proposer des chiffres clés entièrement connectés aux données réelles de la plateforme. Les indicateurs pourraient être enrichis pour donner une meilleure visibilité sur les missions, les candidatures et leur évolution.
+
+D’autres améliorations pourraient également être envisagées, notamment l’ajout de notifications mobiles pour informer les utilisateurs lorsqu’une nouvelle mission est disponible, lorsqu’une candidature évolue ou lorsqu’une action est nécessaire.
+
+L’expérience utilisateur pourrait aussi être améliorée progressivement, notamment au niveau de l’ergonomie, de l’accessibilité et de la personnalisation des espaces selon le profil de l’utilisateur.
+
+Enfin, une évolution importante serait de poursuivre l’intégration entre le backend et l’application afin d’obtenir des parcours entièrement connectés et cohérents pour les établissements comme pour les candidats.
+
+---
 ## Questions métier en attente
 
 Le socle est livré et testé. Restent des questions métier, pas du code :
