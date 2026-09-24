@@ -121,6 +121,8 @@ describe('middleware de navigation', () => {
       '/tension',
       '/annonces',
       '/suivi',
+      '/besoins',
+      '/besoins/abc-123',
     ])('ferme %s', async (chemin) => {
       expect(await atterrissage(VISITEUR, chemin)).toBe('/connexion');
     });
@@ -154,7 +156,7 @@ describe('middleware de navigation', () => {
       expect(await atterrissage(CANDIDAT, chemin)).toBe(chemin);
     });
 
-    it.each(['/', '/clients', '/comptes', '/tension', '/etablissement'])(
+    it.each(['/', '/clients', '/comptes', '/tension', '/etablissement', '/besoins'])(
       'renvoie %s vers son tableau de bord',
       async (chemin) => {
         expect(await atterrissage(CANDIDAT, chemin)).toBe('/tableau-de-bord');
@@ -178,7 +180,15 @@ describe('middleware de navigation', () => {
       },
     );
 
-    it.each(['/', '/tableau-de-bord', '/clients', '/missions', '/annonces', '/connexion'])(
+    it.each([
+      '/',
+      '/tableau-de-bord',
+      '/clients',
+      '/missions',
+      '/annonces',
+      '/connexion',
+      '/besoins',
+    ])(
       'renvoie %s vers son accueil',
       async (chemin) => {
         expect(await atterrissage(CLIENT, chemin)).toBe('/etablissement');
@@ -197,7 +207,7 @@ describe('middleware de navigation', () => {
    * n'y a qu'une porte fermee.
    */
   describe('agence', () => {
-    it.each(['/', '/clients', '/tension', '/comptes'])(
+    it.each(['/', '/clients', '/tension', '/comptes', '/besoins', '/besoins/abc-123'])(
       'laisse son back-office %s',
       async (chemin) => {
         expect(await atterrissage(AGENCE, chemin)).toBe(chemin);

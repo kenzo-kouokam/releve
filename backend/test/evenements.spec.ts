@@ -236,6 +236,149 @@ describe('evenements et routes internes', () => {
     });
   });
 
+  /**
+   * L'archive du classement.
+   *
+   * Le classement se calculait a la demande et ne laissait rien. Un motif
+   * d'exclusion etait donc recalcule, jamais relu : verifiez le diplome de
+   * quelqu'un la semaine prochaine, demandez ensuite pourquoi il n'a pas ete
+   * propose la semaine derniere, et le systeme repond qu'il etait eligible.
+   * C'est cette derive que ces cas verrouillent.
+   */
+  describe('archive du classement', () => {
+    it('fige les retenus et les ecartes au moment de la proposition', async () => {
+      const id = await publier();
+
+      await avec(app, agence)
+        .post(`/api/missions/${id}/propositions`)
+        .send({ candidatIds: [jeu.candidatA] })
+        .expect(201);
+
+      const reponse = await avec(app, agence).get(`/api/missions/${id}/classements`).expect(200);
+
+      expect(reponse.body).toHaveLength(1);
+
+      const archive = reponse.body[0];
+
+      expect(archive.auteurEmail).toBe('charge.a@test.example');
+      expect(archive.proposesIds).toEqual([jeu.candidatA]);
+      expect(archive.retenus.length).toBeGreaterThan(0);
+
+      const retenu = archive.retenus.find(
+        (ligne: { candidatId: string }) => ligne.candidatId === jeu.candidatA,
+      );
+
+      // Le nom et le score sont recopies, pas references : c'est ce qui rend
+      // l'archive lisible quand la fiche a change depuis.
+      expect(retenu.nom).toBe('Aubry');
+      expect(retenu.detail.composantes.length).toBeGreaterThan(0);
+      expect(retenu.detail.composantes[0].explication).toBeTruthy();
+    });
+
+    it('conserve le motif d exclusion tel qu il etait', async () => {
+      // Un candidat sans le diplome exige : ecarte, avec son motif.
+      await prisma.qualificationCandidat.deleteMany({ where: { candidatId: jeu.candidatA } });
+
+      const deuxieme = await prisma.candidat.create({
+        data: {
+          agenceId: jeu.agenceA,
+          nom: 'Complet',
+          prenom: 'Camille',
+          email: 'camille.complet@test.example',
+          telephone: '0600000011',
+          adresse: '1 rue du Test',
+          codePostal: '44000',
+          ville: 'Nantes',
+          statut: 'ACTIF',
+          rayonKm: 25,
+          latitude: 47.2184,
+          longitude: -1.5536,
+        },
+      });
+
+      await prisma.qualificationCandidat.create({
+        data: {
+          candidatId: deuxieme.id,
+          qualificationId: jeu.qualification,
+          obtenueLe: new Date('2018-06-30'),
+          verifieeLe: new Date(),
+          verifieePar: 'test',
+        },
+      });
+
+      await poserExercice(deuxieme.id, jeu.qualification);
+
+      const id = await publier();
+
+      await avec(app, agence)
+        .post(`/api/missions/${id}/propositions`)
+        .send({ candidatIds: [deuxieme.id] })
+        .expect(201);
+
+      const [archive] = (await avec(app, agence).get(`/api/missions/${id}/classements`)).body;
+
+      const ecarte = archive.ecartes.find(
+        (ligne: { candidatId: string }) => ligne.candidatId === jeu.candidatA,
+      );
+
+      expect(ecarte).toBeDefined();
+      expect(ecarte.motifs.map((m: { cle: string }) => m.cle)).toContain('diplome');
+
+      // Le diplome revient : le classement d'aujourd'hui change, l'archive non.
+      await prisma.qualificationCandidat.create({
+        data: {
+          candidatId: jeu.candidatA,
+          qualificationId: jeu.qualification,
+          obtenueLe: new Date('2018-06-30'),
+          verifieeLe: new Date(),
+          verifieePar: 'test',
+        },
+      });
+
+      const vivant = await avec(app, agence)
+        .get(`/api/missions/${id}/candidats?ecartes=true`)
+        .expect(200);
+
+      expect(
+        vivant.body.retenus.some(
+          (l: { candidat: { id: string } }) => l.candidat.id === jeu.candidatA,
+        ),
+      ).toBe(true);
+
+      const [relu] = (await avec(app, agence).get(`/api/missions/${id}/classements`)).body;
+      const toujoursEcarte = relu.ecartes.find(
+        (ligne: { candidatId: string }) => ligne.candidatId === jeu.candidatA,
+      );
+
+      expect(toujoursEcarte.motifs.map((m: { cle: string }) => m.cle)).toContain('diplome');
+    });
+
+    it('n archive rien quand aucune proposition ne part', async () => {
+      const id = await publier();
+
+      // Deja propose : la seconde demande ne cree rien, donc rien a archiver.
+      await avec(app, agence)
+        .post(`/api/missions/${id}/propositions`)
+        .send({ candidatIds: [jeu.candidatA] })
+        .expect(201);
+
+      await avec(app, agence)
+        .post(`/api/missions/${id}/propositions`)
+        .send({ candidatIds: [jeu.candidatA] })
+        .expect(201);
+
+      const reponse = await avec(app, agence).get(`/api/missions/${id}/classements`).expect(200);
+
+      expect(reponse.body).toHaveLength(1);
+    });
+
+    it('refuse l historique a l etablissement', async () => {
+      const id = await publier();
+
+      await avec(app, client).get(`/api/missions/${id}/classements`).expect(403);
+    });
+  });
+
   describe('l agence propose des candidats', () => {
     it('cree des candidatures ENVOYEE et consigne un seul evenement', async () => {
       const id = await publier();

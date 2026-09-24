@@ -44,6 +44,7 @@ const liens = computed<{ to: string; label: string }[]>(() => {
   if (interne.value) {
     return [
       { to: '/', label: 'Vivier' },
+      { to: '/besoins', label: 'Besoins' },
       { to: '/clients', label: 'Clients' },
       { to: '/tension', label: 'Tension' },
       ...(utilisateur.value.role === 'ADMIN_AGENCE' ? [{ to: '/comptes', label: 'Comptes' }] : []),

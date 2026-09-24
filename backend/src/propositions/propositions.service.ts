@@ -3,11 +3,15 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  CandidatArchive,
   CandidatPropose,
+  ClassementArchiveResume,
+  EcarteArchive,
   PageResultat,
   PointFortCandidat,
   PropositionListQuery,
@@ -111,6 +115,8 @@ function jourIso(date: Date): string {
 
 @Injectable()
 export class PropositionsService {
+  private readonly logger = new Logger(PropositionsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly missions: MissionsService,
@@ -459,7 +465,112 @@ export class PropositionsService {
       propositionIds: creees.map((proposition) => proposition.id),
     });
 
+    await this.archiverClassement(
+      missionId,
+      session,
+      creees.map((proposition) => proposition.candidatId),
+    );
+
     return creees.map((proposition) => this.resume(proposition));
+  }
+
+  /**
+   * Fige le classement tel qu'il etait au moment ou l'agence a propose.
+   *
+   * Ici, et pas dans `MatchingService.classer()`. Le classement se consulte : un
+   * ecran rafraichi dix fois l'appellerait dix fois, et la table se remplirait
+   * de photographies identiques d'une decision qui n'a pas encore ete prise.
+   * L'instant qui compte est celui ou quelqu'un **choisit** — c'est de celui-la
+   * qu'on devra rendre compte.
+   *
+   * L'archive fige les noms, les scores et les motifs plutot que de renvoyer aux
+   * fiches : relire la fiche six mois plus tard donnerait l'etat d'aujourd'hui,
+   * et la question posee est « qu'avait-on sous les yeux ce jour-la ».
+   *
+   * L'echec n'interrompt rien. Les propositions sont parties, les candidats sont
+   * prevenus : refuser l'operation entiere parce que la trace n'a pas pu
+   * s'ecrire reviendrait a defaire ce qui a deja eu lieu.
+   */
+  private async archiverClassement(
+    missionId: string,
+    session: UtilisateurSession,
+    proposesIds: string[],
+  ): Promise<void> {
+    try {
+      const classement = await this.matching.classer(
+        missionId,
+        { ecartes: true, limite: 50 },
+        session,
+      );
+
+      const retenus: CandidatArchive[] = classement.retenus.map((ligne) => ({
+        candidatId: ligne.candidat.id,
+        nom: ligne.candidat.nom,
+        prenom: ligne.candidat.prenom,
+        score: ligne.score.total,
+        detail: ligne.score,
+        distanceKm: ligne.distanceKm,
+      }));
+
+      const ecartes: EcarteArchive[] = classement.ecartes.map((ligne) => ({
+        candidatId: ligne.candidat.id,
+        nom: ligne.candidat.nom,
+        prenom: ligne.candidat.prenom,
+        motifs: ligne.motifs,
+      }));
+
+      await this.prisma.classementArchive.create({
+        data: {
+          missionId,
+          auteurId: session.id,
+          auteurEmail: session.email,
+          retenus: retenus as unknown as Prisma.InputJsonValue,
+          ecartes: ecartes as unknown as Prisma.InputJsonValue,
+          proposesIds,
+        },
+      });
+    } catch (cause) {
+      this.logger.error(`Archivage du classement impossible pour ${missionId} : ${String(cause)}`);
+    }
+  }
+
+  /**
+   * L'historique des classements d'une mission, du plus recent au plus ancien.
+   *
+   * Reserve a l'agence. Un etablissement n'a pas a lire les motifs d'exclusion
+   * de gens qu'on ne lui a pas proposes, et un candidat encore moins.
+   */
+  async historiqueClassements(
+    missionId: string,
+    session: UtilisateurSession,
+  ): Promise<ClassementArchiveResume[]> {
+    if (!session.agenceId) {
+      throw new ForbiddenException("L'historique des classements est reserve a l'agence");
+    }
+
+    const mission = await this.prisma.mission.findFirst({
+      where: { id: missionId, agenceId: session.agenceId },
+      select: { id: true },
+    });
+
+    if (!mission) {
+      throw new NotFoundException('Mission introuvable');
+    }
+
+    const lignes = await this.prisma.classementArchive.findMany({
+      where: { missionId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return lignes.map((ligne) => ({
+      id: ligne.id,
+      missionId: ligne.missionId,
+      auteurEmail: ligne.auteurEmail,
+      creeLe: ligne.createdAt.toISOString(),
+      retenus: ligne.retenus as unknown as CandidatArchive[],
+      ecartes: ligne.ecartes as unknown as EcarteArchive[],
+      proposesIds: ligne.proposesIds,
+    }));
   }
 
   async lister(

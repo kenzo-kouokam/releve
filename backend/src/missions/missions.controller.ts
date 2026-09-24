@@ -9,6 +9,7 @@ import {
   propositionsAgenceCreateSchema,
   ROLES_AGENCE,
   type CandidatureCreate,
+  type ClassementArchiveResume,
   type ClassementMission,
   type ClassementQuery,
   type MissionCreate,
@@ -130,6 +131,23 @@ export class MissionsController {
     @UtilisateurCourant() session: UtilisateurSession,
   ): Promise<ClassementMission> {
     return this.matching.classer(id, query, session);
+  }
+
+  /**
+   * L'historique des classements archives de cette mission.
+   *
+   * Reserve a l'agence, et non ouvert au client comme le classement vivant :
+   * l'archive porte les motifs d'exclusion de gens qui ne lui ont jamais ete
+   * proposes, et il n'a pas a les lire.
+   */
+  @Get(':id/classements')
+  @Roles(...ROLES_AGENCE)
+  @ApiOperation({ summary: 'Les classements figes au moment de chaque proposition' })
+  classements(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UtilisateurCourant() session: UtilisateurSession,
+  ): Promise<ClassementArchiveResume[]> {
+    return this.propositions.historiqueClassements(id, session);
   }
 
   @Post(':id/candidatures')

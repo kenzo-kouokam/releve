@@ -198,8 +198,9 @@ model Utilisateur {
   clientId   String?   @db.Uuid
   client     Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
-  jetons JetonRafraichissement[]
-  liens  JetonUsageUnique[]
+  jetons      JetonRafraichissement[]
+  liens       JetonUsageUnique[]
+  classements ClassementArchive[]
 
   @@index([agenceId, role])
   @@map("utilisateur")
@@ -788,11 +789,49 @@ model Mission {
   contrat      Contrat?
   releves      ReleveHeures[]
   evenements   EvenementMission[]
+  classements  ClassementArchive[]
 
   @@index([agenceId, statut])
   @@index([dateDebut])
   @@index([clientId, statut])
   @@map("mission")
+}
+
+/// Le classement tel qu'il etait au moment ou l'agence a propose.
+///
+/// Le classement se calculait a la demande et ne laissait aucune trace. Un
+/// motif d'exclusion etait donc **recalcule**, jamais relu : verifiez le diplome
+/// de quelqu'un la semaine prochaine, demandez ensuite pourquoi il n'a pas ete
+/// propose la semaine derniere, et le systeme repond qu'il etait eligible. La
+/// reponse changeait retroactivement — exactement ce qu'une decision opposable
+/// ne doit pas faire.
+///
+/// Ecrit au moment ou l'agence **propose**, et non a chaque affichage du
+/// classement : une page rafraichie dix fois ecrirait dix lignes, et l'instant
+/// qui compte est celui ou quelqu'un choisit, pas celui ou il regarde.
+model ClassementArchive {
+  id        String  @id @default(uuid()) @db.Uuid
+  missionId String  @db.Uuid
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  /// Qui a propose. `SetNull` : le depart d'un charge de recrutement ne doit pas
+  /// effacer la trace de ses decisions.
+  auteurId    String?      @db.Uuid
+  auteur      Utilisateur? @relation(fields: [auteurId], references: [id], onDelete: SetNull)
+  /// L'adresse au moment du geste, conservee meme si le compte disparait.
+  auteurEmail String
+
+  /// Les candidats classes, avec leur score decompose : `CandidatArchive[]`.
+  retenus Json
+  /// Les candidats ecartes, avec leurs motifs : `EcarteArchive[]`.
+  ecartes Json
+  /// Ceux a qui une proposition est effectivement partie, parmi les retenus.
+  proposesIds String[] @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  @@index([missionId, createdAt])
+  @@map("classement_archive")
 }
 
 model Proposition {
