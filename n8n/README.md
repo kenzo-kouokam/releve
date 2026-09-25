@@ -66,6 +66,19 @@ elle ne peut plus etre proposee sur la meme periode, d'ou `nettoyer` avant chaqu
 repetition. Laisser quelques secondes entre deux etapes : enchainees en moins d'une
 seconde, WF1 n'a pas encore memorise le message Slack qu'il doit mettre a jour.
 
+## Captures
+
+Captures reelles, prises sur les workflows publies et pendant les tests de bout en bout.
+
+| Fichier | Ce qu'elle montre |
+|---|---|
+| `captures/wf1-alertes.png` | WF1 dans l'editeur n8n : signature, aiguillage, alerte plafonnee, Slack, journal |
+| `captures/wf2-relance.png` | WF2 : planification, relance ou escalade, Slack, journal |
+| `captures/wf3-confirmation.png` | WF3 : garde, courriel via l'API, Slack, journal |
+| `captures/email-confirmation.png` | L'e-mail « Votre mission est confirmee » recu par la candidate |
+| `captures/mailpit-boite.png`, `captures/mailpit-confirmation.png` | La boite Mailpit apres un parcours complet |
+| `captures/api-docs.png` | La documentation OpenAPI, routes `/api/interne/*` comprises |
+
 ## Publication
 
 WF1 et WF3 doivent être **publiés** pour fonctionner : WF1 écoute le webhook de production, et WF3 est appelé par WF1 (un workflow non publié ne peut pas être appelé). WF2 se publie quand on veut la planification automatique ; en démonstration, « Execute workflow » suffit.
