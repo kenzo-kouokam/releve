@@ -279,7 +279,7 @@ h2 {
   justify-content: center;
   width: 38px;
   height: 38px;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--dom-soft);
   border: 0;
   border-radius: 999px;

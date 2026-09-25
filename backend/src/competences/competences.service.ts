@@ -51,7 +51,7 @@ export class CompetencesService {
    *
    * Le classement par occurrences est ce qui distingue cette liste d'un menu
    * deroulant. Un etablissement qui depose un besoin voit d'abord ce que les
-   * autres EHPAD exigent reellement sur ce metier — l'ordre porte autant
+   * autres etablissements exigent reellement sur ce metier — l'ordre porte autant
    * d'information que le contenu.
    */
   async lister(query: CompetencesQuery): Promise<CompetenceResume[]> {

@@ -22,6 +22,8 @@ const form = reactive({
 });
 
 const erreurs = ref<Record<string, string>>({});
+const voirMotDePasse = ref(false);
+const voirConfirmation = ref(false);
 const erreurGenerale = ref('');
 const envoi = ref(false);
 
@@ -242,25 +244,31 @@ async function soumettre(): Promise<void> {
 
           <label class="champ">
             <span>Mot de passe</span>
-            <input
-              id="mot-de-passe"
-              v-model="form.motDePasse"
-              type="password"
-              autocomplete="new-password"
-              placeholder="••••••••••"
-            />
+            <div class="champ-mot-de-passe">
+              <input
+                id="mot-de-passe"
+                v-model="form.motDePasse"
+                :type="voirMotDePasse ? 'text' : 'password'"
+                autocomplete="new-password"
+                placeholder="••••••••••"
+              />
+              <AppBasculeMotDePasse v-model:visible="voirMotDePasse" />
+            </div>
             <em v-if="erreurs.motDePasse">{{ erreurs.motDePasse }}</em>
           </label>
 
           <label class="champ">
             <span>Confirmer le mot de passe</span>
-            <input
-              id="confirmation"
-              v-model="form.confirmation"
-              type="password"
-              autocomplete="new-password"
-              placeholder="••••••••••"
-            />
+            <div class="champ-mot-de-passe">
+              <input
+                id="confirmation"
+                v-model="form.confirmation"
+                :type="voirConfirmation ? 'text' : 'password'"
+                autocomplete="new-password"
+                placeholder="••••••••••"
+              />
+              <AppBasculeMotDePasse v-model:visible="voirConfirmation" champ="la confirmation" />
+            </div>
             <em v-if="erreurs.confirmation">{{ erreurs.confirmation }}</em>
           </label>
         </div>
@@ -302,12 +310,10 @@ async function soumettre(): Promise<void> {
       déployable, jamais pourquoi.
     </p>
 
-    <!-- Reprise de l'ecran de choix supprime : c'est la seule information qu'il
-         portait et qui n'existait nulle part ailleurs. -->
     <p v-if="!enAttente" class="note">
-      Vous représentez un EHPAD ? Votre établissement est enregistré par nos
-      équipes, après vérification de votre déclaration SAP ou de votre autorisation.
-      <a href="mailto:contact@releve.example">Écrivez-nous</a>.
+      Vous représentez un EHPAD ?
+      <NuxtLink to="/inscription/etablissement">Ouvrez le compte de votre établissement</NuxtLink>
+      — il sera activé après vérification de votre arrêté d'autorisation.
     </p>
   </section>
 </template>
@@ -363,7 +369,7 @@ h1 {
 }
 
 .etapes .actif {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
   border-color: var(--dom);
 }
@@ -556,6 +562,7 @@ em {
 
 .principal:hover:not(:disabled) {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
 }
 
 .principal:disabled {

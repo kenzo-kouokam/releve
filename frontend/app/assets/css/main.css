@@ -24,6 +24,29 @@
    * (action urgente de l'accueil etablissement, bandeau de correspondance). */
   --dom-fonce: #0e4c3f;
 
+  /* Le meme vert, mais en couleur de *texte*.
+   *
+   * `--dom-fonce` servait les deux roles a la fois : fond d'un bloc sombre, et
+   * couleur d'un libelle. Les deux tiennent en theme clair ; en sombre ils se
+   * contredisent, puisqu'un fond doit rester sombre quand un texte doit
+   * s'eclaircir. Le token restait donc sombre, et le lien de navigation actif
+   * comme le bouton secondaire tombaient a 1,4:1 sur leur fond — illisibles,
+   * tres en dessous des 4,5:1 du RGAA.
+   *
+   * La valeur en clair est identique a `--dom-fonce` : rien ne bouge de ce
+   * cote-la, seul le theme sombre est corrige. */
+  --dom-encre: #0e4c3f;
+
+  /* Le texte pose *sur* un aplat `--dom-fonce`.
+   *
+   * Troisieme role du meme vert, et le dernier. Ces blocs utilisaient
+   * `--surface` — blanc en clair, ce qui marchait. Mais `--surface` s'inverse
+   * en sombre alors que `--dom-fonce` reste sombre : le panneau « Besoin
+   * d'aide ? » et le survol des boutons principaux devenaient du sombre sur du
+   * sombre, a 1,6:1. Ce token-ci ne s'inverse pas : l'aplat est sombre dans les
+   * deux themes, donc son texte est clair dans les deux. */
+  --sur-dom: #ffffff;
+
   /* Texte secondaire pose sur --dom-fonce, la ou --muted manquerait de
    * contraste. */
   --dom-contraste: #dcede8;
@@ -59,6 +82,25 @@
   --r-carte-large: 24px;
 
   --ombre-carte: 0 8px 24px rgba(17, 34, 28, 0.07);
+
+  /*
+   * Marge laterale entre le texte et le bord de l'ecran.
+   *
+   * Un jeton plutot qu'une valeur recopiee : elle l'etait a quatre endroits, et
+   * la feuille des pages vitrine l'avait tout simplement oubliee — le texte y
+   * touchait les deux bords des que la fenetre descendait sous la largeur
+   * maximale de la colonne. Une valeur unique rend l'oubli visible : un
+   * conteneur qui ne la porte pas se repere a l'oeil.
+   */
+  --gouttiere: 28px;
+}
+
+/* Sur un telephone, 28 px de chaque cote prennent 15 % d'un ecran de 360 px.
+ * Le jeton se redefinit, les conteneurs n'ont rien a savoir. */
+@media (max-width: 560px) {
+  :root {
+    --gouttiere: 20px;
+  }
 }
 
 /* Le canvas ne couvre pas le theme sombre : les teintes sont transposees a
@@ -75,6 +117,9 @@
     --dom: #4fb79c;
     --dom-soft: #123028;
     --dom-fonce: #0b463b;
+    /* Sur fond sombre, le vert de texte s'eclaircit. */
+    --dom-encre: #8fd3be;
+    --sur-dom: #eaf4ef;
     --dom-contraste: #cfe3dc;
     --dom-clair: #8fd3be;
     --eta: #f07a68;
@@ -141,4 +186,33 @@ a {
   transition-duration: 0.01ms !important;
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+}
+
+/* Champ de mot de passe avec bascule de visibilite.
+ *
+ * Declare ici et non dans le composant : le bouton est un composant, mais le
+ * champ appartient a la page, qui le style dans un bloc `scoped`. Une regle
+ * scopee n'atteindrait pas l'un ou l'autre selon l'endroit ou on l'ecrit ; une
+ * regle globale atteint les deux.
+ *
+ * `input[type]` plutot que `input` : les pages posent leur remplissage par un
+ * selecteur `input` scope, de specificite (0,1,1) une fois l'attribut de scope
+ * ajoute. L'attribut ici porte la nôtre a (0,2,1), qui l'emporte sans avoir a
+ * ecrire `!important` — et sans dependre de l'ordre d'injection des styles.
+ */
+.champ-mot-de-passe {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.champ-mot-de-passe input[type] {
+  width: 100%;
+  /* La place du bouton, pour qu'un mot de passe long ne passe pas dessous. */
+  padding-right: 46px;
+}
+
+.champ-mot-de-passe > .bascule-visibilite {
+  position: absolute;
+  right: 6px;
 }

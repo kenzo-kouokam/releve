@@ -18,6 +18,7 @@ import { ConservationService } from '../documents/conservation.service';
 import { NotificationsMissionsService } from '../notifications/notifications-missions.service';
 import { DocumentsService } from '../documents/documents.service';
 import { GeocodageService } from '../geocodage/geocodage.service';
+import { StockageService } from '../documents/stockage.service';
 
 /**
  * Outillage en ligne de commande de la chaine de donnees publiques.
@@ -252,6 +253,48 @@ programme
         // mal saisie, pas une panne : c'est a l'agence de la reprendre avec la
         // personne, et l'afficher ici est le seul endroit ou elle le verra.
         console.log('Les adresses restantes sont a corriger a la main : voir les avertissements.');
+      }
+    } finally {
+      await app.close();
+    }
+  });
+
+programme
+  .command('chiffrer:documents')
+  .description('Chiffre les pieces justificatives deposees avant la mise en place du coffre')
+  .option('--constater', 'compte les fichiers en clair sans rien modifier', false)
+  .action(async (options) => {
+    const app = await contexte();
+    const stockage = app.get(StockageService);
+
+    try {
+      if (options.constater) {
+        const enClair = await stockage.compterEnClair();
+
+        console.log('');
+        console.log(
+          enClair === 0
+            ? 'Aucun fichier en clair : tout le stockage est chiffre.'
+            : `${enClair} fichier(s) encore en clair. Relancer sans --constater pour les reprendre.`,
+        );
+        console.log('');
+
+        return;
+      }
+
+      const rapport = await stockage.chiffrerLExistant();
+
+      console.log('');
+      console.log(`Fichiers examines ${rapport.examines}`);
+      console.log(`Chiffres          ${rapport.chiffres}`);
+      console.log(`Echecs            ${rapport.echecs}`);
+      console.log('');
+
+      if (rapport.echecs > 0) {
+        // Un echec laisse le fichier en clair, jamais a moitie chiffre : la
+        // reprise ecrit a cote puis renomme. Relancer la commande est donc sans
+        // danger, et c'est la bonne premiere reaction.
+        console.log('Les fichiers en echec sont restes en clair : relancer la commande.');
       }
     } finally {
       await app.close();

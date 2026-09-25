@@ -238,6 +238,7 @@ h1 {
 
 .principal:hover:not(:disabled) {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
   border-color: var(--dom-fonce);
 }
 

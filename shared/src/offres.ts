@@ -47,6 +47,15 @@ export interface MissionVitrine {
   ville: string;
   codePostal: string;
   departement: string;
+  /**
+   * Date de dépôt de la mission, en ISO 8601.
+   *
+   * Projetée pour le balisage `JobPosting` de la vitrine : `datePosted` est
+   * exigé par Google, et une offre sans date de publication est écartée de
+   * l'index emploi. Elle n'est pas affichée — « déposée il y a trois semaines »
+   * ne dit rien d'utile à un candidat, qui regarde la date de la mission.
+   */
+  datePublication: string;
   dateDebut: string;
   dateFin: string;
   heureDebut: string;

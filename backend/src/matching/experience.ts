@@ -6,6 +6,8 @@
  * ici qu'on décide ce qui compte, et ce genre de décision se relit.
  */
 
+import { heuresDepuisMois } from '@releve/shared';
+
 const MS_PAR_JOUR = 24 * 3600 * 1000;
 
 /** Longueur moyenne d'un mois. Les mois civils varient, la mesure non. */
@@ -127,6 +129,83 @@ export function bilanExperience(
     moisAutres,
     moisRetenus: Math.min(pondere, moisCalendaires(periodes)),
   };
+}
+
+/**
+ * Un poste tel que l'exercice préalable le compte.
+ *
+ * `compteCommeExercice` ne dit pas la même chose que `qualifiante` plus haut,
+ * et les
+ * confondre fausserait tout. `qualifiante` répond à « ce poste relève-t-il du
+ * diplôme **exigé par cette mission** » — une question qui n'a de sens que face
+ * à un besoin. Ici il s'agit de « ce poste relève-t-il du métier », sans
+ * mission en vue : c'est une propriété de la personne, et elle vaut pour toutes
+ * les missions à la fois.
+ */
+export interface PosteExerce {
+  debutLe: Date;
+  finLe: Date | null;
+  quotitePourcent: number;
+  /**
+   * Le poste relève du métier : soit il est rattaché à une qualification du
+   * référentiel — n'importe laquelle —, soit l'agence l'a reconnu comme exercice
+   * du secteur sans diplôme applicable.
+   *
+   * Ce second cas n'existait pas, et son absence coûtait cher : un faisant
+   * fonction d'aide-soignant se rangeait avec une hôtesse de caisse, et ses
+   * années de terrain valaient zéro heure.
+   */
+  compteCommeExercice: boolean;
+}
+
+/**
+ * Heures d'exercice du métier, pondérées par la quotité.
+ *
+ * Ni plafond ni pondération hors référentiel, à la différence du barème : on ne
+ * départage personne ici, on mesure une durée face à un seuil légal. Le plafond
+ * de cinq ans existe pour ne pas écarter les plus jeunes sur un écart que
+ * l'établissement ne constatera jamais ; l'appliquer à un seuil d'exercice
+ * reviendrait à déclarer qu'au-delà de cinq ans on n'a plus exercé.
+ *
+ * Les postes hors secteur sont simplement ignorés. Ils pèsent pour moitié au
+ * barème, parce qu'ils disent quelque chose de quelqu'un au travail ; la loi,
+ * elle, parle d'exercice du métier, et une année de caisse n'en est pas une.
+ * Un poste du secteur sans diplôme rattaché, lui, compte : c'est bien le métier
+ * qui a été exercé.
+ */
+export function heuresExercice(postes: PosteExerce[], reference: Date = new Date()): number {
+  let mois = 0;
+  const periodes: [number, number][] = [];
+
+  for (const poste of postes) {
+    if (!poste.compteCommeExercice) {
+      continue;
+    }
+
+    const bornes = intervalle({ ...poste, qualifiante: true }, reference);
+
+    if (!bornes) {
+      continue;
+    }
+
+    periodes.push(bornes);
+
+    const quotite = Math.min(Math.max(poste.quotitePourcent, 0), 100) / 100;
+
+    mois += enMois(bornes[1] - bornes[0]) * quotite;
+  }
+
+  // Plafond calendaire, comme dans le bareme, et pour la meme raison : la somme
+  // des durees peut depasser le temps reellement ecoule. Deux mi-temps menes en
+  // parallele font bien un temps plein ; deux temps pleins superposes sur la
+  // meme annee ne font pas deux ans de metier.
+  //
+  // Le cas s'est presente sur une fiche reelle — deux postes d'aide-soignant se
+  // recouvrant sur trois ans — et la mesure annoncait onze mille heures pour
+  // quatre ans de carriere. Sur un seuil legal, l'erreur ouvre la porte a
+  // quelqu'un qui n'y a pas droit, et il suffit de saisir deux fois le meme
+  // poste pour la franchir deux fois plus vite.
+  return Math.round(heuresDepuisMois(Math.min(mois, moisCalendaires(periodes))));
 }
 
 /** Rendu lisible d'une durée en mois : « 3 ans et 2 mois ». */

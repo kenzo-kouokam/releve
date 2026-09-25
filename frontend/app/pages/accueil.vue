@@ -8,16 +8,36 @@ import {
   PRISE_EN_CHARGE,
 } from '~/data/vitrine';
 
-useHead({
-  title: "Relève — intérim en EHPAD",
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Relève est l'agence d'intérim dédiée aux EHPAD : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.",
-    },
-  ],
-});
+/**
+ * Titre et description, ecrits une fois pour les quatre destinations qui les
+ * demandent : l'onglet, la balise `description` que lit Google, les donnees
+ * structurees et l'apercu des liens partages. Repetes a la main, ils auraient
+ * fini par diverger — et le partage aurait annonce autre chose que la page.
+ */
+const TITRE = 'Relève — intérim en EHPAD, hôpital et clinique';
+const DESCRIPTION =
+  "Relève est l'agence d'intérim dédiée aux EHPAD, hôpitaux et cliniques : créez votre dossier candidat une fois, puis candidatez aux missions proches de chez vous.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
+
+/**
+ * Pas de fil d'Ariane ici : c'est la racine du site public, et un chemin qui
+ * ne contiendrait que « Accueil » n'apprend rien a personne. Google l'ignore
+ * d'ailleurs sur la page d'accueil.
+ *
+ * L'editeur et le site sont deja declares par le gabarit ; cette page ajoute
+ * seulement ce qu'elle est.
+ */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/accueil',
+    filAriane: false,
+    titre: TITRE,
+    description: DESCRIPTION,
+  }),
+);
 </script>
 
 <template>
@@ -25,9 +45,10 @@ useHead({
     <section class="heros">
       <div class="promesse">
         <p class="vitrine-accroche">{{ ACCROCHE }}</p>
-        <h1>Des missions en EHPAD près de chez vous, dès demain.</h1>
+        <h1>Des missions en EHPAD, hôpital et clinique près de chez vous, dès demain.</h1>
         <p class="chapeau">
-          Relève est l'agence d'intérim dédiée aux Aides soignants aux EHPAD. Créez votre dossier candidat une
+          Relève est l'agence d'intérim dédiée aux aides-soignants, en EHPAD comme à l'hôpital et
+          en clinique. Créez votre dossier candidat une
           fois, puis candidatez en un clic aux missions qui correspondent à votre secteur, à vos
           disponibilités et à vos diplômes.
         </p>
@@ -38,6 +59,18 @@ useHead({
             Comment ça marche
           </NuxtLink>
         </div>
+
+        <!--
+          Le deuxième public de la page. Il était absent, ce qui n'était pas
+          qu'un oubli de lien : un cadre de santé arrivant ici ne trouvait
+          aucune porte, et l'accroche ne s'adressait qu'aux soignants. Une ligne
+          discrète plutôt qu'un troisième bouton — la page reste celle des
+          candidats, qui sont le nombre.
+        -->
+        <p class="autre-public">
+          Vous êtes un EHPAD, un hôpital ou une clinique et cherchez un remplaçant ?
+          <NuxtLink to="/inscription/etablissement">Ouvrir un compte établissement</NuxtLink>.
+        </p>
 
         <!-- Bloc vide tant que l'agence n'a pas fourni ses chiffres : voir le
              commentaire de CHIFFRES_CLES dans app/data/vitrine.ts. -->
@@ -51,8 +84,7 @@ useHead({
 
       <div class="apercu">
         <div class="entete-apercu">
-          <p class="titre-apercu">Missions près de Lyon</p>
-          <span class="etiquette">Exemple fictif</span>
+          <p class="titre-apercu">Missions proches de chez vous</p>
         </div>
 
         <ul>
@@ -131,13 +163,20 @@ useHead({
           </p>
         </div>
 
-        <NuxtLink to="/inscription/interimaire" class="bouton-clair">Créer mon compte</NuxtLink>
+        <NuxtLink to="/inscription" class="bouton-clair">Créer mon compte</NuxtLink>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
+.autre-public {
+  margin: 18px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
 /* L'accueil deborde de la colonne de contenu du layout : ses bandes occupent
  * toute la largeur. D'ou les marges negatives, seule facon de sortir d'un
  * conteneur centre sans deplacer le conteneur lui-meme. */
@@ -204,7 +243,7 @@ h1 {
 
 .apercu {
   padding: 28px;
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
   border-radius: 24px;
 }
@@ -508,6 +547,7 @@ h2 {
   justify-content: space-between;
   padding: 56px;
   background: var(--dom-fonce);
+  color: var(--sur-dom);
   border-radius: 26px;
 }
 
@@ -527,7 +567,7 @@ h2 {
 .bloc-appel h2 {
   margin: 0 0 12px;
   font-size: clamp(26px, 4vw, 34px);
-  color: var(--surface);
+  color: var(--sur-dom);
 }
 
 .copie-appel p:last-child {
@@ -541,7 +581,7 @@ h2 {
   padding: 17px 30px;
   font-size: 16px;
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   white-space: nowrap;
   text-decoration: none;
   background: var(--surface);
@@ -549,7 +589,7 @@ h2 {
 }
 
 .bouton-clair:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 

@@ -13,7 +13,9 @@ import { JetonsUsageUniqueService } from './jetons-usage-unique.service';
 import { SessionsService } from './sessions.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
+import { verifierSecretJwt } from './secret-jwt';
 import { ServiceTokenGuard } from './service-token.guard';
+import { ThrottlerRedisStorage } from './throttler-redis.storage';
 
 /**
  * `expiresIn` est type par jsonwebtoken comme un litteral de duree ("15m",
@@ -24,29 +26,45 @@ type DureeJeton = NonNullable<NonNullable<JwtModuleOptions['signOptions']>['expi
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot({
-      // Interrupteur global. Les tests d'integration jouent des dizaines
-      // d'appels depuis la meme adresse : sans cela, la limitation ferait
-      // echouer des suites qui ne la testent pas. `skipIf` court-circuite aussi
-      // les plafonds poses par @Throttle, ce qu'une garde surchargee ne fait pas.
-      skipIf: () => process.env.THROTTLE_ACTIF === 'false',
-      throttlers: [
-        // Plafond general, large : il attrape un client devenu fou, pas un
-        // attaquant. Les routes sensibles resserrent avec @Throttle.
-        { name: 'defaut', limit: 300, ttl: 60_000 },
-        { name: 'connexion', limit: 300, ttl: 60_000 },
-      ],
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        // Interrupteur global. Les tests d'integration jouent des dizaines
+        // d'appels depuis la meme adresse : sans cela, la limitation ferait
+        // echouer des suites qui ne la testent pas. `skipIf` court-circuite aussi
+        // les plafonds poses par @Throttle, ce qu'une garde surchargee ne fait pas.
+        const actif = process.env.THROTTLE_ACTIF !== 'false';
+
+        return {
+          skipIf: () => !actif,
+          throttlers: [
+            // Plafond general, large : il attrape un client devenu fou, pas un
+            // attaquant. Les routes sensibles resserrent avec @Throttle.
+            { name: 'defaut', limit: 300, ttl: 60_000 },
+            { name: 'connexion', limit: 300, ttl: 60_000 },
+          ],
+          // Compteurs partages entre instances. L'URL n'est pas passee quand la
+          // limitation est coupee : ouvrir une connexion Redis pour un compteur
+          // que personne n'incremente laisserait une prise ouverte pendant
+          // toute la suite de tests.
+          storage: new ThrottlerRedisStorage(
+            actif ? config.get<string>('REDIS_URL') : undefined,
+            config.get<string>('DATABASE_URL'),
+          ),
+        };
+      },
     }),
     GeocodageModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET');
-
-        if (!secret) {
-          throw new Error('JWT_SECRET est absent : copier .env.example vers backend/.env');
-        }
+        // Absence, valeur d'exemple, secret trop court : voir `secret-jwt.ts`.
+        // Le refus est fatal, et c'est le seul comportement utile — demarrer en
+        // journalisant un avertissement laisserait tourner la version
+        // dangereuse.
+        const secret = verifierSecretJwt(config.get<string>('JWT_SECRET'));
 
         return {
           secret,

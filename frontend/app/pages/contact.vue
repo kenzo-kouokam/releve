@@ -2,16 +2,26 @@
 import { messageContactSchema, SUJETS_CONTACT, type SujetContact } from '@releve/shared';
 import { COORDONNEES } from '~/data/vitrine';
 
-useHead({
-  title: 'Contact — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Une question sur une mission, un dossier candidat ou un contrat : écrivez à l'agence Relève.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Contact — Relève';
+const DESCRIPTION =
+  "Une question sur une mission, un dossier candidat ou un contrat : écrivez à l'agence Relève.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
+
+/** `ContactPage` : c'est ce type que les moteurs cherchent pour rattacher une
+ *  adresse de contact a l'organisation deja declaree par le gabarit. */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/contact',
+    type: 'ContactPage',
+    titre: TITRE,
+    description: DESCRIPTION,
+  }),
+);
 
 const { requete } = useApi();
 
@@ -77,6 +87,8 @@ async function soumettre(): Promise<void> {
 
 <template>
   <main class="vitrine contact">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'Contact' }]" />
+
     <div>
       <p class="vitrine-accroche">Contact</p>
       <h1 class="vitrine-titre">Parlons de votre recherche</h1>
@@ -171,12 +183,30 @@ async function soumettre(): Promise<void> {
 </template>
 
 <style scoped>
+/* Plus large que la colonne de lecture ordinaire : deux colonnes cote a cote.
+ * La gouttiere s'ajoute autour, comme pour `.vitrine`. */
 .contact {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 48px;
   align-items: start;
-  max-width: 1100px;
+  max-width: calc(1100px + 2 * var(--gouttiere));
+}
+
+/* Le fil d'Ariane traverse la grille, il n'y occupe pas une cellule.
+ *
+ * Sans cette ligne, il prenait la premiere case et decalait tout d'un cran :
+ * le titre passait dans la colonne de droite, le formulaire tombait en
+ * deuxieme rangee a gauche, et la page se lisait de travers. C'est le piege de
+ * toute grille dont la racine est aussi le conteneur de la page — ajouter un
+ * element en tete y deplace tout le reste.
+ *
+ * Le selecteur porte sur la classe du composant et non sur `:first-child` :
+ * une regle de position ne doit pas dependre de l'ordre d'ecriture du gabarit.
+ * Les styles scopes atteignent bien cette classe, Vue posant l'attribut de
+ * portee sur la racine d'un composant enfant. */
+.contact > .fil-ariane {
+  grid-column: 1 / -1;
 }
 
 .chapeau {
@@ -380,7 +410,7 @@ label em {
 }
 
 .envoyer:hover:not(:disabled) {
-  color: var(--surface);
+  color: var(--sur-dom);
   background: var(--dom-fonce);
 }
 

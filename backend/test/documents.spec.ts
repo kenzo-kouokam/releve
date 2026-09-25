@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
-import { rm } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TAILLE_MAX_DOCUMENT, TYPES_DOCUMENT } from '@releve/shared';
@@ -138,6 +139,82 @@ describe('pieces justificatives', () => {
         .post('/api/mon-profil/documents/CV')
         .attach('fichier', PDF, { filename: 'cv.pdf', contentType: 'application/pdf' })
         .expect(403);
+    });
+  });
+
+  /**
+   * Le chiffrement au repos, verifie de bout en bout.
+   *
+   * La suite `coffre.spec.ts` prouve que le chiffrement fonctionne ; celle-ci
+   * prouve qu'il est **branche** — qu'un depot passe reellement par lui, et
+   * qu'on ne se contente pas d'avoir le bon code dans un fichier que personne
+   * n'appelle.
+   */
+  describe('chiffrement au repos', () => {
+    /** Le binaire tel qu'il est sur le disque, references telles qu'en base. */
+    async function fichierSurDisque(documentId: string): Promise<Buffer> {
+      const piece = await prisma.documentCandidat.findUniqueOrThrow({
+        where: { id: documentId },
+        select: { cheminStockage: true },
+      });
+
+      return readFile(join(process.env.STOCKAGE_DOCUMENTS!, piece.cheminStockage));
+    }
+
+    it('ecrit un fichier ou le contenu ne se lit pas', async () => {
+      const secret = Buffer.from('%PDF-1.4 NIR 1850712345678 Sophie Marchand');
+      const depot = await deposer(candidat, 'NIR', secret, 'nir.pdf').expect(201);
+
+      const surDisque = await fichierSurDisque(depot.body.id);
+
+      // Ni le contenu, ni meme l'en-tete du format : le fichier ne dit rien.
+      expect(surDisque.includes(Buffer.from('Sophie Marchand'))).toBe(false);
+      expect(surDisque.includes(Buffer.from('1850712345678'))).toBe(false);
+      expect(surDisque.includes(Buffer.from('%PDF'))).toBe(false);
+      expect(surDisque.subarray(0, 8).toString('ascii')).toBe('RELEVE01');
+    });
+
+    it('rend la piece intacte a celui qui la telecharge', async () => {
+      const depot = await deposer(candidat, 'CV').expect(201);
+
+      const reponse = await avec(app, candidat)
+        .get(`/api/mon-profil/documents/${depot.body.id}/contenu`)
+        .expect(200);
+
+      expect(Buffer.from(reponse.body).equals(PDF)).toBe(true);
+    });
+
+    /**
+     * L'empreinte reste celle du contenu **en clair**. Chiffree, elle changerait
+     * a chaque ecriture du meme fichier — le vecteur d'initialisation est tire
+     * au hasard — et cesserait de pouvoir constater qu'un document n'a pas bouge.
+     */
+    it('garde une empreinte calculee sur le clair', async () => {
+      const depot = await deposer(candidat, 'CV').expect(201);
+
+      const piece = await prisma.documentCandidat.findUniqueOrThrow({
+        where: { id: depot.body.id },
+        select: { empreinte: true },
+      });
+
+      const { createHash } = await import('node:crypto');
+
+      expect(piece.empreinte).toBe(createHash('sha256').update(PDF).digest('hex'));
+    });
+
+    /**
+     * Deux depots du meme fichier donnent deux binaires differents sur le
+     * disque, mais la meme empreinte. Sans cela, comparer des octets suffirait
+     * a deduire que deux candidats ont depose la meme piece.
+     */
+    it('ne produit jamais deux fois le meme binaire', async () => {
+      const premier = await deposer(candidat, 'CV').expect(201);
+      const binaireA = await fichierSurDisque(premier.body.id);
+
+      const second = await deposer(candidat, 'CV').expect(201);
+      const binaireB = await fichierSurDisque(second.body.id);
+
+      expect(binaireA.equals(binaireB)).toBe(false);
     });
   });
 

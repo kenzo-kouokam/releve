@@ -603,14 +603,21 @@ async function main(): Promise<void> {
  * de quoi eprouver le filtrage — le chainage departement / ville compris, qui
  * ne se voit pas tant qu'il n'y a qu'un departement.
  *
+ * Ils couvrent aussi les trois familles. Deux EHPAD, une clinique et un centre
+ * hospitalier : sans cela la vitrine afficherait « EHPAD » partout, et le
+ * secteur anonymise — qui compose la famille et la commune — se lirait comme une
+ * constante plutot que comme une information.
+ *
  * Coordonnees reelles, comme partout dans ce seed : elles doivent rester
  * geocodables, sinon `pnpm cli geocoder` echouerait sur le jeu de demonstration
  * et on croirait a une panne du service.
  */
-const AUTRES_EHPAD = [
+const AUTRES_ETABLISSEMENTS = [
+  // Deux EHPAD, qui relevent d'un arrete conjoint ARS / conseil departemental.
   {
     siret: '40355499000016',
     raisonSociale: 'EHPAD Les Charmilles',
+    type: 'EHPAD' as const,
     statutJuridique: 'PUBLIC_TERRITORIAL' as const,
     numeroFiness: '490001122',
     arreteReference: 'ARR-2019-0231',
@@ -640,6 +647,7 @@ const AUTRES_EHPAD = [
   {
     siret: '51234567800019',
     raisonSociale: 'EHPAD Le Clos Fleuri',
+    type: 'EHPAD' as const,
     statutJuridique: 'PRIVE_NON_LUCRATIF' as const,
     numeroFiness: '850003344',
     arreteReference: 'ARR-2022-0087',
@@ -666,16 +674,21 @@ const AUTRES_EHPAD = [
       tauxHoraire: '12.9000',
     },
   },
+  // Puis un etablissement de sante prive et un centre hospitalier, qui
+  // exercent sur une autorisation d'activite de soins delivree par l'ARS seule.
+  // La reference porte un autre prefixe que celle d'un arrete conjoint : c'est
+  // une autre piece, meme si la colonne est la meme.
   {
     siret: '78245698100011',
-    raisonSociale: 'EHPAD Bellevue',
+    raisonSociale: 'Clinique Bellevue',
+    type: 'CLINIQUE' as const,
     statutJuridique: 'PRIVE_COMMERCIAL' as const,
     numeroFiness: '350005566',
-    arreteReference: 'ARR-2020-0455',
+    arreteReference: 'AUT-2020-0455',
     convention: 'IDCC 2264',
     lieu: {
       type: 'ETABLISSEMENT' as const,
-      libelle: 'Bellevue - hebergement',
+      libelle: 'Bellevue - soins de suite',
       adresse: '9 rue de Chatillon',
       codePostal: '35000',
       ville: 'Rennes',
@@ -692,19 +705,22 @@ const AUTRES_EHPAD = [
       motifRecours: "Remplacement d'un salarie absent",
       description:
         'Nuit en binome avec l infirmiere d astreinte : rondes, changes, surveillance de l etat general.',
+      // Meme metier, autre cadre : c'est precisement ce que le seed doit
+      // montrer une fois la plateforme ouverte aux etablissements de sante.
       tauxHoraire: '15.2000',
     },
   },
   {
     siret: '44455667700011',
-    raisonSociale: 'EHPAD Les Salines',
+    raisonSociale: 'Centre hospitalier des Salines',
+    type: 'HOPITAL' as const,
     statutJuridique: 'PUBLIC_HOSPITALIER' as const,
     numeroFiness: '440007788',
-    arreteReference: 'ARR-2018-0912',
+    arreteReference: 'AUT-2018-0912',
     convention: 'Fonction publique hospitaliere',
     lieu: {
       type: 'ETABLISSEMENT' as const,
-      libelle: 'Les Salines - hebergement',
+      libelle: 'Les Salines - service de medecine',
       adresse: '11 rue du Croisic',
       codePostal: '44600',
       ville: 'Saint-Nazaire',
@@ -720,7 +736,7 @@ const AUTRES_EHPAD = [
       heureFin: '14:30',
       motifRecours: 'Accroissement temporaire d activite',
       description:
-        'Renfort sur le secteur hebergement pendant les conges : soins d hygiene, transferts, transmissions.',
+        'Renfort en service de medecine pendant les conges : soins d hygiene, transferts, transmissions.',
       tauxHoraire: '14.1000',
     },
   },
@@ -728,10 +744,10 @@ const AUTRES_EHPAD = [
 
 /** Cree les quatre autres etablissements et leur mission ouverte. */
 async function poserLeReste(agenceId: string, deas: string, deaes: string): Promise<void> {
-  for (const fiche of AUTRES_EHPAD) {
+  for (const fiche of AUTRES_ETABLISSEMENTS) {
     const identite = {
       raisonSociale: fiche.raisonSociale,
-      type: 'EHPAD' as const,
+      type: fiche.type,
       statutJuridique: fiche.statutJuridique,
       numeroFiness: fiche.numeroFiness,
       arreteReference: fiche.arreteReference,

@@ -10,6 +10,7 @@ const PAGES_OUVERTES = new Set([
   '/connexion',
   '/inscription',
   '/inscription/interimaire',
+  '/inscription/etablissement',
   // Ouvertes par necessite : on y arrive depuis un courriel, donc sans
   // session. La premiere en cree meme une.
   '/verification',
@@ -91,6 +92,35 @@ const SECTIONS_PAR_ROLE: Partial<Record<RoleUtilisateur, readonly string[]>> = {
   CLIENT: ['/etablissement'],
 };
 
+/**
+ * Les memes sections, vues depuis l'agence : elles lui sont fermees aussi.
+ *
+ * Elles etaient ouvertes aux comptes internes, au motif que l'API tranche de
+ * toute facon. C'est vrai pour les donnees, et faux pour ce qui s'affiche
+ * autour. Un charge de recrutement qui tapait `/missions/:id` lisait « Je
+ * candidate a cette mission », et `/suivi` lui parlait de « vos candidatures » ;
+ * `/annonces` faisait pire, puisque l'API repond 403 a un compte non candidat
+ * et que l'ecran traduisait ce refus en « les annonces sont momentanement
+ * indisponibles » — un message qui accuse une panne la ou il n'y a qu'une porte
+ * fermee.
+ *
+ * Aucun ecran de l'agence ne mene ici : sa navigation tient en Vivier, Clients,
+ * Tension et Comptes, et les liens vers `/missions` partent tous de l'espace
+ * candidat. Fermer ne retire donc rien, et evite d'avoir a maintenir deux
+ * redactions par ecran pour un chemin que personne n'emprunte.
+ *
+ * La liste se deduit de `SECTIONS_PAR_ROLE` plutot que d'etre recopiee : une
+ * section ajoutee a un profil externe sera fermee a l'agence sans que personne
+ * ait a y penser.
+ */
+const SECTIONS_EXTERNES: readonly string[] = Object.values(SECTIONS_PAR_ROLE).flat();
+
+function reserveeAuxExternes(chemin: string): boolean {
+  return SECTIONS_EXTERNES.some(
+    (prefixe) => chemin === prefixe || chemin.startsWith(`${prefixe}/`),
+  );
+}
+
 /** Page d'atterrissage apres connexion, par profil externe. */
 const ACCUEILS_EXTERNES: Partial<Record<RoleUtilisateur, string>> = {
   // Le canvas fait du tableau de bord la premiere page de l'espace candidat :
@@ -146,7 +176,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(accueil);
   }
 
-  if (!interne && !PAGES_EXTERNES.has(to.path) && !sectionAutorisee(role, to.path)) {
+  if (interne) {
+    // `/mon-compte` reste ouvert : c'est le mot de passe de la personne, pas un
+    // espace externe, et la barre de l'agence y conduit.
+    return reserveeAuxExternes(to.path) ? navigateTo(accueil) : undefined;
+  }
+
+  if (!PAGES_EXTERNES.has(to.path) && !sectionAutorisee(role, to.path)) {
     return navigateTo(accueil);
   }
 });

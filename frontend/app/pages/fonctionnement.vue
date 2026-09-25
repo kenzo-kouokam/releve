@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import { PARCOURS } from '~/data/vitrine';
 
-useHead({
-  title: 'Comment ça marche — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée EHPAD.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Comment ça marche — Relève';
+const DESCRIPTION =
+  "De l'inscription à la mission : les six étapes du parcours candidat chez Relève, agence d'intérim spécialisée dans le soin — EHPAD, hôpitaux, cliniques.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
+
+/**
+ * Pas de `HowTo` ici, bien que la page decrive six etapes : Google a retire ce
+ * balisage de ses resultats en 2023, et le declarer ferait porter a la page une
+ * promesse d'affichage qui n'existe plus.
+ */
+useDonneesStructurees(
+  pageWeb(useUrlSite(), {
+    chemin: '/fonctionnement',
+    titre: TITRE,
+    description: DESCRIPTION,
+  }),
+);
 </script>
 
 <template>
   <main class="vitrine">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'Comment ça marche' }]" />
+
     <p class="vitrine-accroche">Comment ça marche</p>
     <h1 class="vitrine-titre">De l'inscription à la mission</h1>
     <p class="vitrine-chapeau">

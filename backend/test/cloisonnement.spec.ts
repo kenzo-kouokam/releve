@@ -113,6 +113,9 @@ describe('cloisonnement multi-agence', () => {
         .send({
           raisonSociale: 'Autre A',
           siret: '35600000000048',
+          // Une clinique, pour que le cloisonnement soit eprouve sur autre
+          // chose que le type par defaut de la colonne.
+          type: 'CLINIQUE',
           statutJuridique: 'PRIVE_COMMERCIAL',
           numeroFiness: '350000001',
           arreteReference: 'ARR-2020-0001',

@@ -9,6 +9,7 @@ import {
   type ProfilAEvaluer,
 } from '../src/matching/score';
 import type { ExperienceEvaluee } from '../src/matching/experience';
+import { SEUIL_EXERCICE_PREALABLE_HEURES } from '@releve/shared';
 
 /**
  * Le bareme, teste seul.
@@ -63,6 +64,10 @@ function profil(surcharge: Partial<ProfilAEvaluer> = {}): ProfilAEvaluer {
     longitude: -1.5536,
     diplomeValide: true,
     experiences: [],
+    // Au-dessus du seuil d'exercice prealable, pour que ce profil reste
+    // eligible par defaut : les cas de ce fichier eprouvent la zone, les
+    // creneaux et le score, pas cette porte-la, qui a ses propres cas plus bas.
+    heuresExercice: SEUIL_EXERCICE_PREALABLE_HEURES,
     competences: [],
     creneaux: [
       { jourSemaine: 1, heureDebut: '07:00', heureFin: '14:00', valideDu: null, valideAu: null },
@@ -182,6 +187,45 @@ describe('porte d eligibilite', () => {
     const motifs = motifsExclusion(profil({ diplomeValide: false }), besoin());
 
     expect(motifs.map((m) => m.cle)).toContain('diplome');
+  });
+
+  it('ecarte une duree d exercice inferieure au seuil', () => {
+    const debutant = profil({ heuresExercice: 1200 });
+    const motifs = motifsExclusion(debutant, besoin());
+
+    expect(motifs.map((m) => m.cle)).toContain('experience');
+  });
+
+  it('laisse passer pile au seuil', () => {
+    const pile = profil({ heuresExercice: SEUIL_EXERCICE_PREALABLE_HEURES });
+
+    expect(motifsExclusion(pile, besoin()).map((m) => m.cle)).not.toContain('experience');
+  });
+
+  /**
+   * Le libelle part directement au candidat : `postuler` reprend les motifs tels
+   * quels dans le message de refus. Il doit donc chiffrer l'ecart — c'est la
+   * seule chose qui rende le refus actionnable — et nommer ce qui manque.
+   */
+  it('chiffre ce qui manque dans le libelle', () => {
+    const motifs = motifsExclusion(profil({ heuresExercice: 1200 }), besoin());
+    const libelle = motifs.find((m) => m.cle === 'experience')?.libelle ?? '';
+
+    expect(libelle).toMatch(/1\s?200/);
+    expect(libelle).toMatch(/3\s?214/);
+    // 3214 - 1200
+    expect(libelle).toMatch(/2\s?014/);
+  });
+
+  it('cumule le manque d experience et l absence de diplome', () => {
+    const motifs = motifsExclusion(
+      profil({ diplomeValide: false, heuresExercice: 0 }),
+      besoin(),
+    );
+    const cles = motifs.map((m) => m.cle);
+
+    expect(cles).toContain('diplome');
+    expect(cles).toContain('experience');
   });
 
   it('ecarte une absence declaree sur la periode', () => {

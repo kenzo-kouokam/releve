@@ -1,6 +1,7 @@
 import {
   POIDS_COMPOSANTES,
   POIDS_SANS_COMPETENCES,
+  SEUIL_EXERCICE_PREALABLE_HEURES,
   type ComposanteScore,
   type MotifExclusion,
   type ScoreDetail,
@@ -44,6 +45,18 @@ export interface ProfilAEvaluer {
    * score se déclare lui-même.
    */
   experiences: ExperienceEvaluee[];
+  /**
+   * Heures d'exercice du métier, vérifiées, tous postes du référentiel
+   * confondus.
+   *
+   * À ne pas confondre avec `experiences`, qui sert au score : celui-ci ne
+   * retient que les postes relevant du diplôme **exigé par cette mission**, et
+   * les plafonne à cinq ans. Ce total-ci ne dépend d'aucune mission et ne se
+   * plafonne pas — c'est celui que la durée d'exercice préalable regarde, et
+   * c'est aussi celui qui s'affiche sur la fiche du candidat. Les deux nombres
+   * doivent pouvoir se lire côte à côte sans se contredire.
+   */
+  heuresExercice: number;
   /**
    * Compétences déclarées, par identifiant du référentiel.
    *
@@ -260,6 +273,25 @@ export function motifsExclusion(profil: ProfilAEvaluer, besoin: BesoinAPourvoir)
     motifs.push({ cle: 'diplome', libelle: 'Diplome exige non detenu, non verifie ou expire' });
   }
 
+  // Duree d'exercice prealable a l'interim (loi Valletoux, art. 8). Une porte,
+  // donc, et pas une penalite de score : en dessous, la mise a disposition
+  // n'est pas permise, quel que soit le reste du profil.
+  //
+  // Le libelle chiffre l'ecart, comme celui de la distance. « Il vous manque
+  // 800 h » se comprend et se corrige ; « experience insuffisante » laisse la
+  // personne sans rien a faire de l'information.
+  if (profil.heuresExercice < SEUIL_EXERCICE_PREALABLE_HEURES) {
+    const manque = SEUIL_EXERCICE_PREALABLE_HEURES - profil.heuresExercice;
+
+    motifs.push({
+      cle: 'experience',
+      libelle:
+        `Duree d exercice insuffisante pour postuler : ${profil.heuresExercice.toLocaleString('fr-FR')} h ` +
+        `verifiees sur les ${SEUIL_EXERCICE_PREALABLE_HEURES.toLocaleString('fr-FR')} h exigees ` +
+        `avant une mise a disposition, soit ${manque.toLocaleString('fr-FR')} h manquantes`,
+    });
+  }
+
   const absent = profil.absences.some((absence) =>
     periodesSeChevauchent(absence.du, absence.au, besoin.dateDebut, besoin.dateFin),
   );
@@ -309,7 +341,16 @@ function explicationExperience(bilan: BilanExperience): string {
   const retenue = libelleDuree(bilan.moisRetenus);
 
   if (bilan.moisAutres > 0 && bilan.moisQualifiants > 0) {
-    return `${retenue} retenus, dont ${libelleDuree(bilan.moisQualifiants)} sur le diplome exige`;
+    // La ponderation est dite ici aussi, et pas seulement dans le cas ou tout
+    // est hors metier. Sans elle, l'agence lit « 4 ans et 6 mois retenus, dont
+    // 4 ans sur le diplome exige » face a une fiche qui affiche cinq ans de
+    // terrain, et ne peut pas reconstituer la difference. C'est devenu le cas
+    // ordinaire depuis que la duree d'exercice prealable impose du terrain
+    // verifie a tout candidat retenu.
+    return (
+      `${retenue} retenus, dont ${libelleDuree(bilan.moisQualifiants)} sur le diplome exige ` +
+      `(le reste compte pour moitie)`
+    );
   }
 
   if (bilan.moisQualifiants > 0) {

@@ -18,6 +18,8 @@ export type NomIcone =
   | 'circle'
   | 'clock'
   | 'euro'
+  | 'eye'
+  | 'eye-off'
   | 'heart-plus'
   | 'home'
   | 'hospital'

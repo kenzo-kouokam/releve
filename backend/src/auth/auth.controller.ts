@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   connexionSchema,
+  inscriptionEtablissementSchema,
   inscriptionInterimaireSchema,
   motDePasseChangeSchema,
   motDePasseOublieSchema,
@@ -13,6 +14,7 @@ import {
   verificationRenvoiSchema,
   type Connexion,
   type EspacePersonnel,
+  type InscriptionEtablissement,
   type InscriptionInterimaire,
   type MotDePasseChange,
   type MotDePasseOublie,
@@ -57,15 +59,10 @@ export class AuthController {
   }
 
   /*
-   * Le seul parcours d'inscription public.
-   *
-   * Les ESMS n'y figurent pas : l'agence les cree depuis le back-office, apres
-   * avoir vu leur declaration SAP, leur agrement ou leur arrete d'autorisation.
-   * Un statut reglementaire auto-declare que personne ne controle ne vaudrait
-   * rien, et c'est lui qui autorise une structure a recevoir des intervenants.
+   * Les deux parcours d'inscription publics.
    *
    * Plafond bien plus serre que la connexion : on s'inscrit une fois. Un debit
-   * eleve sur cette route n'est pas un utilisateur maladroit, c'est quelqu'un
+   * eleve sur ces routes n'est pas un utilisateur maladroit, c'est quelqu'un
    * qui remplit la base de fiches bidon.
    *
    * Aucune session n'est ouverte ici, et rien n'est renvoye qu'une confirmation
@@ -82,6 +79,28 @@ export class AuthController {
     @Body(new ZodValidationPipe(inscriptionInterimaireSchema)) donnees: InscriptionInterimaire,
   ): Promise<ReponseInscription> {
     return this.inscriptions.interimaire(donnees);
+  }
+
+  /**
+   * Inscription d'un etablissement.
+   *
+   * Ouverte, et la fiche nait inactive. L'objection qui l'avait fait ecarter —
+   * un statut reglementaire auto-declare que personne ne controle ne vaut rien —
+   * n'imposait pas d'interdire l'inscription, seulement de ne rien lui
+   * accorder : l'etablissement declare son arrete, l'agence le lit sur piece,
+   * puis active. Tant qu'elle ne l'a pas fait, aucun besoin ne peut etre depose.
+   *
+   * Meme plafond que le parcours interimaire, pour la meme raison.
+   */
+  @Public()
+  @Throttle({ connexion: { limit: 5, ttl: 60_000 } })
+  @Post('inscription/etablissement')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Inscrire un etablissement, en attente de validation' })
+  inscrireEtablissement(
+    @Body(new ZodValidationPipe(inscriptionEtablissementSchema)) donnees: InscriptionEtablissement,
+  ): Promise<ReponseInscription> {
+    return this.inscriptions.etablissement(donnees);
   }
 
   /**

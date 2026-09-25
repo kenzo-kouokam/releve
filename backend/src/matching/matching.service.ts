@@ -19,6 +19,7 @@ import {
   type BesoinAPourvoir,
   type ProfilAEvaluer,
 } from './score';
+import { heuresExercice } from './experience';
 
 /** Missions qui immobilisent déjà un candidat sur une période. */
 const ETATS_ENGAGEANTS = ['VALIDEE', 'CONTRACTUALISEE', 'EN_COURS'] as const;
@@ -59,6 +60,7 @@ const fichePourScore = Prisma.validator<Prisma.CandidatDefaultArgs>()({
         finLe: true,
         quotitePourcent: true,
         qualificationId: true,
+        exerciceMetier: true,
       },
     },
     disponibilites: {
@@ -151,6 +153,18 @@ export class MatchingService {
         // besoin, ce qui est exactement le propos.
         qualifiante: poste.qualificationId === qualificationRequiseId,
       })),
+      // Tous postes du referentiel confondus, et non ceux de la mission : c'est
+      // la duree d'exercice du metier que la loi regarde, pas l'adequation au
+      // besoin. Une aide-soignante de huit ans qui postule sur une mission
+      // DEAES n'est pas en debut de carriere.
+      heuresExercice: heuresExercice(
+        fiche.experiences.map((poste) => ({
+          debutLe: poste.debutLe,
+          finLe: poste.finLe,
+          quotitePourcent: poste.quotitePourcent,
+          compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
+        })),
+      ),
       creneaux: fiche.disponibilites,
       absences: fiche.indisponibilites,
       engagements: fiche.missions,
@@ -176,6 +190,25 @@ export class MatchingService {
           : `Rayon de ${fiche.rayonKm} km`,
       },
     ];
+
+    // Les experiences chargees ici sont deja filtrees aux lignes verifiees par
+    // l'agence : ce que l'etablissement lit est opposable, pas declaratif.
+    const heures = heuresExercice(
+      fiche.experiences.map((poste) => ({
+        debutLe: poste.debutLe,
+        finLe: poste.finLe,
+        quotitePourcent: poste.quotitePourcent,
+        compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
+      })),
+    );
+
+    if (heures > 0) {
+      pointsForts.unshift({
+        icone: 'clock',
+        libelle: 'Exercice du metier',
+        valeur: `${heures.toLocaleString('fr-FR')} h verifiees`,
+      });
+    }
 
     if (pertinente) {
       pointsForts.unshift({

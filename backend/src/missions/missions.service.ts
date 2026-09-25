@@ -17,8 +17,10 @@ import type {
   ResumeMissions,
   UtilisateurSession,
 } from '@releve/shared';
+import { SEUIL_EXERCICE_PREALABLE_HEURES } from '@releve/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { dansLeRayon, distanceKm } from '../matching/score';
+import { heuresExercice } from '../matching/experience';
 import { GeocodageService } from '../geocodage/geocodage.service';
 import { EvenementsService } from '../evenements/evenements.service';
 import { CompetencesService } from '../competences/competences.service';
@@ -226,20 +228,55 @@ export class MissionsService {
     const libelleDiplome = `Diplome requis : ${mission.qualificationRequise.code}`;
 
     if (!candidatId) {
-      return [{ libelle: libelleDiplome, verifie: false }];
+      return [{ cle: 'diplome', libelle: libelleDiplome, verifie: false }];
     }
 
-    const [detient, candidat] = await Promise.all([
+    const [detient, candidat, postes] = await Promise.all([
       this.detientQualification(candidatId, mission.qualificationRequiseId),
       this.prisma.candidat.findUnique({
         where: { id: candidatId },
         select: { statut: true },
       }),
+      // Seules les lignes verifiees, comme partout : c'est ce que l'agence a
+      // constate qui ouvre la porte, pas ce que la personne declare.
+      this.prisma.experienceProfessionnelle.findMany({
+        where: { candidatId, verifieeLe: { not: null } },
+        select: {
+          debutLe: true,
+          finLe: true,
+          quotitePourcent: true,
+          qualificationId: true,
+          exerciceMetier: true,
+        },
+      }),
     ]);
 
+    const heures = heuresExercice(
+      postes.map((poste) => ({
+        debutLe: poste.debutLe,
+        finLe: poste.finLe,
+        quotitePourcent: poste.quotitePourcent,
+        compteCommeExercice: poste.qualificationId !== null || poste.exerciceMetier,
+      })),
+    );
+
     return [
-      { libelle: libelleDiplome, verifie: detient },
-      { libelle: 'Profil valide par l agence', verifie: candidat?.statut === 'ACTIF' },
+      { cle: 'diplome', libelle: libelleDiplome, verifie: detient },
+      {
+        cle: 'statut',
+        libelle: 'Profil valide par l agence',
+        verifie: candidat?.statut === 'ACTIF',
+      },
+      // Annonce avant le clic, et pas seulement au refus. La candidature est de
+      // toute facon fermee en dessous du seuil ; laisser le bouton promettre
+      // puis refuser serait une facon penible de l'apprendre.
+      {
+        cle: 'exercice',
+        libelle:
+          `Duree d exercice : ${heures.toLocaleString('fr-FR')} h verifiees ` +
+          `sur ${SEUIL_EXERCICE_PREALABLE_HEURES.toLocaleString('fr-FR')} h exigees`,
+        verifie: heures >= SEUIL_EXERCICE_PREALABLE_HEURES,
+      },
     ];
   }
 

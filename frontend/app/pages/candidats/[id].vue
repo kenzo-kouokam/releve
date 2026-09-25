@@ -130,6 +130,57 @@ function basculerVerification(qualificationId: string, verifiee: boolean): Promi
   );
 }
 
+// --- parcours professionnel
+//
+// L'API portait deja ces trois gestes ; seul l'ecran manquait. Consequence
+// concrete avant ce correctif : la verification d'une experience etait « le
+// seul geste qui fait entrer une experience dans le score » et aucun bouton ne
+// permettait de la poser.
+
+function basculerVerificationPoste(experienceId: string, verifiee: boolean): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'PATCH',
+      body: { verifiee },
+    }),
+  );
+}
+
+/**
+ * Rattacher un poste au bon diplome, ou l'en detacher.
+ *
+ * C'est l'agence qui lit le certificat de travail : elle seule sait a quel
+ * diplome un poste correspond vraiment. Sans ce geste, un poste saisi sans
+ * rattachement — le cas par defaut de l'ancien formulaire — ne pouvait etre
+ * corrige qu'en le supprimant, ce qui effacait aussi la trace du controle.
+ */
+function rattacherPoste(
+  experienceId: string,
+  verifiee: boolean,
+  valeur: string,
+): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'PATCH',
+      body: { verifiee, ...versRattachement(valeur) },
+    }),
+  );
+}
+
+function retirerPoste(experienceId: string): Promise<void> {
+  return appliquer(() =>
+    requete<CandidatDetail>(`/candidats/${identifiant.value}/experiences/${experienceId}`, {
+      method: 'DELETE',
+    }),
+  );
+}
+
+/**
+ * La mise en forme de l'exercice prealable vit dans `utils/exercice` :
+ * `enHeures`, `partExercice`, `periodesSeRecouvrent`, `choixPoste` et
+ * `versRattachement`. Elle etait recopiee ici et sur la fiche du candidat.
+ */
+
 function retirerQualification(qualificationId: string): Promise<void> {
   return appliquer(() =>
     requete<CandidatDetail>(`/candidats/${identifiant.value}/qualifications/${qualificationId}`, {
@@ -361,6 +412,142 @@ function retirerIndisponibilite(indisponibiliteId: string): Promise<void> {
           </label>
           <button type="submit" :disabled="enCours || !qualificationAAjouter">Rattacher</button>
         </form>
+      </section>
+
+      <!-- parcours professionnel -->
+      <section class="bloc">
+        <h2>
+          Parcours professionnel <span class="compte">{{ candidat.experiences.length }}</span>
+        </h2>
+
+        <div class="exercice" :class="{ atteint: candidat.exercicePrealable.seuilAtteint }">
+          <p class="chiffre">
+            {{ enHeures(candidat.exercicePrealable.heuresVerifiees) }}
+            <span class="sur">
+              d exercice verifie, sur {{ enHeures(candidat.exercicePrealable.seuilHeures) }}
+            </span>
+          </p>
+
+          <div
+            class="jauge"
+            role="progressbar"
+            :aria-valuenow="candidat.exercicePrealable.heuresVerifiees"
+            aria-valuemin="0"
+            :aria-valuemax="candidat.exercicePrealable.seuilHeures"
+            aria-label="Exercice du metier verifie"
+          >
+            <span :style="{ width: `${partExercice(candidat.exercicePrealable)}%` }" />
+          </div>
+
+          <p class="detail">
+            <template v-if="candidat.exercicePrealable.seuilAtteint">
+              Le candidat justifie de la duree d exercice attendue avant une mise a disposition.
+            </template>
+            <template v-else>
+              Il manque {{ enHeures(candidat.exercicePrealable.heuresManquantes) }} d exercice
+              verifie.
+              <template
+                v-if="
+                  candidat.exercicePrealable.heuresDeclarees >
+                  candidat.exercicePrealable.heuresVerifiees
+                "
+              >
+                {{
+                  enHeures(
+                    candidat.exercicePrealable.heuresDeclarees -
+                      candidat.exercicePrealable.heuresVerifiees,
+                  )
+                }}
+                sont declarees mais pas encore verifiees.
+              </template>
+            </template>
+          </p>
+        </div>
+
+        <p v-if="periodesSeRecouvrent(candidat.exercicePrealable, candidat.experiences)" class="aide">
+          Le total est inferieur a la somme des lignes : deux postes se recouvrent dans le temps.
+          Chacun garde ses heures, mais la duree retenue ne depasse pas le temps reellement ecoule
+          — deux temps pleins menes la meme annee ne font pas deux ans de metier.
+        </p>
+
+        <p class="aide">
+          Comptent les postes rattaches a un diplome du referentiel, et ceux que vous reconnaissez
+          comme exercice du secteur — faisant fonction, agent de service, auxiliaire de vie —, au
+          prorata du temps de travail, sur une base de 1 607 heures par an. C est a vous de
+          trancher sur piece : le calcul ne fait que rendre lisible ce que les dates declarent.
+        </p>
+
+        <p v-if="!candidat.experiences.length" class="vide">Aucun poste declare.</p>
+
+        <ul v-else class="liste">
+          <li v-for="poste in candidat.experiences" :key="poste.id" class="rangee">
+            <div>
+              <p class="nom">{{ poste.intitule }} &middot; {{ poste.employeur }}</p>
+              <p class="detail">
+                {{ poste.debutLe }} &mdash;
+                <template v-if="poste.enCours">aujourd hui</template>
+                <template v-else>{{ poste.finLe }}</template>
+                &middot; {{ enHeures(poste.dureeHeures) }}
+                <template v-if="poste.quotitePourcent < 100">
+                  a {{ poste.quotitePourcent }} %
+                </template>
+                <template v-if="poste.qualificationLibelle">
+                  &middot; {{ poste.qualificationLibelle }}
+                </template>
+                <template v-else-if="poste.exerciceMetier">
+                  &middot; exercice du secteur, sans diplome rattache
+                </template>
+                <template v-else>&middot; hors du secteur, ne compte pas ici</template>
+                <template v-if="poste.verifieePar">
+                  &middot; verifie par {{ poste.verifieePar }}
+                </template>
+              </p>
+
+              <label class="rattachement">
+                <span>Diplome correspondant</span>
+                <select
+                  :value="choixPoste(poste)"
+                  :disabled="enCours"
+                  @change="
+                    rattacherPoste(
+                      poste.id,
+                      poste.verifieeLe !== null,
+                      ($event.target as HTMLSelectElement).value,
+                    )
+                  "
+                >
+                  <option v-for="q in referentiel ?? []" :key="q.id" :value="q.id">
+                    {{ q.code }} - {{ q.libelle }}
+                  </option>
+                  <option :value="SECTEUR">Experience professionnelle du secteur</option>
+                  <option :value="HORS_SECTEUR">Un autre metier, hors du secteur</option>
+                </select>
+              </label>
+            </div>
+
+            <span v-if="poste.verifieeLe" class="etat verifiee">Verifie</span>
+            <span v-else class="etat attente">A verifier</span>
+
+            <div class="actions">
+              <button
+                type="button"
+                class="lien"
+                :disabled="enCours"
+                @click="basculerVerificationPoste(poste.id, !poste.verifieeLe)"
+              >
+                {{ poste.verifieeLe ? 'Annuler la verification' : 'Verifier' }}
+              </button>
+              <button
+                type="button"
+                class="lien danger"
+                :disabled="enCours"
+                @click="retirerPoste(poste.id)"
+              >
+                Retirer
+              </button>
+            </div>
+          </li>
+        </ul>
       </section>
 
       <!-- disponibilites -->
@@ -709,6 +896,82 @@ button:disabled {
 .vide {
   margin: 0;
   font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* Exercice prealable : une jauge plutot qu'un oui/non. L'agence a besoin de
+ * voir ce qui manque, pas seulement que quelque chose manque. */
+.exercice {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background: var(--ambre);
+  border: 1px solid var(--ambre-line);
+  border-radius: 12px;
+}
+
+.exercice.atteint {
+  background: var(--dom-soft);
+  border-color: var(--dom);
+}
+
+.exercice .chiffre {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.exercice .sur {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.exercice .jauge {
+  height: 8px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.exercice .jauge span {
+  display: block;
+  height: 100%;
+  background: var(--ambre-encre);
+  border-radius: inherit;
+}
+
+.exercice.atteint .jauge span {
+  background: var(--dom);
+}
+
+.exercice .detail {
+  margin: 0;
+}
+
+/* Le rattachement se corrige sur place : c'est un geste de verification, pas un
+ * formulaire a part. */
+.rattachement {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.rattachement select {
+  max-width: 320px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.aide {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  line-height: 1.55;
   color: var(--muted);
 }
 

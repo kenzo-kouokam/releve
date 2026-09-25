@@ -146,7 +146,7 @@ export const VALEURS = [
   {
     titre: 'Un seul métier',
     corps:
-      "Nous ne plaçons qu'en EHPAD, ce qui permet de qualifier chaque mission sérieusement : on connaît les unités, les rythmes et les diplômes attendus.",
+      "Nous ne plaçons qu'en établissement de soin — EHPAD, hôpital, clinique — ce qui permet de qualifier chaque mission sérieusement : on connaît les unités, les rythmes et les diplômes attendus.",
   },
   {
     titre: 'Réactivité',
@@ -210,6 +210,36 @@ export const QUESTIONS = [
 export const COORDONNEES = [
   { libelle: 'Adresse mail', valeur: ADRESSE_CONTACT },
 ] as const;
+
+/**
+ * Image affichee quand une page du site est partagee — Facebook, LinkedIn,
+ * WhatsApp, X, Slack, iMessage.
+ *
+ * ATTENTION, l'adresse actuelle ne fonctionnera pas. `imgur.com/a/5rBdrvX` est
+ * la page d'un *album* Imgur : un robot de partage qui la demande recoit du
+ * HTML, pas une image, et n'affiche alors aucune vignette. Il lui faut
+ * l'adresse du fichier lui-meme, celle qu'on obtient par « copier l'adresse de
+ * l'image » sur la photo ouverte — de la forme `https://i.imgur.com/XXXXXXX.png`.
+ *
+ * Mieux encore : deposer le fichier dans `frontend/public/` et pointer ici
+ * `/partage.png`. Le composable la rendra absolue. L'apercu ne dependrait alors
+ * plus d'un hebergeur tiers qui peut supprimer l'image ou fermer.
+ *
+ * Format attendu : 1200 x 630 pixels, moins de 5 Mo, en JPEG ou PNG. C'est le
+ * rapport qu'attendent `summary_large_image` et les grandes vignettes
+ * Facebook ; une image carree y sera rognee en haut et en bas.
+ */
+export const IMAGE_PARTAGE = 'https://imgur.com/a/5rBdrvX';
+
+/**
+ * Compte X (Twitter) de l'agence, arobase comprise.
+ *
+ * `@auteur` est la valeur d'exemple : elle ne designe aucun compte reel. Tant
+ * qu'elle est la, la vignette s'affiche quand meme — seule la ligne
+ * d'attribution manque. La vider est d'ailleurs plus honnete que de laisser un
+ * compte qui n'est pas le notre : le composable omet alors la balise.
+ */
+export const COMPTE_TWITTER = '@auteur';
 
 /**
  * Les sujets du formulaire de contact vivent dans `@releve/shared` : l'API les

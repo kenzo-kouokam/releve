@@ -1,7 +1,23 @@
 <script setup lang="ts">
-import { ROLE_LIBELLES, ROLES_AGENCE, type RoleUtilisateur } from '@releve/shared';
+import { ADRESSE_CONTACT, ROLE_LIBELLES, ROLES_AGENCE, type RoleUtilisateur } from '@releve/shared';
 
 const { utilisateur, deconnexion } = useSession();
+
+/**
+ * Identite de l'editeur et du site, pour les moteurs.
+ *
+ * Posee ici et non dans chaque page : c'est la seule chose vraie de toutes les
+ * pages vitrine a la fois, et les pages s'y rattachent par `@id` sans avoir a
+ * la redecrire.
+ *
+ * Rien n'est emis dans l'espace connecte — un tableau de bord derriere un mot
+ * de passe n'est indexe par personne, et le balisage y serait du bruit.
+ */
+const site = useUrlSite();
+
+useDonneesStructurees(() =>
+  utilisateur.value ? [] : [identiteOrganisation(site, ADRESSE_CONTACT), siteWeb(site)],
+);
 
 /**
  * Le menu suit le profil : le back-office et les deux espaces externes n'ont
@@ -28,6 +44,7 @@ const liens = computed<{ to: string; label: string }[]>(() => {
   if (interne.value) {
     return [
       { to: '/', label: 'Vivier' },
+      { to: '/besoins', label: 'Besoins' },
       { to: '/clients', label: 'Clients' },
       { to: '/tension', label: 'Tension' },
       ...(utilisateur.value.role === 'ADMIN_AGENCE' ? [{ to: '/comptes', label: 'Comptes' }] : []),
@@ -69,7 +86,7 @@ const liens = computed<{ to: string; label: string }[]>(() => {
 const liensVitrine = [
   { to: '/accueil', label: 'Accueil' },
   { to: '/offres', label: "Nos offres d'emploi" },
-  { to: '/fonctionnement', label: 'Comment ça marche' },
+  { to: '/fonctionnement', label: 'Comment ça marche?' }, 
   { to: '/a-propos', label: 'À propos' },
   { to: '/faq', label: 'FAQ' },
   { to: '/contact', label: 'Contact' },
@@ -82,7 +99,7 @@ const colonnesPied = [
     liens: [
       { to: '/fonctionnement', label: 'Comment ça marche' },
       { to: '/offres', label: "Nos offres d'emploi" },
-      { to: '/inscription/interimaire', label: 'Créer un compte' },
+      { to: '/inscription', label: 'Créer un compte' },
       { to: '/connexion', label: 'Se connecter' },
     ],
   },
@@ -106,6 +123,72 @@ const colonnesPied = [
 
 const annee = new Date().getFullYear();
 
+/**
+ * Ouverture du menu compact.
+ *
+ * Une seule variable pour les deux coques : elles ne s'affichent jamais en
+ * meme temps, et deux etats separes se seraient desynchronises a la premiere
+ * connexion.
+ *
+ * Ce menu n'existe que sous 900 px. Au-dela, le CSS montre la navigation en
+ * permanence et cache le bouton — l'etat reste alors sans effet, ce qui evite
+ * d'avoir a le remettre a zero en changeant de taille de fenetre.
+ */
+const menuOuvert = ref(false);
+const route = useRoute();
+
+/**
+ * Lien canonique des pages publiques.
+ *
+ * Complement direct des donnees structurees : celles-ci declarent des adresses
+ * absolues, et sans canonique la meme page atteinte par deux chemins — avec ou
+ * sans barre finale, en `www` ou non, suivie d'un parametre de campagne —
+ * serait indexee plusieurs fois, chacune diluant le poids de l'autre.
+ *
+ * `route.path` et non `fullPath` : les filtres des offres sont des parametres
+ * d'affichage, pas des pages distinctes, et les faire indexer separement
+ * multiplierait les doublons au lieu de les eviter.
+ */
+useHead(() =>
+  utilisateur.value
+    ? {}
+    : { link: [{ rel: 'canonical', href: urlAbsolue(site, route.path) }] },
+);
+
+/**
+ * Apercu des liens partages : nom du site, langue, image, compte X, adresse.
+ *
+ * Meme decoupage que les donnees structurees — l'invariant ici, le titre et la
+ * description dans chaque page, par `usePartageSocialPage`.
+ *
+ * Pose sans condition de session, contrairement au schema.org et au lien
+ * canonique. Les trois se ressemblent mais ne servent pas la meme chose : les
+ * deux premiers s'adressent aux moteurs, qui n'entrent pas dans l'espace
+ * connecte, tandis qu'un lien colle dans une conversation garde son apercu
+ * meme si celui qui l'envoie est identifie.
+ */
+usePartageSocialSite(() => route.path);
+
+/**
+ * Le menu se referme en changeant de page.
+ *
+ * Sans cela, suivre un lien laisserait le panneau ouvert par-dessus la page
+ * qu'on vient de demander — et sur un telephone, il la couvrirait entierement.
+ */
+watch(() => route.fullPath, () => {
+  menuOuvert.value = false;
+});
+
+/** Echap referme, comme n'importe quel panneau superpose. */
+function auClavier(evenement: KeyboardEvent): void {
+  if (evenement.key === 'Escape') {
+    menuOuvert.value = false;
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', auClavier));
+onBeforeUnmount(() => window.removeEventListener('keydown', auClavier));
+
 /** Avancement du dossier, affiche en pied de barre laterale pour un candidat. */
 const { data: completude } = await useCompletude();
 
@@ -120,22 +203,43 @@ async function sortir(): Promise<void> {
 <template>
   <!-- Coque publique du canvas : en-tete collant, contenu, pied de page. -->
   <div v-if="!utilisateur" class="site">
-    <header class="entete">
+    <header class="entete" :class="{ ouvert: menuOuvert }">
       <div class="dedans">
         <NuxtLink to="/accueil" class="marque">
           <AppLogo :taille="30" />
           <span>Relève</span>
         </NuxtLink>
 
-        <nav class="menu">
-          <NuxtLink v-for="lien in liensVitrine" :key="lien.to" :to="lien.to">
-            {{ lien.label }}
-          </NuxtLink>
-        </nav>
+        <!--
+          Le bouton n'existe que sous 900 px, par le CSS et non par `v-if` :
+          rendu conditionnellement, il apparaitrait apres l'hydratation et
+          ferait sauter l'en-tete au chargement. `aria-expanded` porte l'etat,
+          et le panneau ferme est en `display: none`, donc ses liens sortent
+          aussi de l'ordre de tabulation — pas besoin d'`inert`.
+        -->
+        <button
+          type="button"
+          class="bascule"
+          :aria-expanded="menuOuvert"
+          aria-controls="menu-principal"
+          :aria-label="menuOuvert ? 'Fermer le menu' : 'Ouvrir le menu'"
+          @click="menuOuvert = !menuOuvert"
+        >
+          <span class="barres" aria-hidden="true"><span /><span /><span /></span>
+          <span class="mot">Menu</span>
+        </button>
 
-        <div class="acces">
-          <NuxtLink to="/connexion" class="lien-bouton secondaire">Se connecter</NuxtLink>
-          <NuxtLink to="/inscription/interimaire" class="lien-bouton primaire">S'inscrire</NuxtLink>
+        <div id="menu-principal" class="repliable">
+          <nav class="menu">
+            <NuxtLink v-for="lien in liensVitrine" :key="lien.to" :to="lien.to">
+              {{ lien.label }}
+            </NuxtLink>
+          </nav>
+
+          <div class="acces">
+            <NuxtLink to="/connexion" class="lien-bouton secondaire">Se connecter</NuxtLink>
+            <NuxtLink to="/inscription" class="lien-bouton primaire">S'inscrire</NuxtLink>
+          </div>
         </div>
       </div>
     </header>
@@ -152,7 +256,7 @@ async function sortir(): Promise<void> {
             <span>Relève</span>
           </NuxtLink>
           <p class="accroche">Le soin, sans attendre</p>
-          <p class="baseline">Agence d'intérim spécialisée en EHPAD.</p>
+          <p class="baseline">Agence d'intérim spécialisée en EHPAD, hôpital et clinique.</p>
         </div>
 
         <div v-for="colonne in colonnesPied" :key="colonne.titre">
@@ -172,13 +276,30 @@ async function sortir(): Promise<void> {
   </div>
 
   <!-- Coque de l'espace connecte : barre laterale et colonne de contenu. -->
-  <div v-else class="espace">
+  <div v-else class="espace" :class="{ ouvert: menuOuvert }">
     <aside class="laterale">
-      <NuxtLink :to="liens[0]?.to ?? '/'" class="marque">
-        <AppLogo :taille="28" />
-        <span>Relève</span>
-      </NuxtLink>
+      <div class="tete-laterale">
+        <NuxtLink :to="liens[0]?.to ?? '/'" class="marque">
+          <AppLogo :taille="28" />
+          <span>Relève</span>
+        </NuxtLink>
 
+        <!-- Meme bouton que la coque publique, et meme raison de le poser en
+             CSS plutot qu'en `v-if`. -->
+        <button
+          type="button"
+          class="bascule"
+          :aria-expanded="menuOuvert"
+          aria-controls="menu-espace"
+          :aria-label="menuOuvert ? 'Fermer le menu' : 'Ouvrir le menu'"
+          @click="menuOuvert = !menuOuvert"
+        >
+          <span class="barres" aria-hidden="true"><span /><span /><span /></span>
+          <span class="mot">Menu</span>
+        </button>
+      </div>
+
+      <div id="menu-espace" class="repliable">
       <nav>
         <NuxtLink v-for="lien in liens" :key="lien.to" :to="lien.to">{{ lien.label }}</NuxtLink>
       </nav>
@@ -195,6 +316,7 @@ async function sortir(): Promise<void> {
         <p class="compte">{{ utilisateur.email }}</p>
         <p class="role">{{ ROLE_LIBELLES[utilisateur.role] }}</p>
         <button type="button" class="sortir" @click="sortir()">Se déconnecter</button>
+      </div>
       </div>
     </aside>
 
@@ -216,7 +338,7 @@ async function sortir(): Promise<void> {
 .dedans {
   max-width: 1200px;
   margin: 0 auto;
-  padding-inline: 28px;
+  padding-inline: var(--gouttiere);
 }
 
 .entete {
@@ -251,6 +373,57 @@ async function sortir(): Promise<void> {
   text-decoration: none;
 }
 
+/* Le conteneur du menu compact.
+ *
+ * `display: contents` au-dessus du point de bascule : l'element disparait de la
+ * mise en page et ses enfants redeviennent enfants directs de la barre. C'est
+ * ce qui permet de grouper la navigation dans une boite repliable **sans rien
+ * changer a l'affichage large** — sans lui, ce nouveau conteneur serait devenu
+ * un item de flex de plus, et la navigation aurait cesse de s'etaler entre la
+ * marque et les boutons. */
+.repliable {
+  display: contents;
+}
+
+/* Le bouton du menu compact.
+ *
+ * Toujours dans le DOM, masque par le CSS au-dessus de 900 px. Le rendre
+ * conditionnellement en Vue le ferait apparaitre apres l'hydratation, et
+ * l'en-tete sauterait au chargement de chaque page. */
+.bascule {
+  display: none;
+  flex: none;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 14px 9px 12px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line-forte);
+  border-radius: 11px;
+}
+
+.bascule:focus-visible {
+  outline: 2px solid var(--dom);
+  outline-offset: 2px;
+}
+
+.barres {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 18px;
+}
+
+.barres span {
+  height: 2px;
+  background: currentcolor;
+  border-radius: 2px;
+}
+
 /* Navigation publique : le canvas l'etale entre la marque et les deux boutons,
  * et la laisse passer a la ligne plutot que de la comprimer. */
 .menu {
@@ -272,13 +445,13 @@ async function sortir(): Promise<void> {
 }
 
 .menu a:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
 .menu a.router-link-active {
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
@@ -303,7 +476,7 @@ async function sortir(): Promise<void> {
 }
 
 .lien-bouton.secondaire {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface);
   border-color: var(--line-forte);
 }
@@ -320,6 +493,7 @@ async function sortir(): Promise<void> {
 
 .lien-bouton.primaire:hover {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
 }
 
 .lien-bouton:focus-visible {
@@ -339,11 +513,30 @@ async function sortir(): Promise<void> {
   border-top: 1px solid var(--line);
 }
 
+/* Le pied de page, et pourquoi ses colonnes se chevauchaient.
+ *
+ * L'ancienne valeur melangeait une piste flexible — `minmax(0, 1.4fr)` — et un
+ * `repeat(auto-fit, ...)`. Les trois pistes repetees reclamaient 160 px chacune,
+ * plus les ecarts : sur une fenetre moyenne, il ne restait presque rien pour la
+ * premiere, que son `minmax(0, ...)` autorisait a tomber a zero. Le bloc de
+ * marque se retrouvait large de quelques dizaines de pixels, et son texte
+ * debordait par-dessus la colonne suivante. Ce n'etait pas un defaut de marge :
+ * la piste elle-meme avait disparu.
+ *
+ * Deux regles explicites remplacent l'automatisme. En dessous, des colonnes
+ * egales qui se replient d'elles-memes ; au-dessus, la repartition voulue par
+ * le canvas, avec un bloc de marque plus large. */
 .colonnes {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 32px;
   padding-block: 48px;
+}
+
+@media (min-width: 900px) {
+  .colonnes {
+    grid-template-columns: 1.4fr repeat(3, 1fr);
+  }
 }
 
 .marque-pied {
@@ -413,13 +606,44 @@ async function sortir(): Promise<void> {
   min-height: 100vh;
 }
 
+/* La barre reste à l'écran pendant qu'on parcourt la page.
+ *
+ * Sans cela elle suivait la hauteur du contenu — comportement par défaut d'une
+ * colonne de grille, qui s'étire sur toute la rangée. Sur « Mon profil », qui
+ * fait plusieurs écrans, il fallait descendre jusqu'en bas pour retrouver la
+ * carte d'avancement et le bouton de déconnexion. Or ce sont précisément les
+ * deux éléments qu'on cherche à mi-parcours : l'un pour savoir ce qu'il reste à
+ * remplir, l'autre pour partir.
+ *
+ * `align-self: start` est indispensable : une colonne de grille étirée occupe
+ * déjà toute la rangée, donc `position: sticky` n'aurait rien à faire coller.
+ * La hauteur repasse ensuite à celle de la fenêtre, et `overflow-y` prend le
+ * relais dans le cas où la barre serait plus haute qu'elle — écran court, ou
+ * menu qui s'allongerait.
+ *
+ * `100dvh` plutôt que `100vh` : sur mobile, `vh` ignore la barre d'adresse du
+ * navigateur, et le bas de la colonne se retrouve dessous. */
 .laterale {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 28px;
+  align-self: start;
+  height: 100dvh;
   padding: 22px 18px;
+  overflow-y: auto;
   background: var(--surface);
   border-right: 1px solid var(--line);
+}
+
+/* En colonne large, cette ligne ne contient que la marque : le bouton y est
+ * masque. Elle existe pour la barre compacte, ou marque et bouton se font face. */
+.tete-laterale {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .laterale .marque {
@@ -427,9 +651,13 @@ async function sortir(): Promise<void> {
   font-size: 19px;
 }
 
+/* `1 0 auto` et non `1` : le menu prend l'espace libre pour pousser la carte
+ * d'avancement et la session vers le bas, mais ne se comprime jamais sous son
+ * propre contenu. Avec `flex: 1`, sa base vaut zéro — sur un écran court, les
+ * liens auraient débordé de leur boîte au lieu de faire défiler la barre. */
 .laterale nav {
   display: flex;
-  flex: 1;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 4px;
   align-content: start;
@@ -445,13 +673,13 @@ async function sortir(): Promise<void> {
 }
 
 .laterale nav a:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
 .laterale nav a.router-link-exact-active {
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 
@@ -543,48 +771,113 @@ async function sortir(): Promise<void> {
   padding: 34px 40px 70px;
 }
 
-/* Le canvas ne dessine que le poste de travail : sous 900 px la barre laterale
- * repasse en bandeau horizontal, seule facon de garder le contenu lisible. */
+/* Sous 900 px, les deux coques passent au menu repliable.
+ *
+ * Ce qui a motive ce changement se mesure. La barre laterale devenait un
+ * bandeau horizontal qui occupait **387 px sur les 849 px** d'un ecran de
+ * telephone : pres de la moitie de l'affichage avant le premier mot de la
+ * page. L'en-tete public faisait 310 px, et il colle — il suivait donc tout le
+ * defilement. Aucune des deux ne debordait en largeur ; elles etaient
+ * simplement inutilisables.
+ *
+ * Replies, ils tombent respectivement a 61 px et 64 px. La navigation n'a pas
+ * disparu : elle attend derriere un bouton, ce qui est le bon arbitrage quand
+ * l'ecran se compte en centaines de pixels. */
 @media (max-width: 900px) {
+  .bascule {
+    display: inline-flex;
+  }
+
+  /* Le conteneur redevient une vraie boite, et se replie. `display: none`
+   * plutot qu'une hauteur nulle : les liens sortent ainsi de l'ordre de
+   * tabulation, sans avoir a poser `inert` ni `aria-hidden` a la main. */
+  .repliable {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .entete.ouvert .repliable,
+  .espace.ouvert .repliable {
+    display: flex;
+  }
+
+  /* ---- coque publique ---- */
+
+  .entete .dedans {
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding-block: 12px;
+  }
+
+  .entete.ouvert .dedans {
+    flex-wrap: wrap;
+    padding-bottom: 18px;
+  }
+
+  /* L'en-tete colle : ouvert, il peut depasser la hauteur de l'ecran sur un
+   * petit telephone. Il defile alors dans sa propre boite plutot que de rendre
+   * le bas du menu inatteignable. */
+  .entete.ouvert .repliable {
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+  }
+
+  .menu {
+    flex-direction: column;
+    gap: 2px;
+    align-items: stretch;
+  }
+
+  .menu a {
+    padding: 11px 12px;
+  }
+
+  .acces {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .lien-bouton {
+    text-align: center;
+  }
+
+  /* ---- coque de l'espace connecte ---- */
+
   .espace {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* La barre reprend sa hauteur naturelle et cesse de coller : figee en haut,
+   * elle mangerait un ecran de telephone alors que le contenu en a besoin. */
   .laterale {
-    flex-wrap: wrap;
-    flex-direction: row;
-    gap: 12px 20px;
-    align-items: center;
+    position: static;
+    gap: 16px;
+    height: auto;
+    padding: 12px 16px;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
   .laterale nav {
-    flex: 0 1 auto;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex: none;
   }
 
   .avancement {
-    flex: none;
-    width: 220px;
-    padding: 12px 14px;
+    margin-top: 0;
   }
 
-  .avancement .jauge {
-    margin-bottom: 8px;
+  /* L'adresse peut etre longue, et la boite etroite : sans cette regle elle
+   * poussait le bouton de deconnexion hors de l'ecran — deux pixels de
+   * debordement horizontal sur toute l'application. */
+  .compte {
+    overflow-wrap: anywhere;
   }
 
   .session {
-    display: flex;
-    gap: 12px;
-    align-items: baseline;
     margin-top: 0;
-    margin-left: auto;
-  }
-
-  .role {
-    margin: 0;
   }
 
   .contenu-app {
@@ -593,8 +886,8 @@ async function sortir(): Promise<void> {
 }
 
 @media (max-width: 560px) {
-  .dedans {
-    padding-inline: 20px;
+  .contenu-app {
+    padding-inline: 16px;
   }
 }
 </style>

@@ -213,6 +213,15 @@ const localisation = computed(() => {
 
 /* -------------------------------------------------------------------- experience */
 
+/**
+ * La mise en forme de l'exercice préalable vit dans `utils/exercice` :
+ * `enHeures`, `partExercice`, `heuresEnAttente`, `periodesSeRecouvrent` et les
+ * deux sentinelles du menu.
+ *
+ * Elle était recopiée ici et sur la fiche de l'agence. Deux copies ne divergent
+ * pas le jour où on les écrit ; elles divergent le jour où l'une est corrigée.
+ */
+
 const nouveauPoste = reactive({
   employeur: '',
   intitule: '',
@@ -245,9 +254,14 @@ function declarerPoste(): Promise<void> {
           intitule: nouveauPoste.intitule,
           debutLe: nouveauPoste.debutLe,
           quotitePourcent: nouveauPoste.quotitePourcent,
-          ...(nouveauPoste.qualificationId
+          // Les sentinelles restent cote ecran : l'API recoit un identifiant de
+          // diplome, ou bien le drapeau « exercice du secteur ».
+          ...(nouveauPoste.qualificationId &&
+          nouveauPoste.qualificationId !== SECTEUR &&
+          nouveauPoste.qualificationId !== HORS_SECTEUR
             ? { qualificationId: nouveauPoste.qualificationId }
             : {}),
+          exerciceMetier: nouveauPoste.qualificationId === SECTEUR,
           ...(nouveauPoste.finLe ? { finLe: nouveauPoste.finLe } : {}),
         },
       }).then((fiche) => {
@@ -427,6 +441,48 @@ function retirerPoste(id: string): Promise<void> {
         certificat de travail.
       </p>
 
+      <div class="exercice" :class="{ atteint: profil.exercicePrealable.seuilAtteint }">
+        <p class="chiffre">
+          {{ enHeures(profil.exercicePrealable.heuresVerifiees) }}
+          <span class="sur">sur {{ enHeures(profil.exercicePrealable.seuilHeures) }}</span>
+        </p>
+
+        <div
+          class="jauge"
+          role="progressbar"
+          :aria-valuenow="profil.exercicePrealable.heuresVerifiees"
+          aria-valuemin="0"
+          :aria-valuemax="profil.exercicePrealable.seuilHeures"
+          aria-label="Exercice du métier vérifié"
+        >
+          <span :style="{ width: `${partExercice(profil.exercicePrealable)}%` }" />
+        </div>
+
+        <p v-if="profil.exercicePrealable.seuilAtteint" class="commentaire">
+          Vous justifiez de la durée d'exercice attendue avant une mise à disposition en intérim.
+        </p>
+        <p v-else class="commentaire">
+          Il manque {{ enHeures(profil.exercicePrealable.heuresManquantes) }} d'exercice vérifié
+          avant de pouvoir postuler : la mise à disposition en intérim suppose une durée minimale
+          d'exercice préalable du métier.
+          <template v-if="heuresEnAttente(profil.exercicePrealable) > 0">
+            {{ enHeures(heuresEnAttente(profil.exercicePrealable)) }} attendent d'être vérifiées par l'agence.
+          </template>
+        </p>
+
+        <p v-if="periodesSeRecouvrent(profil.exercicePrealable, profil.experiences)" class="commentaire">
+          Le total est inférieur à la somme des lignes : deux de vos postes se recouvrent dans le
+          temps. Chacun garde ses heures, mais la durée retenue ne dépasse pas le temps réellement
+          écoulé.
+        </p>
+
+        <p class="note">
+          Cette durée est celle de l'exercice du métier, hors postes sans rapport, et comptée au
+          prorata du temps de travail : deux ans à mi-temps valent un an. Base de conversion :
+          1 607 heures par an, la durée annuelle légale.
+        </p>
+      </div>
+
       <ul class="postes">
         <li v-for="poste in profil.experiences" :key="poste.id">
           <div class="copie">
@@ -436,13 +492,21 @@ function retirerPoste(id: string): Promise<void> {
               <template v-if="poste.enCours">aujourd'hui</template>
               <template v-else>{{ poste.finLe }}</template>
               · {{ dureeLisible(poste.dureeMois) }}
+              · {{ enHeures(poste.dureeHeures) }}
               <template v-if="poste.quotitePourcent < 100">
                 a {{ poste.quotitePourcent }} %
               </template>
               <template v-if="poste.qualificationLibelle">
                 · {{ poste.qualificationLibelle }}
               </template>
-              <template v-else> · hors référentiel, compte pour moitié</template>
+              <template v-else-if="poste.exerciceMetier">
+                · expérience du secteur : compte dans la durée d'exercice, et pour moitié au
+                classement
+              </template>
+              <template v-else>
+                · hors du secteur : compte pour moitié au classement, et pas du tout dans la durée
+                d'exercice ci-dessus
+              </template>
             </p>
           </div>
 
@@ -478,15 +542,22 @@ function retirerPoste(id: string): Promise<void> {
 
         <label class="large">
           <span>Diplôme correspondant</span>
-          <select id="poste-diplome" v-model="nouveauPoste.qualificationId">
-            <option value="">Aucun / hors référentiel</option>
+          <select id="poste-diplome" v-model="nouveauPoste.qualificationId" required>
+            <option value="" disabled>À sélectionner</option>
             <option v-for="option in referentiel ?? []" :key="option.id" :value="option.id">
               {{ option.libelle }}
             </option>
+            <option :value="SECTEUR">
+              Expérience professionnelle du secteur (sans diplôme du référentiel)
+            </option>
+            <option :value="HORS_SECTEUR">Un autre métier, hors du secteur</option>
           </select>
           <em class="aide">
-            Un poste sans correspondance compte pour moitié : il dit quelque chose de vous au
-            travail, rien de ce métier-ci.
+            À renseigner. Un poste d'aide-soignant se rattache au DEAS, même si l'intitulé du
+            contrat disait autre chose. Sans diplôme applicable — faisant fonction, agent de
+            service, auxiliaire de vie —, choisissez <strong>expérience du secteur</strong> : elle
+            compte dans la durée d'exercice. <strong>Un autre métier</strong> ne compte que pour
+            moitié au classement, et pas du tout dans cette durée.
           </em>
         </label>
 
@@ -785,6 +856,67 @@ input[type='checkbox'] {
 
 /* ---------- Lignes du dossier ---------- */
 
+/* Exercice prealable : une jauge, pas un badge. Le candidat a besoin de voir
+ * ou il en est, pas seulement s'il y est. */
+.exercice {
+  display: grid;
+  gap: 10px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  background: var(--ambre);
+  border: 1px solid var(--ambre-line);
+  border-radius: 16px;
+}
+
+.exercice.atteint {
+  background: var(--dom-soft);
+  border-color: var(--dom);
+}
+
+.exercice .chiffre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.exercice .sur {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.exercice .jauge {
+  height: 8px;
+  overflow: hidden;
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.exercice .jauge span {
+  display: block;
+  height: 100%;
+  background: var(--ambre-encre);
+  border-radius: inherit;
+}
+
+.exercice.atteint .jauge span {
+  background: var(--dom);
+}
+
+.exercice .commentaire {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.exercice .note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .creneaux,
 .diplomes,
 .postes {
@@ -885,7 +1017,7 @@ input[type='checkbox'] {
 }
 
 .succes {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
   border: 1px solid var(--line-forte);
 }

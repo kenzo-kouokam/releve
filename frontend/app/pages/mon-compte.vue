@@ -49,6 +49,9 @@ async function basculerNotifications(): Promise<void> {
 const ancien = ref('');
 const nouveau = ref('');
 const confirmation = ref('');
+const voirAncien = ref(false);
+const voirNouveau = ref(false);
+const voirConfirmation = ref(false);
 
 const message = ref('');
 const succes = ref('');
@@ -197,37 +200,46 @@ async function sortir(): Promise<void> {
 
       <label>
         <span>Mot de passe actuel</span>
-        <input
-          id="ancien"
-          v-model="ancien"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
+        <div class="champ-mot-de-passe">
+          <input
+            id="ancien"
+            v-model="ancien"
+            :type="voirAncien ? 'text' : 'password'"
+            autocomplete="current-password"
+            required
+          />
+          <AppBasculeMotDePasse v-model:visible="voirAncien" champ="le mot de passe actuel" />
+        </div>
       </label>
 
       <label>
         <span>Nouveau mot de passe ({{ MOT_DE_PASSE_LONGUEUR_MIN }} caractères minimum)</span>
-        <input
-          id="nouveau"
-          v-model="nouveau"
-          type="password"
-          autocomplete="new-password"
-          :minlength="MOT_DE_PASSE_LONGUEUR_MIN"
-          required
-        />
+        <div class="champ-mot-de-passe">
+          <input
+            id="nouveau"
+            v-model="nouveau"
+            :type="voirNouveau ? 'text' : 'password'"
+            autocomplete="new-password"
+            :minlength="MOT_DE_PASSE_LONGUEUR_MIN"
+            required
+          />
+          <AppBasculeMotDePasse v-model:visible="voirNouveau" champ="le nouveau mot de passe" />
+        </div>
       </label>
 
       <label>
         <span>Confirmer le nouveau mot de passe</span>
-        <input
-          id="confirmation"
-          v-model="confirmation"
-          type="password"
-          autocomplete="new-password"
-          :minlength="MOT_DE_PASSE_LONGUEUR_MIN"
-          required
-        />
+        <div class="champ-mot-de-passe">
+          <input
+            id="confirmation"
+            v-model="confirmation"
+            :type="voirConfirmation ? 'text' : 'password'"
+            autocomplete="new-password"
+            :minlength="MOT_DE_PASSE_LONGUEUR_MIN"
+            required
+          />
+          <AppBasculeMotDePasse v-model:visible="voirConfirmation" champ="la confirmation" />
+        </div>
       </label>
 
       <div>
@@ -444,6 +456,7 @@ input:focus-visible {
 
 .principal:hover:not(:disabled) {
   background: var(--dom-fonce);
+  color: var(--sur-dom);
 }
 
 .principal:disabled {
@@ -473,7 +486,7 @@ input:focus-visible {
 }
 
 .succes {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
   border: 1px solid var(--line-forte);
 }

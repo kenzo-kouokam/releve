@@ -1,16 +1,28 @@
 <script setup lang="ts">
 import { QUESTIONS } from '~/data/vitrine';
 
-useHead({
-  title: 'Questions fréquentes — Relève',
-  meta: [
-    {
-      name: 'description',
-      content:
-        'Dossier candidat, vérification des diplômes, rayon de déplacement, suivi des candidatures : les questions les plus fréquentes.',
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = 'Questions fréquentes — Relève';
+const DESCRIPTION =
+  'Dossier candidat, vérification des diplômes, rayon de déplacement, suivi des candidatures : les questions les plus fréquentes.';
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
+
+/**
+ * Les questions sont balisees a partir de la meme constante que le gabarit :
+ * impossible qu'une reponse declaree aux moteurs differe de celle affichee,
+ * ce qui est precisement la faute que Google sanctionne sur les FAQ.
+ */
+useDonneesStructurees(
+  pageQuestions(
+    useUrlSite(),
+    { chemin: '/faq', titre: TITRE, description: DESCRIPTION },
+    QUESTIONS,
+  ),
+);
 
 /**
  * Le canvas n'ouvre qu'une question a la fois. Le repli natif de <details> fait
@@ -23,6 +35,8 @@ const ouverte = ref(-1);
 
 <template>
   <main class="vitrine faq">
+    <AppFilAriane :etapes="[{ libelle: 'Accueil', to: '/accueil' }, { libelle: 'FAQ' }]" />
+
     <p class="vitrine-accroche">FAQ</p>
     <h1 class="vitrine-titre">Questions fréquentes</h1>
 
@@ -123,6 +137,7 @@ summary:focus-visible {
   padding: 28px;
   margin-top: 32px;
   background: var(--dom-fonce);
+  color: var(--sur-dom);
   border-radius: 20px;
 }
 
@@ -130,7 +145,7 @@ summary:focus-visible {
   margin: 0 0 6px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--surface);
+  color: var(--sur-dom);
 }
 
 .corps-aide {
@@ -146,14 +161,14 @@ summary:focus-visible {
   padding: 14px 24px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   text-decoration: none;
   background: var(--surface);
   border-radius: 12px;
 }
 
 .bouton-clair:hover {
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   background: var(--surface-2);
 }
 

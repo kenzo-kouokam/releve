@@ -2,9 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from './mail.service';
+import { AUTORISATION_PAR_TYPE } from '@releve/shared';
 import {
   courrielConservationDocuments,
   courrielDossierValide,
+  courrielEtablissementActive,
   courrielMotDePasseChange,
 } from './gabarits';
 
@@ -119,6 +121,44 @@ export class NotificationsCompteService {
 
     await this.mail.envoyer(
       courrielDossierValide(compte.email, compte.candidat?.prenom ?? null, `${site}/missions`),
+    );
+  }
+
+  /**
+   * Annonce a un etablissement que l'agence a lu son autorisation.
+   *
+   * Meme forme que cote candidat, et pour la meme raison : c'est l'agence qui
+   * active, et elle ne connait que l'identifiant de la fiche. Sans compte actif
+   * rattache — une fiche creee par l'agence pour un etablissement qui n'a jamais
+   * ouvert de session — il n'y a personne a qui ecrire, et c'est un cas normal.
+   *
+   * La piece nommee depend du type : un EHPAD produit un arrete conjoint, un
+   * etablissement de sante une autorisation d'activite de soins. Reprendre le
+   * mauvais libelle ferait douter l'etablissement de ce qui a ete verifie.
+   */
+  async etablissementActive(clientId: string): Promise<void> {
+    const compte = await this.prisma.utilisateur.findFirst({
+      where: { clientId, actif: true, notificationsEmail: true },
+      select: {
+        email: true,
+        client: { select: { raisonSociale: true, type: true, contactNom: true } },
+      },
+    });
+
+    if (!compte?.client) {
+      return;
+    }
+
+    const site = (this.config.get<string>('APP_URL') ?? 'http://localhost:3000').replace(/\/+$/, '');
+
+    await this.mail.envoyer(
+      courrielEtablissementActive(
+        compte.email,
+        compte.client.contactNom,
+        compte.client.raisonSociale,
+        AUTORISATION_PAR_TYPE[compte.client.type].piece,
+        `${site}/etablissement/publier`,
+      ),
     );
   }
 }

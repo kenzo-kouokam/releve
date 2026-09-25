@@ -23,7 +23,7 @@ const { initiales, teinte = 'vert' } = defineProps<{
   height: 44px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--dom-fonce);
+  color: var(--dom-encre);
   border-radius: 999px;
 }
 

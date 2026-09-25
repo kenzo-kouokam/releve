@@ -15,16 +15,25 @@ export default defineNuxtConfig({
   // le fait qu'elle, elle ait toujours repondu.
   devServer: { port: 3000, host: '::' },
   css: ['~/assets/css/main.css', '~/assets/css/vitrine.css', '~/assets/css/legal.css'],
-  routeRules: {
-    // L'ecran de choix a disparu : il n'y a qu'un parcours public, celui du
-    // candidat. L'ancienne adresse reste valable pour les liens deja partages.
-    '/inscription': { redirect: { to: '/inscription/interimaire', statusCode: 301 } },
-  },
   runtimeConfig: {
     // Prive, donc jamais serialise vers le navigateur : depuis le passage au
     // relais /bff, seul Nitro appelle l'API. Une valeur publique inviterait a
     // refaire un appel direct, qui court-circuiterait les cookies httpOnly.
     apiBase: process.env.NUXT_API_BASE ?? 'http://localhost:3001/api',
+    public: {
+      // Racine publique du site, seule valeur publique du fichier.
+      //
+      // Elle ne sert pas a appeler quoi que ce soit : elle prefixe les adresses
+      // des donnees structurees (schema.org) et des liens canoniques, qui
+      // doivent etre absolues et pointer vers le domaine servi, pas vers la
+      // machine du visiteur. D'ou le passage par le navigateur — le balisage
+      // est aussi relu apres hydratation.
+      //
+      // A renseigner au deploiement : `NUXT_PUBLIC_SITE_URL=https://…`, sans
+      // barre finale. La valeur de developpement rend un balisage coherent,
+      // validable dans l'outil de test de Google, mais evidemment pas indexable.
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+    },
   },
   // `@releve/shared` est compile en CommonJS et lie par le workspace : Vite le
   // traite alors comme du source et rate ses exports nommes, avec une erreur du

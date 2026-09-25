@@ -105,6 +105,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  multer: '>=2.3.0'
+
 importers:
 
   .:
@@ -178,6 +181,9 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+      helmet:
+        specifier: ^8.1.0
+        version: 8.3.0
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
@@ -249,6 +255,9 @@ importers:
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0
       vue-tsc:
         specifier: ^2.1.0
         version: 2.2.12(typescript@5.9.3)
@@ -2361,10 +2370,6 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
-  concat-stream@2.0.0:
-    resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
-    engines: {'0': node >= 6.0}
-
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
 
@@ -3098,6 +3103,10 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
+  helmet@8.3.0:
+    resolution: {integrity: sha512-Qgpiaws3Sm30Av8Eah6sjMCZZwjlBu+E68rhpCWBshY1lb09HtLwj5GviX0OyQIn+ulUS0iX0AxN5n3tLZzz1w==}
+    engines: {node: '>=18.0.0'}
+
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
 
@@ -3641,8 +3650,8 @@ packages:
   muggle-string@0.4.1:
     resolution: {integrity: sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ==}
 
-  multer@2.2.0:
-    resolution: {integrity: sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==}
+  multer@2.4.0:
+    resolution: {integrity: sha512-7dqa0ZcFfzbefdTuIkzOSMvZWC0J7FLqBOjJUZvDCXShIURWKxAyTT1wHhnE5q19c7jOJf43IYYKjBmZVZmvhg==}
     engines: {node: '>= 10.16.0'}
 
   mute-stream@2.0.0:
@@ -4684,9 +4693,6 @@ packages:
   type-is@2.1.0:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
-
-  typedarray@0.0.6:
-    resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
   typescript-eslint@8.70.0:
     resolution: {integrity: sha512-P/W5cz70/cQAuKfY3xwQMWWTV7BvJ0mAQmi+9mBcsVPaBUpd6Ohpa+fECv9rBFrQcig86jAiNBFNWUqnTjr4pw==}
@@ -5970,7 +5976,7 @@ snapshots:
       '@nestjs/core': 11.2.3(@nestjs/common@11.2.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/platform-express@11.2.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       cors: 2.8.6
       express: 5.2.1(supports-color@10.2.2)
-      multer: 2.2.0
+      multer: 2.4.0
       path-to-regexp: 8.4.2
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -7609,13 +7615,6 @@ snapshots:
 
   concat-map@0.0.1: {}
 
-  concat-stream@2.0.0:
-    dependencies:
-      buffer-from: 1.1.2
-      inherits: 2.0.4
-      readable-stream: 3.6.2
-      typedarray: 0.0.6
-
   confbox@0.1.8: {}
 
   confbox@0.2.4: {}
@@ -8390,6 +8389,8 @@ snapshots:
 
   he@1.2.0: {}
 
+  helmet@8.3.0: {}
+
   hookable@5.5.3: {}
 
   hookable@6.1.1: {}
@@ -8869,11 +8870,10 @@ snapshots:
 
   muggle-string@0.4.1: {}
 
-  multer@2.2.0:
+  multer@2.4.0:
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
-      concat-stream: 2.0.0
       type-is: 1.6.18
 
   mute-stream@2.0.0: {}
@@ -10134,8 +10134,6 @@ snapshots:
       content-type: 2.1.0
       media-typer: 1.1.1
       mime-types: 3.0.2
-
-  typedarray@0.0.6: {}
 
   typescript-eslint@8.70.0(eslint@9.39.5(jiti@2.7.0)(supports-color@10.2.2))(supports-color@10.2.2)(typescript@5.9.3):
     dependencies:

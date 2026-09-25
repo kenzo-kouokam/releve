@@ -80,6 +80,9 @@ describe('mon profil', () => {
     });
 
     it('reclame une experience declaree, sans en faire un blocage', async () => {
+      // Le jeu d'essai en pose une : on la retire pour eprouver le manque.
+      await prisma.experienceProfessionnelle.deleteMany({ where: { candidatId: jeu.candidatA } });
+
       const reponse = await avec(app, candidat).get('/api/mon-profil/completude').expect(200);
 
       const cles = reponse.body.manques.map((m: { cle: string }) => m.cle);
@@ -266,6 +269,19 @@ describe('mon profil', () => {
    * l'agence a constate.
    */
   describe('experience', () => {
+    /**
+     * Table rase sur le parcours, pour ce bloc seulement.
+     *
+     * Le jeu d'essai donne a chaque candidat quatre ans d'exercice verifie,
+     * sans quoi la duree d'exercice prealable l'ecarterait de toute mission.
+     * Ce bloc-ci ne matche rien : il verifie la declaration d'un poste par la
+     * personne elle-meme, et compter les lignes est plus clair en partant de
+     * zero que de un.
+     */
+    beforeEach(async () => {
+      await prisma.experienceProfessionnelle.deleteMany({ where: { candidatId: jeu.candidatA } });
+    });
+
     const poste = {
       employeur: 'EHPAD Les Glycines',
       intitule: 'Auxiliaire de vie',

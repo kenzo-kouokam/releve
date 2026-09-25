@@ -19,9 +19,11 @@ const clientBase = z.object({
     .trim()
     .transform((valeur) => valeur.replace(/\s/g, ''))
     .refine(siretValide, 'SIRET invalide (14 chiffres, cle de controle incorrecte)'),
-  // Un seul type aujourd'hui : le champ reste dans le contrat pour pouvoir en
-  // reintroduire un autre sans casser les appelants, mais il peut etre omis.
-  type: typeClientSchema.default('EHPAD'),
+  // Sans valeur par defaut, et c'est voulu depuis qu'il y en a trois : le type
+  // decide de la piece que l'agence doit lire pour activer la fiche. En deviner
+  // un reviendrait a reclamer un arrete conjoint a une clinique, qui n'en a
+  // pas — et a prendre ce qu'elle repondrait pour une verification.
+  type: typeClientSchema,
 
   // Porte par le client et non par le candidat : c'est la convention de
   // l'entreprise utilisatrice qui fixe le salaire de reference de l'interimaire.

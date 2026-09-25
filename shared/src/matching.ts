@@ -80,7 +80,14 @@ export interface ScoreDetail {
  * plus courte sans explication.
  */
 export interface MotifExclusion {
-  cle: 'statut' | 'diplome' | 'indisponible' | 'deja-engage' | 'hors-rayon' | 'sans-adresse';
+  cle:
+    | 'statut'
+    | 'diplome'
+    | 'experience'
+    | 'indisponible'
+    | 'deja-engage'
+    | 'hors-rayon'
+    | 'sans-adresse';
   libelle: string;
 }
 
@@ -115,3 +122,44 @@ export const classementQuerySchema = z.object({
 });
 
 export type ClassementQuery = z.infer<typeof classementQuerySchema>;
+
+/**
+ * Le classement, archivé au moment où l'agence propose.
+ *
+ * Il ne répète pas `ClassementMission`, et la différence est le propos même de
+ * ce type. Le classement vivant porte des objets `CandidatPropose` complets,
+ * relus en base à chaque appel : si la personne change de nom ou de rayon, le
+ * classement change avec elle. L'archive fige ce qui a été **lu au moment de la
+ * décision** — nom, score, motifs — et ne dépend plus de rien.
+ *
+ * C'est aussi pourquoi on n'y met pas de clé étrangère vers le candidat pour
+ * l'affichage : une fiche supprimée ne doit pas laisser une ligne d'archive
+ * vide, elle doit laisser la trace de ce qui a été décidé.
+ */
+export interface CandidatArchive {
+  candidatId: string;
+  nom: string;
+  prenom: string;
+  score: number;
+  detail: ScoreDetail;
+  distanceKm: number | null;
+}
+
+export interface EcarteArchive {
+  candidatId: string;
+  nom: string;
+  prenom: string;
+  motifs: MotifExclusion[];
+}
+
+export interface ClassementArchiveResume {
+  id: string;
+  missionId: string;
+  /** Qui a proposé, tel qu'il s'appelait ce jour-là. */
+  auteurEmail: string;
+  creeLe: string;
+  retenus: CandidatArchive[];
+  ecartes: EcarteArchive[];
+  /** Ceux à qui une proposition est effectivement partie, parmi les retenus. */
+  proposesIds: string[];
+}

@@ -24,7 +24,7 @@ useHead({
       <h2>1. Objet</h2>
       <p>
         Relève est une plateforme de mise en relation entre des professionnels du soin aux personnes
-        âgées et des établissements d'hébergement pour personnes âgées dépendantes (EHPAD) qui
+        âgées et des établissements de soin — EHPAD, hôpitaux et cliniques — qui
         cherchent un remplacement.
         L'agence intervient comme entreprise de travail temporaire : c'est elle qui emploie
         l'intérimaire et le met à disposition de l'établissement.

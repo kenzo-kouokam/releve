@@ -35,6 +35,23 @@ export function useSession() {
   }
 
   /**
+   * Inscription d'un établissement.
+   *
+   * Fonction distincte plutôt qu'un paramètre de la précédente : les deux
+   * parcours ne postent pas la même forme, n'aboutissent pas au même rôle, et
+   * n'accordent pas la même chose. Les confondre derrière un drapeau ferait
+   * porter cette différence à un appelant qui n'a pas à la connaître.
+   */
+  async function inscrireEtablissement(
+    donnees: Record<string, unknown>,
+  ): Promise<ReponseInscription> {
+    return $fetch<ReponseInscription>('/bff/auth/inscription/etablissement', {
+      method: 'POST',
+      body: donnees,
+    });
+  }
+
+  /**
    * Confirmation de l'adresse par le lien recu : c'est ici, et nulle part
    * ailleurs dans le parcours d'inscription, qu'une session naît. La
    * destination vient du relais, qui la deduit du role.
@@ -98,6 +115,7 @@ export function useSession() {
     connecte,
     connexion,
     inscrire,
+    inscrireEtablissement,
     confirmerEmail,
     renvoyerVerification,
     demanderReinitialisation,

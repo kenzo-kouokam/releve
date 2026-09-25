@@ -12,16 +12,15 @@ import type { MissionVitrine, OptionsVitrine, PageResultat } from '@releve/share
  * apparaissent seulement, source citée, dans l'espace d'un candidat identifié.
  */
 
-useHead({
-  title: "Nos offres d'emploi — Relève",
-  meta: [
-    {
-      name: 'description',
-      content:
-        "Les missions d'intérim en EHPAD proposées par Relève : aide-soignant, accompagnant éducatif et social.",
-    },
-  ],
-});
+/** Ecrits une fois pour l'onglet, la balise `description`, le schema.org et
+ *  l'apercu des liens partages. Voir le commentaire de `accueil.vue`. */
+const TITRE = "Nos offres d'emploi — Relève";
+const DESCRIPTION =
+  "Les missions d'intérim en EHPAD, hôpital et clinique proposées par Relève : aide-soignant, accompagnant éducatif et social.";
+
+useHead({ title: TITRE, meta: [{ name: 'description', content: DESCRIPTION }] });
+
+usePartageSocialPage({ titre: TITRE, description: DESCRIPTION });
 
 const { requete } = useApi();
 
@@ -134,6 +133,33 @@ function periode(mission: MissionVitrine): string {
     : `${jourCourt.format(debut)} → ${jourCourt.format(fin)}`;
 }
 
+/**
+ * Les offres affichees, balisees en `JobPosting`.
+ *
+ * Reactif et non fige : la liste s'allonge au fil des clics sur « voir plus »
+ * et se refait a chaque filtre. Un balisage calcule une seule fois decrirait
+ * alors trois offres quand la page en montre neuf — un ecart entre ce que la
+ * page dit et ce qu'elle montre, qui est exactement ce que les moteurs
+ * penalisent.
+ *
+ * `useDonneesStructurees` relit donc la fonction a chaque changement, et rien
+ * n'est emis tant que l'API n'a pas repondu.
+ */
+const site = useUrlSite();
+
+/** Le chemin affiche en tete de page, et balise par le composant. */
+const FIL = [{ libelle: 'Accueil', to: '/accueil' }, { libelle: "Nos offres d'emploi" }];
+
+useDonneesStructurees(() => [
+  pageWeb(site, {
+    chemin: '/offres',
+    type: 'CollectionPage',
+    titre: TITRE,
+    description: DESCRIPTION,
+  }),
+  ...(missions.value.length ? [listeOffres(site, '/offres', missions.value)] : []),
+]);
+
 function taux(mission: MissionVitrine): string {
   return mission.tauxHoraire === null
     ? 'Rémunération selon profil'
@@ -143,6 +169,8 @@ function taux(mission: MissionVitrine): string {
 
 <template>
   <main class="vitrine offres">
+    <AppFilAriane :etapes="FIL" />
+
     <p class="vitrine-accroche">Nos offres</p>
     <h1 class="vitrine-titre">Les offres d'intérim du secteur</h1>
     <p class="vitrine-chapeau">
@@ -318,16 +346,24 @@ function taux(mission: MissionVitrine): string {
   border-radius: 14px;
 }
 
+/* `min-width: 0` n'est pas une precaution : un item de flex refuse par defaut
+ * de descendre sous la largeur de son contenu, et le contenu d un menu
+ * deroulant, c'est sa plus longue option — ici « Diplôme d'État d'accompagnant
+ * éducatif et social ». Sans cette ligne, le bloc mesurait 374 px et debordait
+ * de 35 px sur un ecran de 360 px. */
 .filtres label {
   display: flex;
+  flex: 1 1 190px;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
 }
 
 .filtres select {
-  min-width: 190px;
+  width: 100%;
+  min-width: 0;
   padding: 9px 12px;
   font: inherit;
   font-weight: 400;

@@ -47,6 +47,31 @@ export class NotificationsMissionsService {
   }
 
   async notifier(simulation: boolean): Promise<RapportNotifications> {
+    /*
+     * L'instant de reference, pris sur l'horloge du processus.
+     *
+     * Il est compare plus bas au `createdAt` des missions, que PostgreSQL pose
+     * lui-meme : deux horloges, donc, et cela se remarque. Le remplacer par un
+     * `SELECT now()` a ete essaye, et **c'est pire** — pour une raison qui ne
+     * saute pas aux yeux. `now()` a une precision a la microseconde, la `Date`
+     * de JavaScript s'arrete a la milliseconde : lire l'heure de la base puis
+     * la reecrire par Prisma perd jusqu'a 999 microsecondes. La date de passage
+     * retombe alors *avant* la creation d'une mission publiee dans la meme
+     * milliseconde, et cette mission est reannoncee a chaque passage. Le test
+     * « ne repete pas la meme mission au passage suivant » le prend a tous les
+     * coups.
+     *
+     * Ce qui sauve la version actuelle n'est donc pas la chance : `new Date()`
+     * est lu **apres** que les missions ont ete creees, et la troncature joue
+     * dans le bon sens. L'ecart entre les deux horloges — mesure a 15 ms sur le
+     * poste de developpement — reste couvert par le delai reel entre une
+     * publication et le passage nocturne qui l'annonce.
+     *
+     * Le faire proprement supposerait de poser la date **en SQL**
+     * (`SET "missionsNotifieesLe" = now()`), pour garder la pleine precision et
+     * une seule horloge. C'est note dans les limites connues plutot que fait a
+     * moitie.
+     */
     const maintenant = new Date();
 
     // Seuls les candidats proposables : un dossier en verification ne peut pas

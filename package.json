@@ -12,7 +12,7 @@
     "dev": "pnpm --filter @releve/shared build && pnpm -r --parallel dev",
     "dev:backend": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend dev",
     "dev:frontend": "pnpm --filter @releve/shared build && pnpm --filter @releve/frontend dev",
-    "test": "pnpm test:shared && pnpm test:backend",
+    "test": "pnpm test:shared && pnpm test:backend && pnpm test:frontend",
     "test:shared": "vitest run --root shared",
     "test:backend": "pnpm --filter @releve/backend test",
     "typecheck": "pnpm -r typecheck",
@@ -25,7 +25,8 @@
     "db:seed": "pnpm --filter @releve/backend db:seed",
     "db:studio": "pnpm --filter @releve/backend db:studio",
     "db:reset": "pnpm --filter @releve/backend db:reset",
-    "cli": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend cli"
+    "cli": "pnpm --filter @releve/shared build && pnpm --filter @releve/backend cli",
+    "test:frontend": "pnpm --filter @releve/frontend test"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

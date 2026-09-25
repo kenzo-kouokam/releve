@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import {
   VERSION_CONDITIONS,
   type EspacePersonnel,
+  type InscriptionEtablissement,
   type InscriptionInterimaire,
   type ReponseInscription,
   type UtilisateurSession,
@@ -147,6 +148,112 @@ export class InscriptionsService {
       id: compte.id,
       email: compte.email,
       prenom: donnees.interimaire.prenom,
+    });
+
+    return { email: compte.email, verificationRequise: true };
+  }
+
+  /**
+   * Inscription d'un etablissement.
+   *
+   * Le meme principe que pour l'interimaire, avec un verrou different. La fiche
+   * nait **inactive**, et c'est tout ce qui la separe d'une structure en
+   * exercice : le compte existe, la personne se connecte, elle voit son espace
+   * et l'etat de son dossier — mais `missions.creer()` refuse un client inactif,
+   * donc elle ne peut deposer aucun besoin.
+   *
+   * Le controle n'est pas ajoute ici : il existait deja, pour les fiches que
+   * l'agence desactive. C'est ce qui permet d'ouvrir l'inscription sans rien
+   * relacher — une structure auto-declaree se trouve exactement dans la
+   * situation d'un etablissement dont l'agence aurait suspendu la fiche.
+   *
+   * **L'autorisation n'est pas demandee ici**, et ce n'est pas un oubli. Elle
+   * ne serait verifiee par rien a ce moment, donc la saisir ne prouverait rien ;
+   * elle se renseigne a l'activation, par l'agence, en ouvrant la piece —
+   * l'arrete conjoint d'un EHPAD ou l'autorisation d'activite de soins d'un
+   * etablissement de sante, selon le type declare ici. La fiche nait donc sans
+   * statut juridique et sans FINESS, ce que `clients.service` refuse d'activer.
+   *
+   * Entre les deux, la structure attend, comme un interimaire attend la
+   * verification de ses diplomes.
+   */
+  async etablissement(donnees: InscriptionEtablissement): Promise<ReponseInscription> {
+    await this.exigerEmailLibre(donnees.compte.email);
+
+    // Le SIRET est unique sur toute la base et pas par agence : deux agences du
+    // meme reseau ne doivent pas ouvrir deux fiches pour le meme etablissement.
+    // Verifie avant la transaction pour rendre un message utile plutot qu'une
+    // violation de contrainte traduite a l'aveugle.
+    const deja = await this.prisma.client.findUnique({
+      where: { siret: donnees.etablissement.siret },
+      select: { id: true },
+    });
+
+    if (deja) {
+      throw new ConflictException(
+        'Cet etablissement est deja enregistre. Demandez un acces a votre agence.',
+      );
+    }
+
+    const agenceId = await this.agenceDInscription();
+    const empreinte = await hacherMotDePasse(donnees.compte.motDePasse);
+    let compte: { id: string; email: string };
+    let lieuId: string;
+
+    try {
+      const utilisateur = await this.prisma.$transaction(async (tx) => {
+        const client = await tx.client.create({
+          data: {
+            agenceId,
+            raisonSociale: donnees.etablissement.raisonSociale,
+            siret: donnees.etablissement.siret,
+            // Le type est declare, l'autorisation ne l'est pas : c'est lui qui
+            // dira a l'agence quelle piece reclamer avant d'activer.
+            type: donnees.etablissement.type,
+            contactNom: donnees.etablissement.contactNom,
+            contactEmail: donnees.compte.email,
+            contactTel: donnees.etablissement.contactTel,
+            // Le verrou. Rien ne sort de la plateforme vers cet etablissement
+            // tant que l'agence n'a pas lu son autorisation.
+            actif: false,
+            lieux: { create: [donnees.lieu] },
+          },
+          select: { id: true, lieux: { select: { id: true } } },
+        });
+
+        lieuId = client.lieux[0]!.id;
+
+        return tx.utilisateur.create({
+          data: {
+            email: donnees.compte.email,
+            motDePasse: empreinte,
+            role: 'CLIENT',
+            clientId: client.id,
+            conditionsAccepteesLe: new Date(),
+            conditionsVersion: VERSION_CONDITIONS,
+          },
+        });
+      });
+
+      this.logger.log(
+        `Inscription etablissement : ${donnees.etablissement.raisonSociale} (${donnees.compte.email})`,
+      );
+
+      compte = utilisateur;
+    } catch (cause) {
+      throw this.traduireConflit(cause, 'siret', 'Cet etablissement est deja enregistre');
+    }
+
+    // Hors transaction, pour la meme raison que cote interimaire : une BAN lente
+    // ne doit pas faire echouer une inscription valide. Un lieu sans
+    // coordonnees empeche de publier — mais la fiche est de toute facon inactive
+    // jusqu'a la validation, et `pnpm cli geocoder` reprend ce qui manque.
+    await this.geocodage.situer('lieu_intervention', lieuId!, donnees.lieu);
+
+    await this.verification.emettre({
+      id: compte.id,
+      email: compte.email,
+      prenom: donnees.etablissement.contactNom,
     });
 
     return { email: compte.email, verificationRequise: true };
