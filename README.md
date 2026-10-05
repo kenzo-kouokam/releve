@@ -1,1538 +1,228 @@
-# Relève
+# 🩺 Relève — L'intérim des aides-soignants, enfin outillé
 
-Agence d'intérim numérique pour le soin : EHPAD, hôpitaux, cliniques.
+<div align="center">
 
-L'agence place des intérimaires — aides-soignants, accompagnants éducatifs et sociaux — dans les
-**EHPAD**, les **hôpitaux** et les **cliniques** qui ont un besoin de remplacement, souvent à très
-court terme. La plateforme remplace le tableur et le téléphone : vivier de candidats, référentiel
-client, dépôt de besoin, matching — puis, au schéma mais pas encore au code, contractualisation et
-relevés d'heures (voir « État d'avancement »).
+[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![Nuxt](https://img.shields.io/badge/Nuxt-4-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white)](https://nuxt.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_+_PostGIS-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![n8n](https://img.shields.io/badge/n8n-3_workflows-EA4B71?style=for-the-badge&logo=n8n)](https://n8n.io/)
+[![Airtable](https://img.shields.io/badge/Airtable-Cockpit-18BFFF?style=for-the-badge&logo=airtable&logoColor=white)](https://airtable.com/)
+[![Epitech](https://img.shields.io/badge/Epitech-D--WEB--901-0f0f13?style=for-the-badge)](https://www.epitech.eu/)
 
-`TypeClient` porte ces **trois familles**, et la distinction n'est pas décorative : elle décide de
-la pièce que l'agence doit lire avant d'activer une fiche. Un EHPAD est un établissement social et
-médico-social (art. L. 312-1 du CASF) et ouvre sur un **arrêté conjoint ARS / conseil
-départemental** (art. L. 313-1) ; un hôpital ou une clinique sont des établissements de santé et
-exercent sur une **autorisation d'activité de soins délivrée par l'ARS** seule (art. L. 6122-1 du
-CSP). Réclamer un arrêté conjoint à une clinique reviendrait à réclamer un document qui n'existe
-pas — et à prendre ce qu'elle répondrait pour une vérification.
+**Une mission urgente ne dort plus dans un planning : la bonne personne est prévenue, au bon moment, sans qu'aucun nom ne sorte vers un service tiers.**
 
-Un établissement ouvre son compte lui-même et **arrive inactif** : aucun des trois n'exerce sans
-autorisation, et celle-ci se vérifie sur pièce avant toute mise à disposition. Ce qui ne dépend pas
-du type : la durée minimale d'exercice préalable à l'intérim de la loi Valletoux (loi 2023-1268,
-art. 8) vise les professionnels de santé en établissement de santé **comme** en ESMS, donc elle
-s'applique à **toutes** nos mises à disposition, sans condition. Face à Hublo,
-qui vend un outil de recrutement, et à Mediflash, qui contourne le salariat, la différenciation
-tient dans un vrai contrat de mission d'intérim — l'analyse concurrentielle est dans
-[`docs/analyse-de-marche.html`](docs/analyse-de-marche.html).
+[🔁 Workflows n8n](n8n/README.md) · [📡 Contrat d'événements](docs/automatisations.md) · [📘 Documentation technique](docs/README-technique.md) · [📂 Livrables](livrables/)
+
+</div>
 
 ---
 
-## État d'avancement
+## 🎯 Contexte & problème
 
-Le projet est un **POC de onze jours**. Quatre jalons sur cinq sont entamés.
+Il est **six heures trente**. Un aide-soignant se déclare malade. À sept heures, quarante résidents attendent le lever. Le cadre de santé va passer l'heure qui vient au téléphone, à chercher quelqu'un de qualifié, disponible et **légalement autorisé** à prendre la mission.
 
-| Jalon                                        | Périmètre                                                                                                 | État                          |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **J1–J2 — Socle et vivier**                  | Monorepo, authentification et rôles, référentiels, fiches candidats, back-office                          | **Livré**                     |
-| **J3–J5 — Comptes, mission, profil**         | Inscription des deux profils, dépôt de besoin, candidature, validation, espace personnel de l'intérimaire | **Livré**                     |
-| **J5–J7 — Données publiques et matching**    | Import France Travail, baromètre, taux suggéré, référentiel de compétences, moteur de matching à score explicable | **Livré**                     |
-| J7–J9 — Tableau de bord, vitrine, conformité | Tableau de bord candidat, pages publiques, n8n, RGAA / RGESN / RGPD                                       | **Partiel** — voir ci-dessous |
-| J9 — Automatisations n8n                     | Journal d'événements, webhooks signés, routes de service, workflows                                       | **Livré** — 3 workflows actifs ; Slack et Airtable en attente d'identifiants |
-| J10–J11 — Tests, livrables, soutenance       | Couverture transmise, étude de marché, chiffrage réel, pitch                                              | **Tests livrés** — reste les pièces écrites |
+| Chiffre | Source |
+|---|---|
+| **62 000** projets de recrutement d'aides-soignants en 2026 | France Travail |
+| **60 000** postes vacants de soignants en EHPAD | FNADEPA |
+| **825 M€** d'intérim paramédical, **830 000 missions** de 2,3 jours en moyenne | Cour des comptes, 2023 |
 
-**703 tests au vert** : 499 sur l'API, 155 sur le front, 49 sur les règles partagées. Voir « Tests ».
-
-Du jalon J7–J9 sont livrés le **tableau de bord candidat**, les **huit pages vitrine** (accueil,
-fonctionnement, à propos, FAQ, contact, mentions légales, conditions d'utilisation, politique de
-confidentialité) et la refonte complète des écrans sur le canvas de design. Le volet RGPD est
-entamé : dépôt des pièces justificatives, **conservation bornée à un an** avec relance par courriel,
-et consentement recueilli et daté à l'inscription. Les **automatisations n8n** ont désormais tout
-leur versant API — journal des transitions, émission signée, routes de service — et il reste à finir
-les workflows eux-mêmes. Restent aussi le reste de la **conformité** (RGAA, RGESN) et le
-**référencement**. Le chiffrage par fonctionnalité, le plan de
-repli et les livrables datés sont dans le cahier des charges figé à J+2, qui sert de référence pour
-l'écart entre estimé et réel.
-
-**La boucle produit est fermée** : un service publie un besoin, un intérimaire qualifié le voit et
-postule, le service le confirme, la mission apparaît dans son suivi.
-
-**Elle s'arrête là.** Les modèles `Contrat`, `ReleveHeures` et `Facture` sont au schéma et **aucun
-service ne les lit** — zéro occurrence dans `backend/src`. La contractualisation et les relevés
-d'heures annoncés en tête de ce document sont donc une intention du modèle de données, pas une
-fonctionnalité.
-
-`EvenementMission`, en revanche, **est désormais écrit** : chaque transition de mission y laisse une
-trace, et c'est ce journal qui alimente les automatisations. Voir « Automatisations » dans la section
-API.
-
-**Les trois manques qui bloquaient une mise en ligne sont traités** — dépôt de pièces
-justificatives, conditions d'utilisation, identité légale. Le dernier l'est **pour la démonstration
-seulement** : les dix-sept champs légaux portent un jeu de valeurs fictives, signalé par un bandeau
-sur les trois pages. Une mise en ligne réelle exige de les remplacer par les faits de l'agence, dont
-la garantie financière obligatoire pour une entreprise de travail temporaire.
+Une contrainte légale que personne n'outille, la **loi Valletoux** : depuis le 1er juillet 2024, deux ans d'exercice hors intérim (**3 214 heures**) avant une première mission. La vérification incombe à l'agence d'intérim.
 
 ---
 
-## Stack
+## 💡 La solution
 
-| Couche       | Choix                                                                   |
-| ------------ | ----------------------------------------------------------------------- |
-| Monorepo     | pnpm workspaces, TypeScript strict                                      |
-| API          | NestJS 11, Prisma 6, Zod 4, Swagger                                     |
-| Base         | PostgreSQL 16 + PostGIS (le géomatching candidat → lieu en dépendra)    |
-| File de jobs | Redis 7 (prévu pour BullMQ : matching différé, relances)                |
-| Front        | Nuxt 4, Vue 3, rendu serveur                                            |
-| Auth         | JWT signé HS256, mots de passe en Argon2id                              |
-| Design       | Canvas Claude Design « Relève app web design », transposé en tokens CSS |
+Une **agence d'intérim numérique** qui apporte aux EHPAD, cliniques et hôpitaux un vivier d'aides-soignants déjà vérifiés :
 
-`shared` est le point d'articulation : les schémas Zod y sont écrits **une seule fois**
-et servent à la fois à valider les entrées de l'API et les formulaires du front. Le package ne
-dépend pas de Prisma, pour rester importable par le navigateur.
+1. **L'établissement publie** son besoin (poste, lieu, horaires, motif de recours obligatoire).
+2. **La plateforme filtre et classe** : diplôme, distance (PostGIS), disponibilités, contrôle Valletoux. Chaque décision est explicable.
+3. **Les automatisations préviennent** les bons profils, relancent les missions oubliées et confirment par écrit.
+4. **L'établissement valide**, et la mission est pourvue.
 
 ---
 
-## Démarrage
+## 🧑‍💻 Mon rôle — Data analyst, automatisation de bout en bout
 
-Prérequis : **Node ≥ 22**, **pnpm 12**, **Docker**.
+> Rien n'existait côté automatisation au démarrage du projet : j'ai conçu, construit, testé et présenté toute la chaîne.
+
+- **Contrat d'événements** entre l'API et n8n : événements, format, signature, pseudonymisation → [`docs/automatisations.md`](docs/automatisations.md)
+- **3 workflows n8n** (57 nœuds), publiés et testés sur de vraies missions → [`n8n/`](n8n/)
+- **Slack** pour l'agence (suivi, relances, incidents) et **Airtable** comme journal et cockpit
+- **Sécurité et RGPD** : signature HMAC, références pseudonymes, correctif d'une fuite de données dans l'API
+- **Qualité** : tests de panne, plafond vérifié, script qui rejoue 5 scénarios réels → [`n8n/demo-live.sh`](n8n/demo-live.sh)
+- **Cadrage** : cahier des charges (93 exigences), chiffrage à 48 jours-homme, branchement de l'API France Travail
+
+---
+
+## 🏗 Architecture des automatisations
+
+```
+   Application Relève (NestJS)                        n8n (auto-hébergé)
+   ───────────────────────────                        ──────────────────
+   Une mission change d'état ──── webhook signé ────▶ WF1 Alertes ──appelle──▶ WF3 Confirmation
+   publiée · proposée · acceptée    HMAC SHA-256          │                          │
+   pourvue · annulée                                      │                          │
+                     ◀──── « prévenir ces candidats » (POST /api/interne/…) ─────────┤
+   L'API expédie les e-mails                              ├──▶ Slack (agence)   ◀────┤
+   (elle seule connaît les adresses)                      ├──▶ Redis (anti-spam, mémoire)
+                                                          └──▶ Airtable (journal) ◀──┘
+   Toutes les 15 min :
+   WF2 Relance ──« missions sans candidat ? »──▶ API ──▶ relance / escalade ──▶ Slack + Airtable
+```
+
+> **Règle d'or : l'application annonce, n8n décide, l'API expédie.**
+
+---
+
+## 🔁 Les 3 workflows
+
+### ① Alertes candidats — 35 nœuds
+![WF1 dans l'éditeur n8n](n8n/captures/wf1-alertes.png)
+- Signature HMAC vérifiée à l'entrée : un appel falsifié est rejeté avant tout envoi
+- Mission urgente (début < 48 h) → alerte e-mail aux candidats éligibles, **3 par jour au maximum** (compteurs Redis à expiration)
+- L'agence suit tout dans Slack ; le message d'origine passe à « pourvue » ou « annulée » au lieu de s'empiler
+
+### ② Relance automatique — 13 nœuds
+![WF2 dans l'éditeur n8n](n8n/captures/wf2-relance.png)
+- Toutes les 15 minutes, une mission sans candidat depuis 24 h est relancée
+- **3 relances, pas une de plus**, puis escalade vers un humain (`@here`)
+- Le délai court depuis le dernier mouvement de la mission : pas de relance en boucle
+
+### ③ Confirmation candidat — 9 nœuds
+![WF3 dans l'éditeur n8n](n8n/captures/wf3-confirmation.png)
+- Sous-workflow appelé par WF1 quand une mission est pourvue ; une annulation ne confirme jamais rien
+- E-mail de confirmation au candidat retenu, trace pour l'agence
+
+<div align="center"><img src="n8n/captures/email-confirmation.png" alt="E-mail de confirmation reçu par la candidate" width="560"></div>
+
+---
+
+## 🔐 Sécurité & RGPD
+
+| Principe | Mise en œuvre |
+|---|---|
+| Authenticité | Signature **HMAC SHA-256** du corps brut, secret partagé ; jeton de service sur les routes internes |
+| Minimisation | Vers Slack et Airtable : uniquement des références `CAN-XXXXXX`, jamais de nom, e-mail ou téléphone |
+| Pseudonymisation | Référence dérivée de l'identifiant par HMAC : stable, non réversible sans le secret (mais **pas anonyme** au sens du RGPD) |
+| Sous-traitants hors UE | Slack et Airtable inscrits comme sous-traitants ; rien de nominatif ne leur parvient |
+| Conservation | Journal des notifications : 90 jours |
+| Secrets | Dans `.env` et les credentials n8n, **jamais** dans les exports ; historique Git vérifié avant publication |
+| Pièces justificatives | Chiffrées au repos en AES-256-GCM, mots de passe en Argon2id (travail du développeur) |
+
+---
+
+## 📊 Journal & cockpit Airtable
+
+Chaque envoi laisse une ligne (qui, quand, quel canal, quel résultat) dans une base Airtable lue par l'agence. **Le journal ne bloque jamais un envoi** : si Airtable tombe, les notifications partent quand même.
+
+| Vérifié pendant les tests | |
+|---|---|
+| Notifications journalisées | 35 |
+| Envois réellement partis | 20 |
+| Alertes bloquées par le plafond anti-spam | 6 |
+| **Échecs provoqués volontairement** (API coupée) | 9 |
+| Relances enregistrées | 8 |
+
+---
+
+## 🧪 Démonstration & tests
 
 ```bash
-pnpm install                 # installe le workspace
+./n8n/demo-live.sh parcours     # publication urgente → proposition → acceptation → validation
+./n8n/demo-live.sh annulation   # l'annulation clôture les candidatures, sans confirmation
+./n8n/demo-live.sh plafond      # la 4e alerte du jour est bloquée
+./n8n/demo-live.sh signature    # un appel non signé est rejeté
+./n8n/demo-live.sh relance      # relances 1/3 à 3/3 puis escalade (seuil abaissé à 1 minute)
+./n8n/demo-live.sh nettoyer     # remise à zéro entre deux répétitions
+```
+
+Suite de tests du projet : `pnpm test` (règles partagées, API, front).
+
+---
+
+## 🧰 Stack technique
+
+| Couche | Outil | Rôle |
+|---|---|---|
+| Monorepo | pnpm 12 · TypeScript strict · Node ≥ 22.12 | Serveur, interface et schémas partagés |
+| Backend | NestJS 11 · Prisma 6 · Zod | API REST, documentation OpenAPI |
+| Frontend | Nuxt 4 · Vue 3 | Rendu serveur, relais BFF, cookies httpOnly |
+| Données | PostgreSQL 16 + PostGIS · Redis 7 | Matching géographique · cache, limitation de débit, compteurs n8n |
+| Automatisation | **n8n 2.39** (auto-hébergé) | 3 workflows événementiels |
+| Notifications | **Slack** (agence) · e-mail via l'API (candidats) · Mailpit en local | |
+| Journal | **Airtable** (base + Interface) | Cockpit de l'agence |
+| Données publiques | API France Travail (OAuth2) · Base Adresse Nationale | Offres du métier, tension du marché, géocodage |
+| Infra | Docker Compose | PostgreSQL, Redis, Mailpit, n8n |
+
+---
+
+## 📁 Structure du dépôt
+
+```
+├── backend/          → API NestJS (auth, missions, matching, événements, routes internes)
+├── frontend/         → Nuxt 4 (vitrine, espaces établissement et candidat)
+├── shared/           → schémas et règles métier partagés (Zod)
+├── n8n/
+│   ├── wf1-notification.json · wf2-relance.json · wf3-confirmation.json
+│   ├── captures/     → captures réelles des workflows et de l'e-mail
+│   ├── test-webhook.sh · demo-live.sh
+│   └── README.md     → import, credentials, mode démo
+├── docs/
+│   ├── automatisations.md       → contrat d'événements API ↔ n8n
+│   ├── automatisations-api.md   → côté API
+│   ├── README-technique.md      → documentation technique complète
+│   └── maquettes/               → maquettes Figma desktop et mobile
+├── livrables/        → note de cadrage, études de marché, cahier des charges, plan de tests, pilotage, présentation
+└── docker-compose.yml
+```
+
+---
+
+## 🚀 Lancement en local
+
+```bash
+git clone https://github.com/kenzo-kouokam/releve.git && cd releve
+pnpm install
 cp .env.example backend/.env
+# Renseigner au minimum : JWT_SECRET (openssl rand -base64 48), STOCKAGE_CLE (openssl rand -base64 32),
+# N8N_WEBHOOK_SECRET et INTERNAL_SERVICE_TOKEN (même valeur côté n8n)
 
-pnpm infra:up                # PostgreSQL (5434), Redis (6380), Mailpit (8025)
-pnpm db:migrate              # applique la migration
-pnpm db:seed                 # jeu de données de démonstration
-
-pnpm dev                     # API sur :3001, front sur :3000
+pnpm infra:up        # PostgreSQL :5434 · Redis :6380 · Mailpit :8025 · n8n :5678
+pnpm db:migrate
+pnpm db:seed         # comptes et missions de démonstration
+pnpm dev             # API :3001 (docs /api/docs) · front :3000
 ```
 
-Les courriels de confirmation partent sur **Mailpit** : rien à configurer, ils s'ouvrent dans le
-navigateur sur **http://localhost:8025**. Aucun message ne sort de la machine, ce qui permet de
-dérouler une inscription complète sans écrire à une vraie adresse.
-
-```bash
-pnpm test                    # 703 tests : règles partagées, API, front
-```
-
-La base d'intégration (`passerelle_test`) est créée et migrée automatiquement au
-premier lancement, puis vidée à chaque suite. Elle est distincte de la base de
-développement.
-
-Documentation de l'API générée : <http://localhost:3001/api/docs>. Elle se ferme d'elle-même
-quand `NODE_ENV=production` ; `API_DOCS=true` la rouvre explicitement, par exemple sur une recette.
-
-Les ports **5434** et **6380** sont décalés volontairement : 5432, 5433 et 6379 sont souvent déjà
-pris sur un poste de développement (Postgres local, WSL).
-
-### Comptes de démonstration
-
-Mot de passe commun : `Releve2026!`. Relancer `pnpm db:seed` réécrit les mots de passe, c'est
-le moyen le plus simple de récupérer un accès en local.
-
-Le seed **converge** : il réécrit ce qu'il pose au lieu de se contenter de le créer. Une base semée
-avant un changement gardait sinon ses anciennes valeurs, et la vitrine a longtemps annoncé
-« 3e sans ascenseur » sur une mission qui se déroule en unité protégée.
-
-Ses six missions portent le préfixe `DEMO-`, hors de l'espace de références que l'API attribue
-(`M-<année>-NNNN`). Ce n'est pas cosmétique : avec des références communes, un reseed réécrivait de
-fond en comble une mission créée pendant une démonstration. Le cas s'est produit.
-
-| Adresse                        | Rôle                    | Rattachement             |
-| ------------------------------ | ----------------------- | ------------------------ |
-| `admin@releve.example`         | Administrateur d'agence | Agence pilote            |
-| `charge@releve.example`        | Chargé de recrutement   | Agence pilote            |
-| `cadre@les-tilleuls.example`   | Client                  | EHPAD Les Tilleuls       |
-| `sophie.marchand@example.org`  | Candidat                | Fiche de Sophie Marchand |
-
-Les quatre comptes ont leurs écrans : back-office pour les deux premiers, espace établissement
-pour le troisième, espace candidat — tableau de bord, missions, suivi, profil — pour le dernier.
+Workflows : importer les 3 fichiers de [`n8n/`](n8n/) et recréer les credentials (voir [`n8n/README.md`](n8n/README.md)).
 
 ---
 
-## Tests
+## 👥 Équipe — projet Epitech D-WEB-901, septembre 2026
 
-**703 cas sur 35 fichiers**, tous au vert.
+> 11 jours ouvrés, du 14 au 28 septembre 2026, soutenance avec démonstration en direct.
 
-| Suite       | Cas | Fichiers | Durée   | Ce qu'elle exige             |
-| ----------- | --: | -------: | ------- | ---------------------------- |
-| API         | 499 |       27 | ~5 min  | Docker : PostgreSQL, Redis, Mailpit |
-| Front       | 155 |        5 | 0,5 s   | rien                         |
-| Partagé     |  49 |        3 | 0,5 s   | rien                         |
+| Personne | Rôle | Périmètre |
+|---|---|---|
+| **P1** | Développeur | Backend NestJS, frontend Nuxt, authentification, matching, filtre Valletoux, émetteur de webhooks |
+| **P2 – P4** | Product Owner · Business Analyst · PMO | Étude de marché et analyse concurrentielle, note de cadrage, règles métier et conformité, maquettes desktop et mobile, roadmap, pilotage et présentation |
+| **P5** | **Data analyst — automatisation** | **n8n, Slack, Airtable, contrat d'événements, sécurité et RGPD des flux, cahier des charges, données France Travail** |
 
-```bash
-pnpm test            # les trois suites
-pnpm test:frontend   # 155 cas en une demi-seconde, sans base
-pnpm test:backend    # 499 cas d'intégration
-```
-
-Les tests d'API tournent **contre un vrai PostgreSQL**, jamais des doublures. Ce n'est pas une
-préférence de style : beaucoup de règles de sécurité de ce projet vivent dans les requêtes Prisma —
-le filtre `agenceId`, le `where` sur les expériences vérifiées —, et un test mocké ne les verrait
-jamais. La base `passerelle_test` est créée et migrée au premier lancement, puis vidée entre les
-suites.
-
-### Les cinq qui comptent
-
-Classés sur une seule question : qu'est-ce qui casse, et à quel point silencieusement, si ce test
-disparaît ?
-
-**1. `cloisonnement.spec.ts` — 13 cas.** Un seul `agenceId` oublié dans une requête, et tout un
-vivier de candidats fuit. Il éprouve la lecture, l'écriture, la création et les comptes rattachés.
-Il exige **404 et non 403** sur la fiche d'une autre agence : un 403 confirmerait que
-l'enregistrement existe.
-
-**2. La frontière du front — 116 cas.** Deux portes. `auth-middleware.spec.ts` (72) tient la matrice
-d'accès des quatre profils : ce que l'API refuse, elle le refuse *après* que l'écran est apparu.
-`bff-session.spec.ts` et `bff-relais.spec.ts` (44) tiennent la garde des jetons — l'en-tête
-`Authorization` se compose depuis le cookie `httpOnly` et **jamais** depuis un en-tête fourni par la
-page, sans quoi une faille XSS suffirait à se faire passer pour quelqu'un d'autre. S'y ajoute la
-déduplication du rafraîchissement : le jeton de session est à usage unique, et six appels
-concurrents au chargement d'une page déclencheraient six échanges — donc une détection de rejeu, et
-une déconnexion pour avoir simplement ouvert une page.
-
-**3. `documents.spec.ts` + `coffre.spec.ts` — 34 cas.** Données de santé, donc RGPD. `coffre`
-éprouve la primitive AES-256-GCM seule — marqueur, IV, tag, clé — et `documents` la chaîne complète
-par l'API. Un autre candidat reçoit **404, pas 403** : aucune fuite d'existence.
-
-**4. `score.spec.ts` + `exercice-prealable.spec.ts` + `matching.spec.ts` — 64 cas.** Le cœur métier
-et la porte légale. `score` teste le barème isolé de la base : on discute un poids sans monter un
-environnement. `exercice-prealable` verrouille le seuil de 3 214 h de la loi Valletoux, y compris
-les deux pièges trouvés en l'écrivant — le double comptage de deux postes qui se chevauchent, et
-l'écart de 2 h entre deux années civiles exactes et deux années légales.
-
-**5. `missions.spec.ts` — 38 cas.** La porte de la candidature : diplôme, durée d'exercice, rayon,
-disponibilité, double engagement. C'est le test qui empêche qu'un écran promette ce que l'API
-refusera.
-
-### Ce qui n'est pas couvert
-
-- **Le rendu des composants.** Les tests du front couvrent le calcul — matrice d'accès, relais,
-  en-têtes, mise en forme — pas l'affichage. Ce qui l'atténue : `frontend/scripts/sonde-responsive.mjs`
-  pilote Chrome et mesure le débordement et les gouttières page par page. C'est un outil d'audit
-  lancé à la main, pas une suite qui tourne à chaque commit.
-- **Les workflows n8n eux-mêmes.** La signature HMAC est éprouvée dans les deux sens, rejet d'une
-  signature forgée compris, mais exécuter les trois workflows demanderait un n8n disponible et des
-  identifiants Slack et Airtable.
-- **Un test instable, et documenté.** « Ne répète pas la même mission au passage suivant » compare
-  une date posée par PostgreSQL à une date posée par Node. Il passe en isolation et a échoué une
-  fois sous charge ; le correctif propre est de poser la date en SQL. C'est écrit dans le code, pas
-  caché.
+L'historique Git est conservé tel quel : chacun reste l'auteur de ses commits.
 
 ---
 
-## Données publiques
+## ⭐ Règle d'or
 
-La plateforme consomme les offres d'intérim publiées sur **France Travail** pour les métiers du
-secteur (codes ROME `J1501` aide-soignant, `K1302` assistance auprès d'adultes, `K1304` services
-domestiques). Elles servent à deux choses, et à rien d'autre :
-
-- un **baromètre de tension** par métier et par département, qui alimente le taux horaire suggéré à
-  l'établissement au moment où il fixe sa rémunération ;
-- des **suggestions au candidat connecté**, rapprochées de son métier et de son rayon de
-  déplacement.
-
-Elles ne sont **jamais republiées au tout-venant**. La page publique `/offres` ne sert que les
-missions de Relève : mélanger les deux ferait croire à un candidat qu'il postule ici alors que
-l'annonce appartient à une agence concurrente, et qu'il n'en recevra jamais de réponse de notre
-part. Partout où une offre France Travail est montrée — donc dans l'espace candidat — sa source est
-citée et un lien mène à l'annonce d'origine, seule façon d'y postuler.
-
-> **Licence.** La réutilisation est encadrée par la _licence de réutilisation de la base d'offres
-> d'emploi de France Travail_, à laquelle il faut adhérer sur
-> [francetravail.io](https://francetravail.io). Elle impose d'interroger l'API au moins toutes les
-> 24 heures, de faire disparaître les offres retirées chez la source, de ne pas dénaturer le contenu,
-> d'afficher la date de dernière actualisation, et **exclut les coordonnées du recruteur** — que le
-> code ne collecte donc pas. Le champ `contact` est volontairement absent du type `OffreBrute` : un
-> champ qu'on ne déclare pas est un champ qu'on ne peut pas recopier par distraction.
-
-```bash
-# Collecte, nettoyage et enregistrement
-pnpm cli importer:offres --jours 30 --departement 44,85,49
-
-# Balayage complet : retire aussi les offres disparues de la source.
-# Réservé à un import non tronqué — le service refuse d'expirer en dessous du seuil.
-pnpm cli importer:offres --jours 60 --max 3000 --expirer
-
-# Tout préparer et compter, sans rien écrire
-pnpm cli importer:offres --jours 30 --sec
-
-# Rejouer l'instantané livré avec le dépôt, sans réseau ni identifiants
-pnpm cli importer:offres --fichier donnees/offres-echantillon.json
-
-# Enregistrer un nouvel instantané brut
-pnpm cli exporter:offres --jours 30 --sortie donnees/instantane.json
-
-# Situer les offres à partir de leur commune (voir « Géocodage » ci-dessous)
-pnpm cli geocoder:offres
-
-# Afficher le baromètre
-pnpm cli barometre --jours 30 --departement 44
-
-# Situer les fiches candidats restées sans coordonnées
-pnpm cli geocoder
-```
-
-Les identifiants se créent sur [francetravail.io](https://francetravail.io) (application + souscription
-à « Offres d'emploi v2 ») et se renseignent dans `backend/.env`. Sans eux, seul l'import par fichier
-fonctionne.
-
-### Ce que fait la préparation
-
-La donnée brute n'est pas exploitable telle quelle. Sur un balayage réel du 16 septembre 2026
-(2 020 offres, 60 jours, trois codes ROME) :
-
-| Étape                                    | Effet mesuré   |
-| ---------------------------------------- | -------------- |
-| Reçues                                   | 2 020          |
-| Écartées (sans identifiant, titre, date) | 0              |
-| Républications repérées                  | 479, soit 24 % |
-| dont salaire exploitable                 | 518            |
-| dont sans salaire annoncé                | 1 502          |
-| dont lieu non situable                   | 10             |
-
-- **Salaires** : huit formes de libellé coexistent (`Horaire de 15.0 Euros`,
-  `Mensuel de 1800.0 Euros à 2000.0 Euros sur 12.0 mois`, `Annuel de 24000.0 Euros`, suivies parfois
-  d'un commentaire libre). Tout est ramené à un taux horaire ; sur une fourchette on prend le milieu.
-  Un libellé illisible donne `null`, jamais une valeur inventée. Mesuré : **518 conversions réussies
-  sur 521 libellés présents**, les 3 échecs étant des saisies employeur aberrantes
-  (`Annuel de 12.0 Euros`) que les garde-fous rejettent à raison.
-- **Intitulés** : « Aide soignant (F/H) », « AIDE-SOIGNANT H/F - URGENT » sont ramenés à
-  l'appellation du référentiel ROME dans `intituleNormalise`, seule chaîne stable sur laquelle
-  regrouper. Le titre de l'employeur reste intact dans `intitule` — c'est lui qui s'affiche, et le
-  remplacer serait « dénaturer le contenu » au sens de la licence.
-- **Lieux** : le département est tiré du libellé (`85 - Chaize-Giraud`), avec repli sur le code
-  postal, et trois chiffres conservés pour l'outre-mer. Piège du format : `lieuTravail.commune`
-  contient le **code INSEE** (`74280`), pas le nom — le nom n'existe que dans le libellé, derrière
-  le numéro de département.
-
-Ces règles sont des fonctions pures, sans base ni réseau, couvertes par 22 tests (`normalisation.spec.ts`).
-
-### Le dédoublonnage se fait au calcul, pas à l'import
-
-Les républications ne sont plus fusionnées à l'écriture. La licence demande de restituer les offres
-mises à disposition, et deux agences qui publient la même mission publient deux annonces réelles.
-
-Toutes les lignes sont donc conservées, et c'est la requête du baromètre qui n'en garde qu'une par
-`empreinte`, avec un `DISTINCT ON`. À empreinte égale, la plus ancienne gagne : c'est la vraie date
-de mise sur le marché, et prendre la républication ferait glisser la fenêtre de tension à chaque
-reprise de l'annonce.
-
-Ce déplacement corrige aussi un défaut de la version précédente. Le tri se faisait lot par lot,
-avant l'écriture ; deux républications arrivées dans deux imports différents portaient deux
-identifiants distincts, entraient toutes les deux en base, et la tension les comptait deux fois.
-L'index sur `empreinte` existait mais ne servait à rien.
-
-### Cycle de vie : une offre pourvue disparaît
-
-`statut` vaut `ACTIVE` ou `EXPIREE`. Un balayage complet marque `vueLe` sur chaque offre revue, puis
-passe en `EXPIREE` celles que la source ne publie plus — la licence l'impose, et afficher des
-missions déjà pourvues est de toute façon le pire défaut possible.
-
-**Le garde-fou est ce qui compte.** Un import tronqué — plafond `--max` trop bas, coupure réseau au
-milieu de la pagination — ne prouve pas que le reste du catalogue a disparu. Le service refuse donc
-d'expirer quand le balayage ramène moins de 70 % des offres actives en base, et l'écrit dans le
-journal plutôt que de le taire. Sans ce refus, une seule commande viderait le site.
-
-Les lignes expirées restent en base : le baromètre travaille sur une fenêtre glissante de 30 à
-90 jours et doit continuer à voir les offres passées.
-
-### Limite à énoncer
-
-La médiane ne porte que sur les offres qui **annoncent** une rémunération — **26 %** sur le balayage
-national du 16 septembre (521 sur 2 025). Le baromètre expose `offresSansSalaire` pour que la page le
-dise, plutôt que d'afficher un chiffre qui aurait l'air complet.
-
-### Référentiel de compétences
-
-Second usage des mêmes offres, à côté du baromètre. Le baromètre répond à « combien payer », le
-référentiel à « **que demander** » : ce qu'un établissement attend d'un aide-soignant s'apprend en
-lisant ce que les établissements écrivent dans leurs annonces, pas en imaginant une liste en
-réunion.
-
-Aucune collecte supplémentaire : les compétences dormaient déjà dans `offre_collectee`. Une commande
-les réveille.
-
-```bash
-pnpm cli competences     # reconstruit le référentiel depuis les offres actives
-```
-
-**Deux sources, et l'honnêteté sur laquelle pèse le plus.** L'API expose bien un champ `competences`,
-structuré et propre — il est presque toujours vide : sur l'échantillon de référence
-(`backend/donnees/offres-echantillon.json`, 102 offres réelles), **deux offres** le renseignent. Le
-signal est dans le corps de l'annonce, écrit en prose.
-
-Or extraire des n-grammes de ces descriptions ne donne pas des compétences. Les expressions les plus
-fréquentes du corpus sont « parking gratuit », « piste cyclable principale » et « fortes valeurs
-humaines » : de l'argumentaire de recrutement, recopié d'une annonce à l'autre. Le proposer à un
-établissement qui rédige son besoin serait pire que de ne rien proposer.
-
-Le partage retenu est donc explicite : le **vocabulaire** est à nous — 40 entrées versionnées dans
-[`backend/src/competences/lexique.ts`](backend/src/competences/lexique.ts), relisibles en revue — et
-les **fréquences** viennent entièrement de la donnée publique. Une entrée qu'on ne lit dans aucune
-offre active n'entre pas au référentiel, et le classement proposé est celui du marché. C'est une
-lecture assistée du corpus, et il faut la nommer comme telle plutôt que de laisser croire à une
-découverte automatique.
-
-Sur les 2 020 offres actives du dernier balayage, les cinq premières lignes :
-
-| Occurrences | Compétence                             |
-| ----------- | -------------------------------------- |
-| 878         | Soins d'hygiène et de confort          |
-| 664         | Travail en équipe pluridisciplinaire   |
-| 542         | Prévention des escarres                |
-| 533         | Prise des constantes                   |
-| 510         | Change et soins d'élimination          |
-
-**Une entrée ne compte qu'une fois par offre**, quel que soit le nombre de répétitions dans le
-texte : sans cette règle, une annonce bavarde pèserait autant que quatre établissements, et le
-classement mesurerait le style rédactionnel plutôt que le marché.
-
-**Rien n'est jamais supprimé.** Une compétence disparue du marché garde sa ligne et ses
-rattachements vers les missions passées et les profils qui l'ont déclarée ; seules ses occurrences
-retombent à zéro. Supprimer réécrirait l'histoire — une mission de l'an dernier a bien exigé cette
-compétence-là.
-
-Le calcul vit dans [`agregation.ts`](backend/src/competences/agregation.ts), hors de Nest, parce que
-le seed doit produire **exactement** le même référentiel que la commande : il rejoue l'échantillon
-versionné, de sorte qu'une installation neuve ait un référentiel rempli sans réseau ni identifiants
-France Travail.
-
-#### Ce qu'il sert
-
-| Où                        | Comment                                                                 |
-| ------------------------- | ------------------------------------------------------------------------ |
-| Rédaction d'une mission   | L'établissement coche jusqu'à 12 compétences, dont des « indispensables » |
-| Profil de l'intérimaire   | Il déclare jusqu'à 30 compétences, depuis son espace                     |
-| Score de matching         | Une composante de 20 points — voir « Matching »                          |
-| Recherche de profils      | `GET /candidats?competences=<ids>`, conjonctive                          |
-
-La déclaration du candidat est **déclarative et jamais vérifiée** : aucune pièce n'établit qu'on sait
-utiliser un lève-personne. C'est pourquoi elle départage sans jamais ouvrir de porte — une case
-cochée ne rend personne éligible, et une case vide n'écarte personne.
-
-### Import automatique
-
-`IMPORT_OFFRES_AUTOMATIQUE="true"` déclenche deux balayages complets par jour, à 5 h et 13 h, suivis
-du géocodage des communes nouvelles. La licence impose 24 heures au maximum ; deux passages laissent
-de la marge si l'un échoue.
-
-À poser **sur le serveur qui sert le site, et sur lui seul**. Laissé à `false` sur les postes de
-développement : sinon chaque machine tape l'API pour son propre compte, et plusieurs imports
-concurrents vers la même base de recette se marchent dessus.
+> **L'application annonce, n8n décide, l'API expédie.**
+>
+> Une règle métier (48 h, 3 alertes, 24 h avant relance) se change dans le workflow, sans redéployer l'application.
+>
+> **Rien de nominatif ne sort vers un service tiers** : Slack et Airtable ne voient que des références.
 
 ---
 
-## Géocodage
-
-Tout le volet géographique du matching — le rayon de déplacement, la porte « hors rayon », la
-composante « zone », le tri « à proximité » — lit `latitude` / `longitude`. Ces coordonnées sont
-**calculées à partir de l'adresse, jamais saisies**, par la
-[Base Adresse Nationale](https://adresse.data.gouv.fr) : service public, gratuit, sans clé, et les
-données ne quittent pas le pays — une adresse de domicile est une donnée personnelle, l'envoyer
-chez un tiers hors UE ajouterait un sous-traitant au registre pour un résultat moins bon sur la
-France.
-
-Elles ne sont pas acceptées en entrée d'API, et c'est la propriété qui compte : la composante
-« zone » ne lit rien d'autre, donc les laisser déclaratives permettrait à n'importe quel compte de
-se placer à côté du lieu d'une mission et de remonter en tête de tous les classements, sans mentir
-sur quoi que ce soit de vérifiable.
-
-Le géocodage se déclenche aux trois endroits où une adresse entre en base — inscription publique,
-fiche candidat du back-office, lieu d'intervention — **après l'écriture et sans la bloquer** : une
-personne doit pouvoir corriger son adresse même si la BAN est indisponible. Les fiches restées sans
-point se reprennent avec `pnpm cli geocoder`.
-
-Deux règles de rejet valent d'être connues. Un résultat trop incertain (score BAN sous 0,4) ou tombé
-sur une autre commune que le code postal saisi est **refusé** : une fiche sans coordonnées est
-écartée du matching _en le disant_, alors qu'une fiche mal placée remonte en tête d'un classement
-sans que personne ne s'en aperçoive. Et une adresse modifiée qu'on ne sait plus situer **efface** les
-anciennes coordonnées — garder le point du précédent domicile laisserait une distance mesurable,
-donc crédible, et fausse.
-
-La finesse du résultat est conservée (`geocodePrecision` : numéro, rue, lieu-dit, commune). Un
-rayon de déplacement se compte en dizaines de kilomètres, donc un point au centre de la commune
-reste exploitable — ce qui ne le serait pas, c'est de le faire passer pour une adresse.
-
-**Une mission ne peut pas être publiée sur un lieu non localisé.** Sans coordonnées, la distance
-n'est mesurable pour personne : la porte écarte le vivier entier, l'établissement contemple un
-classement vide, et le candidat se voit refuser pour une erreur qui n'est pas la sienne. Le refus
-est posé à la publication, seul moment où quelqu'un peut encore corriger — et il est précédé d'une
-tentative de géocodage, parce qu'une BAN indisponible au moment de la saisie ne doit pas bloquer un
-besoin urgent des semaines plus tard. Le message nomme l'adresse fautive et dit vers qui se tourner :
-les lieux se corrigent depuis le back-office, pas depuis l'espace client.
-
-### Les offres France Travail se situent par leur commune
-
-France Travail ne géolocalise qu'**une annonce sur sept** : sur le balayage du 16 septembre, 295
-offres sur 2 020 portaient des coordonnées. Les 1 725 autres ont pourtant leur commune et leur code
-postal — il ne manquait qu'une conversion.
-
-Le géocodage se fait **par commune, jamais par offre**. Les 1 725 annonces non situées ne
-représentent que 1 040 couples code postal / commune distincts, stockés dans `commune_geocodee` : une
-commune située une fois sert toutes ses offres, aujourd'hui et aux imports suivants. Appeler la BAN
-offre par offre recalculerait sans cesse les mêmes points.
-
-Mesuré sur le rattrapage réel : **1 017 communes situées, zéro échec, en trois minutes**, faisant
-passer la couverture de **15 % à 98 %**. Pour un aide-soignant nantais au rayon de 20 km, les offres
-à portée passent de 5 à 19.
-
-`origineCoordonnees` distingue `SOURCE` de `COMMUNE`, et l'affichage écrit « ~5,5 km » quand le point
-n'est que le centre d'une commune. Sur Nantes l'écart peut atteindre 3 à 4 km — négligeable pour
-filtrer un rayon de 20 km, trompeur si on le présente comme une mesure.
-
-**Piège désamorcé** : l'import écrit les coordonnées de la source. Si le `null` de France Travail
-écrasait le point déduit, le géocodage serait refait chaque jour pour être effacé chaque nuit, sans
-que rien ne le signale — la couverture resterait simplement basse. Les coordonnées sont donc écrites
-à part de l'`upsert`, et un test verrouille ce comportement.
-
-`GEOCODAGE_ACTIF=false` coupe le service sans rien effacer (suites d'intégration, poste hors réseau).
-
----
-
-## Matching
-
-Le moteur répond à une question simple — **qui peut y aller, et dans quel ordre** — en deux temps
-qui ne se mélangent jamais.
-
-**1. Une porte binaire.** Elle écarte, avec un motif nommé : profil non validé par l'agence,
-diplôme non détenu ou expiré, absence déclarée sur la période, mission déjà décrochée sur les mêmes
-dates, domicile au-delà du rayon déclaré, coordonnées manquantes. Rien ne sert de classer quelqu'un
-qui ne peut pas y aller — et l'écarté sait pourquoi.
-
-Cette porte est **unique et partagée** (`MatchingService.evaluer`). Elle traverse les trois chemins
-qui en ont besoin : le classement de l'agence, la candidature du côté public, et le score figé sur
-la proposition. Elle ne l'était pas — la candidature ne vérifiait que le statut et le diplôme, le
-score figé ne vérifiait rien — et une intervenante hors de son rayon pouvait postuler, obtenir un
-score, apparaître chez l'établissement, tout en restant introuvable dans le classement de l'agence
-qui l'écartait. Trois écrans, trois vérités.
-
-Côté candidat, une mission hors rayon **reste visible et le dit** : la masquer priverait la personne
-de l'information qui lui permettrait d'agir — élargir son rayon de cinq kilomètres lui ouvrirait
-peut-être dix missions, et une liste vide ressemble à une panne. Le bouton de candidature est
-remplacé par le motif chiffré et un lien vers son profil.
-
-**2. Un score sur 100, toujours rendu décomposé.**
-
-| Composante    | Poids | Ce qui est mesuré                                                        |
-| ------------- | ----- | ------------------------------------------------------------------------ |
-| Expérience    | 30    | Mois de terrain **vérifiés**, pondérés par la quotité, plafonnés à 5 ans |
-| Zone          | 30    | Distance réelle au lieu, décroissance linéaire jusqu'au rayon déclaré    |
-| Disponibilité | 20    | Part de la vacation réellement couverte par les créneaux déclarés        |
-| Compétences   | 20    | Ce qui est coché sur la mission, face à ce que le profil a déclaré       |
-
-**Quand la mission ne demande aucune compétence** — le cas le plus courant, et il faut qu'il le
-reste — les vingt points sont **redistribués** sur les trois autres, dans les proportions qui
-étaient les leurs avant : 40 / 35 / 25. Neutraliser la composante n'aurait pas suffi. Un profil
-parfait plafonnerait alors à 80 sur ces missions-là, et deux classements cesseraient d'être
-comparables : un 78 deviendrait excellent ici et médiocre ailleurs, sans que rien ne le dise à
-l'écran. Le total reste sur 100 dans les deux cas.
-
-Une compétence marquée **indispensable** pèse le double d'une compétence souhaitée. Elle n'écarte
-pas pour autant : l'éligibilité est établie ailleurs, sur des faits vérifiés, et une case cochée par
-le candidat ne prouve rien. En faire un motif d'exclusion reviendrait à laisser un profil se
-disqualifier — ou s'auto-sélectionner — sur sa seule parole.
-
-Le diplôme ne rapporte aucun point, et c'est délibéré : la porte d'éligibilité l'exige déjà de tout
-le monde, donc lui en attribuer reviendrait à ajouter la même constante à chaque candidat classé —
-une constante ne départage personne, elle gonfle les scores et fait paraître serré un classement
-qui ne l'est pas. Ce qui distingue deux titulaires du même diplôme, c'est le temps passé sur le
-terrain.
-
-Deux règles corrigent ce temps, et chacune répare un abus différent. **La quotité** : deux ans à
-mi-temps ne sont pas deux ans de terrain, et le temps partiel est la norme dans ce secteur. **Le
-plafond calendaire** : deux mi-temps menés en parallèle font bien un temps plein, mais deux temps
-pleins superposés sur la même année ne font pas deux ans de métier — ils font une erreur de saisie.
-Une expérience hors du métier exigé compte pour moitié : elle dit quelque chose de la personne au
-travail, rien de sa qualification.
-
-Comme pour les diplômes, **seule une expérience vérifiée par l'agence** sur certificat de travail
-entre dans le calcul. Le filtre est posé dans la requête, pas dans le barème : une ligne déclarée
-ne parvient même pas au calcul.
-
-Le total n'est jamais affiché sans ses trois lignes : un chargé de recrutement doit pouvoir dire à
-un candidat pourquoi il est troisième, et un score devient indéfendable dès qu'on le conteste sans
-pouvoir le décomposer.
-
-```
-81/100  Sophie Marchand
-        Experience     24/40  3 ans et 7 mois retenus, dont 2 ans et 2 mois sur le diplome exige
-        Zone           32/35  A 3.2 km du lieu, pour un rayon declare de 35 km
-        Disponibilite  25/25  100 % du creneau couvert par les disponibilites declarees
-```
-
-Le barème vit dans `backend/src/matching/score.ts`, **sans dépendance à Prisma ni à Nest** : il se
-teste seul, avec des valeurs écrites à la main, et un poids se discute sans monter de base.
-
-Deux partis pris à connaître. La distance est calculée par haversine en mémoire plutôt que par
-PostGIS : à l'échelle d'un vivier d'agence c'est instantané et ça reste testable sans base — mais
-les deux points comparés viennent désormais tous deux du géocodage, jamais d'une saisie. Et le
-score est **figé sur la candidature** au moment où elle est déposée : le recalculer à l'affichage
-le ferait bouger après coup — parce que le candidat a déplacé une disponibilité — et rendrait la
-décision de l'établissement incompréhensible a posteriori.
-
----
-
-## Design
-
-Les écrans viennent du **canvas Claude Design « Relève app web design »**
-(`e3f578c4-45f4-4fd3-8f81-57fa3f3349b4`), qui couvre douze vues : accueil, fonctionnement,
-missions, détail, à propos, FAQ, contact, connexion, inscription, tableau de bord, profil et
-paramètres. L'ancien fichier Figma `9pCZmDqcx6nuuMRoYdLmNH` ne sert plus que de source pour les
-icônes.
-
-Le canvas **ne déclare aucune variable** : les couleurs y sont des hex posés à la main. Elles ont
-donc été relevées et regroupées dans `frontend/app/assets/css/main.css`, seule source de vérité
-côté code.
-
-| Ce que le canvas donne  | Ce que le code en fait                                                     |
-| ----------------------- | -------------------------------------------------------------------------- |
-| Couleurs des écrans     | Tokens `--ground`, `--surface`, `--ink`, `--dom`, `--eta`, `--line-forte`… |
-| Trois familles d'accent | Trios fond / filet / encre : vert, `--lavande*`, `--ambre*`                |
-| Rayons                  | `--r-champ` 12px, `--r-marque` 13px, `--r-tuile` 14px, `--r-carte` 16px    |
-| Police                  | Plus Jakarta Sans, chargée depuis Google Fonts dans `nuxt.config.ts`       |
-| Icônes                  | SVG exportés, inlinés par `AppIcon.vue` avec `currentColor`                |
-| Marque                  | `AppLogo.vue` — tracé du canvas, couleurs liées aux tokens                 |
-
-**La police n'était pas chargée.** `--sans` déclarait `'Inter'` mais rien ne la téléchargeait :
-tout le front tournait en fait sous Segoe UI. Le `preconnect` et la feuille Google Fonts ont été
-ajoutés en même temps que le passage à Plus Jakarta Sans.
-
-Les icônes sont **inlinées** et non chargées en `<img>` : une balise image ne se recolore pas, et
-le même tracé doit servir la puce verte d'un choix sélectionné et la puce grise d'un autre.
-
-### Deux coques, plus de layout `onboarding`
-
-Le canvas dessine deux mises en page, portées par le seul `layouts/default.vue` selon la session :
-
-- **coque publique** — en-tête collant translucide, navigation vitrine, pied de page à trois
-  colonnes ;
-- **coque applicative** — barre latérale de 248 px, navigation selon le rôle, identité et
-  déconnexion en pied.
-
-Le layout `onboarding` et son cadre mobile de 402 px ont disparu avec les écrans qu'ils
-encadraient : le canvas est dessiné pour le poste de travail. Les points de rupture sous 900 px et
-560 px sont des ajouts, le canvas ne décrivant aucune version étroite.
-
-#### La navigation sous 900 px
-
-Les deux coques passent derrière un bouton **Menu**. Ce n'est pas une préférence de style, c'est
-une mesure : sur un écran de 390 × 844, la barre latérale occupait **387 px sur 849** — près de la
-moitié de l'affichage avant le premier mot de la page — et l'en-tête public 310 px, collant, donc
-présent pendant tout le défilement. Aucune des deux ne débordait en largeur ; elles étaient
-simplement inutilisables. Repliées, elles tombent à **67 px**.
-
-Le conteneur `.repliable` passe en `display: contents` au-dessus du point de rupture : il disparaît
-de la mise en page et ses enfants redeviennent enfants directs de la barre, ce qui permet de
-grouper la navigation dans une boîte pliable **sans rien changer à l'affichage large**. Fermé, il
-est en `display: none` — ses liens sortent donc aussi de l'ordre de tabulation, sans `inert` ni
-`aria-hidden` posés à la main. Le bouton porte `aria-expanded` et `aria-controls`, le menu se
-referme au changement de page et sur Échap.
-
-#### Les marges, et le pied de page
-
-Deux défauts que la sonde ne voyait pas, et qui se sont relevés à l'œil sur une capture.
-
-Les pages publiques n'avaient **aucune gouttière latérale** : `.vitrine` ne posait qu'un
-`padding-block`. Sous la largeur maximale de la colonne, le titre, les paragraphes et les cartes
-touchaient les deux bords de l'écran, alors que l'en-tête, lui, gardait sa marge — d'où
-l'impression d'un contenu décalé par rapport à sa propre barre de navigation. La valeur est
-maintenant un jeton, `--gouttiere`, redéfini à 20 px sous 560 px. La largeur maximale l'inclut
-(`max-width: calc(1000px + 2 * var(--gouttiere))`) pour que la colonne de lecture reste à 1000 px
-sur grand écran au lieu de perdre 56 px.
-
-Le pied de page, lui, superposait ses colonnes. La cause n'était pas une marge : la piste avait
-disparu. `grid-template-columns` mélangeait une piste flexible — `minmax(0, 1.4fr)` — et un
-`repeat(auto-fit, minmax(160px, 1fr))`. Les trois pistes répétées réclamaient 160 px chacune, plus
-les écarts ; sur une fenêtre moyenne il ne restait presque rien pour la première, que son
-`minmax(0, …)` autorisait à tomber à zéro. Le bloc de marque se retrouvait large de quelques
-dizaines de pixels et son texte débordait par-dessus la colonne suivante. Deux règles explicites
-remplacent l'automatisme : colonnes égales qui se replient d'elles-mêmes, puis la répartition du
-canvas au-dessus de 900 px.
-
-La sonde mesure désormais aussi les gouttières. Une page dont le texte touche les deux bords ne
-déborde pas — elle est seulement illisible, et c'est exactement ce qui lui avait échappé.
-
-La mesure se refait : `frontend/scripts/sonde-responsive.mjs` pilote Chrome par CDP, émule un
-viewport mobile, et
-rend pour chaque page le débordement horizontal, les éléments qui en sont la cause et la hauteur de
-la barre. C'est ce qui a permis de voir qu'une capture prise avec `--window-size` seul ment : sans
-émulation, la page est rendue à 980 px puis rognée, et tout paraît déborder.
-
-### Ce que le canvas décrit et que l'API ne sait pas faire
-
-Trois écrans du canvas reposaient sur un **dépôt de documents** — étape 2 de l'inscription, cartes
-du dossier candidat, compteurs de complétion par pièce. Ils sont désormais transposés : le dossier
-existe, avec une ligne par pièce attendue, remplie ou non. Le dépôt reste hors du parcours
-d'inscription, qui crée un compte et rien de plus ; les pièces se déposent depuis « Mon profil »,
-une fois l'adresse confirmée.
-
-La **liste publique de missions** du canvas existe désormais, sous `/offres` : elle sert les
-missions ouvertes de l'agence, sans session, avec trois menus déroulants — département, ville,
-métier — construits sur les missions réellement ouvertes plutôt que sur une liste figée des cent une
-divisions françaises. Elle ne nomme pas l'établissement client : publier sur le web ouvert quels
-établissements recourent à l'intérim est commercialement sensible pour eux — et, s'agissant du
-soin, une information que les familles liraient comme un signal sur la qualité de la prise en
-charge. Ils ne l'ont pas autorisé en déposant un besoin. Le secteur affiché est donc recomposé
-(« EHPAD — Nantes », « Clinique — unité protégée — Rezé ») et non recopié du libellé du lieu : dans
-un établissement, le lieu **est** le client, donc afficher l'un revient à publier l'autre. La
-famille — EHPAD, hôpital, clinique — y figure parce qu'elle change la façon dont un aide-soignant
-lit l'offre, et qu'elle n'identifie personne tant qu'une commune en compte plus d'un.
-
-`GET /missions` reste réservé à une session : c'est la vue du candidat sur son agence, avec son
-classement et ses candidatures, et elle n'a pas le même contenu.
-
-**Le thème sombre n'existe pas dans le canvas.** Les teintes sombres de `main.css` sont une
-transposition des mêmes hues, faite pour que les écrans restent lisibles. À faire valider — ou à
-faire dessiner.
-
-Deux réglages d'affichage sont exposés dans « Mon compte » et rendus entièrement par le
-navigateur : **contraste renforcé** (redéfinit les tokens de texte secondaire et de filet) et
-**réduction des animations**. Ils sont conservés dans le stockage local, donc attachés à l'appareil
-et non au compte.
-
-## Référencement et partage social
-
-Une première attention a été portée au référencement et à la manière dont le site vitrine est présenté lorsqu’il est partagé sur des plateformes externes.
-
-Sur la page d’accueil uniquement du site vitrine, nous avons ajouté plusieurs balises et données structurées :
-
-- les balises Open Graph, afin de contrôler les informations affichées lors du partage de la page sur les réseaux sociaux ;
-- la balise twitter:card, afin de définir le format d’aperçu utilisé lors d’un partage sur Twitter/X ;
-- un schéma Schema.org, afin de fournir aux moteurs de recherche des informations structurées sur le contenu de la page.
-
-Ces éléments ont volontairement été intégrés uniquement sur la page d’accueil. L’objectif n’était pas de mettre en place une stratégie SEO complète sur l'ensemble du site, mais de montrer que les problématiques de référencement, de partage social et de données structurées avaient été prises en compte dans la conception du site vitrine.
-
-### Les améliorations futures
-
-Le référencement pourrait également être approfondi dans une prochaine version. La page d’accueil dispose déjà de balises Open Graph, de twitter:card et de données structurées Schema.org, mais cette démarche pourrait être étendue aux autres pages du site vitrine et complétée par un travail SEO plus global.
-
----
-
-## Structure du dépôt
-
-Trois paquets : le serveur, le client, et ce qu'ils partagent. Seuls les fichiers qui portent une
-décision sont cités — le reste se lit dans l'arborescence.
-
-```
-backend/                       API NestJS
-  prisma/schema.prisma         modèle complet + les trois invariants métier
-  prisma/seed.ts               agence, deux diplômes, six établissements, candidats, marché amorcé
-  donnees/offres-echantillon.json  102 offres réelles, rejouables sans réseau
-  src/
-    auth/                      jetons, rôles, sessions, inscriptions, Argon2id
-      jwt-auth.guard.ts        garde globale : fermé par défaut
-      jetons-usage-unique.service.ts  hachage, péremption, consommation unique
-    matching/score.ts          le barème, sans Prisma ni Nest : testable seul
-    matching/experience.ts     durées, quotité, plafond calendaire, seuil Valletoux
-    documents/coffre.ts        AES-256-GCM au repos : marqueur, IV, tag
-    documents/stockage.service.ts  disque, noms opaques, racine jamais servie
-    documents/conservation.service.ts  relance à un an, réponse au lien, effacement
-    evenements/webhooks.service.ts  émission signée HMAC, non bloquante
-    evenements/interne.controller.ts  /api/interne/* derrière X-Service-Token
-    donnees-publiques/normalisation.ts  salaires, empreinte, lieux (pur, testé sans base)
-    geocodage/ban.client.ts    appel BAN et règles de rejet (pur, testé sans réseau)
-    competences/agregation.ts  le calcul, hors de Nest : partagé avec le seed
-    mail/gabarits.ts           les messages en clair, un seul point de sortie
-    cli/main.ts                importer:offres, barometre, geocoder, notifier:missions,
-                               purger:documents, conservation:*, chiffrer:documents
-  test/                        27 fichiers, 499 cas — voir « Tests »
-
-frontend/                      Front Nuxt
-  server/                      Nitro : le navigateur ne voit jamais l'API
-    routes/bff/[...chemin].ts  relais authentifié — l'Authorization vient du cookie, jamais du client
-    utils/session.ts           cookies httpOnly, rafraîchissement mutualisé
-    middleware/entetes-securite.ts  CSP, HSTS, nosniff, referrer, permissions
-  app/
-    middleware/auth.global.ts  tout est fermé sauf liste blanche, dans les deux sens
-    assets/css/main.css        tokens du canvas : couleurs, rayons, thème sombre, accessibilité
-    data/vitrine.ts            tout le contenu éditorial des pages publiques
-    data/legal.ts              les faits juridiques, à compléter en un seul fichier
-    utils/exercice.ts          la durée d'exercice telle que les écrans la donnent à lire
-    composables/useApi.ts      appel via le relais /bff, aucun jeton côté page
-    pages/                     36 routes : vitrine, back-office, espace candidat, espace client
-  scripts/sonde-responsive.mjs  Chrome piloté par CDP : débordement et gouttières
-  test/                        5 fichiers, 155 cas
-
-shared/                        @releve/shared — contrat API ↔ front, sans Prisma
-  src/habilitation.ts          statut juridique et pièce d'autorisation, par famille
-  src/experience.ts            heures légales, seuil d'exercice préalable
-  src/siret.ts                 14 chiffres et clé de Luhn
-  src/matching.ts              score décomposé, motifs d'exclusion
-  src/*.ts                     un fichier par domaine : candidat, client, mission, document…
-
-docs/analyse-de-marche.html    concurrence, positionnement, proposition de valeur
-docs/questions-a-trancher.md   décisions en attente, par échéance
-n8n/                           les trois workflows, exportés
-docker-compose.yml             PostgreSQL + PostGIS, Redis, Mailpit, n8n
-```
-
----
-
-## Modèle de données : les trois invariants
-
-Le schéma porte trois décisions structurantes, commentées dans `schema.prisma`.
-
-**1. Le client contractuel n'est pas le lieu d'intervention.** Un gestionnaire signe pour
-l'ensemble de ses établissements ; le remplacement se fait dans une unité précise de l'un d'eux. `Client` et
-`LieuIntervention` sont deux modèles distincts, et le client n'a pas d'adresse propre.
-
-**2. La convention collective est portée par le client.** Principe d'égalité de traitement avec les
-salariés de l'entreprise utilisatrice : c'est sa convention qui fixe le salaire de référence de
-l'intérimaire, pas celle du candidat.
-
-**3. L'autorisation du client est saisie sur pièce.** Aucun de ces établissements n'exerce sans
-autorisation, et rien dans le SIRET ne la dit. Les champs sont **nullables** — les fiches
-antérieures à la règle n'ont pas d'autorisation connue, et celles qui viennent de l'inscription
-publique non plus, puisque ce formulaire ne la demande pas. Leur en inventer une ferait dire à la
-base ce que personne n'a vérifié. L'absence est ici l'information juste, et c'est l'**activation**
-qui la refuse.
-
-### L'autorisation, et le statut juridique
-
-Deux informations distinctes, qu'il ne faut pas confondre.
-
-**L'autorisation existe toujours, mais la pièce dépend du type.** Les deux valeurs à saisir sont
-les mêmes pour les trois familles — numéro FINESS géographique et référence de l'autorisation — et
-c'est le document à ouvrir pour les lire qui change. `AUTORISATION_PAR_TYPE` le dit, et l'écran de
-fiche client le rappelle à qui instruit le dossier :
-
-| Type                    | Pièce à lire                                  | Fondement            |
-| ----------------------- | --------------------------------------------- | -------------------- |
-| **EHPAD**               | Arrêté conjoint ARS / conseil départemental   | art. L. 313-1 CASF   |
-| **Hôpital**             | Autorisation d'activité de soins (ARS)        | art. L. 6122-1 CSP   |
-| **Clinique**            | Autorisation d'activité de soins (ARS)        | art. L. 6122-1 CSP   |
-
-La loi Valletoux (loi 2023-1268, art. 8), elle, ne fait pas cette distinction : la durée minimale
-d'exercice préalable à l'intérim vise les professionnels de santé en établissement de santé comme
-en ESMS. Elle s'applique donc à **toutes** nos mises à disposition, et le code n'a pas à la
-conditionner au type — c'est une simplification réelle par rapport au régime précédent, où, sous
-l'aide à domicile, la règle ne mordait que sur une partie des structures.
-
-**Elle ferme la candidature.** `motifsExclusion` écarte un profil sous le seuil, et `postuler`
-répond `403` avec le motif chiffré — « 1 200 h vérifiées sur les 3 214 h exigées, soit 2 014 h
-manquantes ». La fiche de la mission l'annonce même avant le clic, plutôt que de laisser un bouton
-promettre puis refuser.
-
-Le seuil est posé à **deux ans, soit 3 214 heures** — 2 × 1 607 h, la durée annuelle légale du
-travail. Deux réserves, qui doivent être dites : le décret raisonne en *durée d'exercice*, pas en
-heures, et la valeur dépend du métier. La conversion n'est donc pas la loi, c'est notre façon de la
-mesurer — et elle a un mérite précis, le temps partiel étant la norme dans ce secteur : deux ans à
-mi-temps ne sont pas deux ans d'exercice. La constante est isolée dans
-`shared/src/experience.ts`, documentée et facile à changer.
-
-Trois catégories d'expérience, et la distinction compte : un poste **rattaché à un diplôme** du
-référentiel, un poste **du secteur sans diplôme applicable** — faisant fonction, agent de service,
-auxiliaire de vie —, et un poste **hors secteur**. Les deux premières comptent dans la durée, la
-troisième ne pèse que pour moitié au barème. Ranger un faisant fonction avec une hôtesse de caisse
-effaçait des années de terrain, et le cas s'est produit : onze mille heures d'aide-soignant comptées
-pour zéro, faute d'un menu dont la première option était présélectionnée.
-
-**Le statut juridique est une autre question.** Il ne décide pas de ce que l'établissement a le
-droit de faire — l'autorisation s'en charge — mais de la convention collective applicable, donc du
-salaire de référence de l'intérimaire.
-
-| Statut juridique          | Cadre salarial indicatif                       |
-| ------------------------- | ---------------------------------------------- |
-| **Public hospitalier**    | Fonction publique hospitalière (grille)        |
-| **Public territorial**    | Fonction publique territoriale (grille)        |
-| **Privé non lucratif**    | Convention de branche (CCN 51, CCN 66)         |
-| **Privé commercial**      | Convention de branche (IDCC 2264)              |
-
-La clé de contrôle du FINESS n'est **pas** vérifiée, contrairement à celle du SIRET : l'algorithme
-varie selon les référentiels, et une implémentation approximative refuserait des établissements
-parfaitement réels. Ici, un faux négatif coûte bien plus cher qu'un faux positif — que la lecture de
-l'autorisation rattrape de toute façon. C'est le FINESS **géographique** qui est attendu, celui du
-site : un groupe qui exploite douze établissements n'a qu'un FINESS juridique, et l'autorisation se
-lit site par site. Le barème vit dans `shared/src/habilitation.ts`.
-
-La colonne s'appelle toujours `arreteReference`, du nom du premier régime couvert. La rebaptiser
-coûterait une migration pour une exactitude que le type de client donne déjà.
-
-### RGPD
-
-Le secteur concentre des données sensibles. La règle de conception est de **ne pas collecter ce
-dont la mission n'a pas besoin** :
-
-- le bénéficiaire n'est jamais nommé — `LieuIntervention.beneficiaireRef` est une référence
-  pseudonymisée (`BEN-0147`) ;
-- les consignes d'un lieu servent à l'accès au logement, pas à décrire une pathologie ;
-- l'aptitude du candidat se résume à une date de visite médicale et deux booléens. La plateforme a
-  besoin de savoir si quelqu'un est déployable, pas pourquoi. Aucun motif, aucun document médical.
-
-Ce que la plateforme collecte tout de même — les pièces justificatives, dont un NIR, une pièce
-d'identité et un RIB — est **borné dans le temps**. Chaque pièce est conservée un an à compter de
-son dépôt ; à l'échéance, un courriel demande à la personne si elle veut qu'on la garde, et **sans
-réponse sous trente jours elle est effacée**. Le silence ne vaut pas accord : c'est le point de
-toute la mécanique. La durée vaut pour les cinq types sans exception — le code ne branche nulle part
-sur le type de pièce pour calculer une échéance. Voir
-[`docs/conservation-documents.md`](docs/conservation-documents.md).
-
-Le **consentement** aux conditions générales est recueilli à l'inscription, et enregistré avec la
-version acceptée (`conditionsAccepteesLe`, `conditionsVersion`) : accepter un texte, c'est accepter
-celui-là, et une révision ultérieure ne peut pas se prévaloir d'un consentement donné à la
-précédente. La connexion, elle, ne fait rien accepter — on n'accepte rien en se connectant.
-
----
-
-## Sécurité
-
-**Fermé par défaut.** `JwtAuthGuard` est enregistrée en garde globale : toute route exige un jeton
-valide tant qu'elle n'est pas explicitement marquée `@Public()`. Une route ajoutée sans y penser est
-donc protégée, pas ouverte. Les seules routes publiques sont la connexion, l'inscription, la
-confirmation d'adresse, le mot de passe oublié, le rafraîchissement, la déconnexion,
-`GET /api/sante` et les **deux routes de conservation** — celles-là autorisées par un jeton reçu par
-courriel, à usage unique et borné, parce qu'on écrit à quelqu'un précisément parce qu'il ne s'est
-plus connecté depuis un an.
-
-**L'adresse e-mail est prouvée avant tout accès.** Une inscription n'ouvre aucune session : elle
-envoie un lien, et c'est lui — à usage unique, valable 48 heures, stocké en base sous forme
-d'empreinte SHA-256 comme les jetons de session — qui crée l'accès. Sans cela, l'adresse saisie
-n'était qu'une chaîne de caractères : rien n'obligeait à la posséder, et on pouvait ouvrir un
-compte au nom de quelqu'un d'autre sur une plateforme où cette adresse est à la fois l'identifiant
-de connexion et le canal par lequel une mission se décroche.
-
-Le refus de connexion pour adresse non confirmée est renvoyé **après** la vérification du mot de
-passe, jamais avant : annoncé plus tôt, il apprendrait à n'importe qui qu'un compte existe pour une
-adresse donnée, et ruinerait le soin pris ailleurs à rendre les échecs indiscernables. Pour la même
-raison, le renvoi du lien répond toujours 204 — adresse inconnue, déjà confirmée ou réellement
-réexpédiée se ressemblent vues du dehors.
-
-Les comptes créés par l'agence, par le seed ou par les fixtures naissent confirmés : la
-vérification atteste que _celui qui s'inscrit_ possède l'adresse qu'il déclare, question qui ne se
-pose pas quand un administrateur identifié ouvre le compte.
-
-**Le mot de passe se récupère sans passer par un administrateur.** Un lien envoyé à l'adresse du
-compte, valable **une heure** et à usage unique, permet d'en choisir un nouveau. C'est la même
-preuve que la confirmation d'adresse — posséder la boîte mail — donc le même mécanisme : une seule
-table de liens, une seule implémentation du hachage, de la péremption et de la consommation unique.
-Les écrire deux fois les ferait diverger, et c'est toujours la copie oubliée qui reste exploitable.
-Un `usage` porté par chaque lien empêche qu'un jeton serve à l'autre parcours.
-
-Le formulaire de demande répond **204 dans tous les cas**, adresse connue ou non, et il est plafonné
-à trois essais par minute : répondre différemment en ferait un annuaire des inscrits — et ici, être
-inscrit révèle qu'on cherche des missions dans le soin. Une réinitialisation réussie ferme
-**toutes** les sessions en cours : elle sert aussi après un vol, et laisser vivre les sessions
-laisserait le voleur connecté après la reprise de main.
-
-**L'acceptation d'un dossier se dit par courriel, des deux côtés.** Le déclenchement est manuel —
-c'est l'agence qui lit les pièces et qui tranche — mais l'envoi ne l'est pas.
-
-| | Geste de l'agence | Courriel |
-| --- | --- | --- |
-| **Candidat** | statut passé à `ACTIF` sur sa fiche | « Votre dossier est validé », lien vers `/missions` |
-| **Établissement** | encart d'activation de la fiche client | « Votre établissement est activé », lien vers `/etablissement/publier` |
-
-Les deux suivent les mêmes trois règles. Ils partent **à la transition**, pas sur l'état : renvoyer
-`actif: true` sur une fiche déjà active — ce que fait n'importe quelle sauvegarde de formulaire — ne
-réexpédie rien. Ils sont **non bloquants** : la fiche est déjà validée quand on arrive là, et faire
-échouer la requête sur une panne de SMTP laisserait le chargé de recrutement persuadé que son clic
-n'a pas pris. Ils respectent enfin le réglage `notificationsEmail` et l'état du compte — sans compte
-rattaché, il n'y a personne à qui écrire, et c'est un cas normal pour une fiche que l'agence a créée
-elle-même.
-
-Le courriel d'activation **nomme la pièce qui a été lue**, et elle dépend du type : arrêté conjoint
-pour un EHPAD, autorisation d'activité de soins pour un établissement de santé. Ce n'est pas une
-formalité — c'est ce qui distingue « votre compte fonctionne » de « nous avons vérifié que vous avez
-le droit d'accueillir », et l'établissement doit pouvoir le classer.
-
-**Un refus n'écrit rien**, ni pour un candidat passé `INACTIF` ou `ARCHIVE`, ni pour un
-établissement laissé inactif. C'est une décision ouverte, pas un oubli : un refus automatique se
-rédige très différemment d'une validation, et la désactivation d'un établissement en exercice se dit
-de vive voix. Le bouton de désactivation existe, et n'envoie volontairement rien.
-
-**Tout changement de mot de passe est signalé par courriel** — celui que l'intéressé fait lui-même
-comme la réinitialisation par l'agence. C'est le seul message de la plateforme qui ne sert à rien
-quand tout va bien : quelqu'un qui prend un compte commence par en changer le mot de passe, et sans
-cet avertissement le propriétaire ne l'apprend qu'en se retrouvant dehors, sans savoir ni pourquoi
-ni quand. Le message ne contient jamais de mot de passe, ni l'ancien ni le nouveau : un courriel
-traverse des serveurs qu'on ne maîtrise pas et reste dans une boîte pour toujours.
-
-**Le secret de signature est vérifié au démarrage.** `JWT_SECRET` absent, plus court que 32
-caractères, ou portant encore une valeur d'exemple : l'API refuse de démarrer. Le cas qui motive ce
-contrôle n'est pas l'oubli — une absence échoue bruyamment et se corrige dans la minute — mais la
-valeur `"a-remplacer-en-production"` du fichier d'exemple, **publiée dans ce dépôt**. Un
-déploiement qui copie `.env.example` sans le relire démarrait avec un secret que tout le monde
-connaît, et n'importe qui pouvait alors forger un jeton d'administrateur, sans mot de passe et sans
-trace. Ça échouait en silence, donc c'est traité plus sévèrement que l'oubli.
-`backend/src/auth/secret-jwt.ts`, sept tests.
-
-**En-têtes de sécurité.** `helmet` côté API ; un middleware Nitro côté front, qui couvre les pages
-et le relais `/bff` d'un seul endroit. Ce qui compte vraiment ici : `X-Content-Type-Options:
-nosniff`, qui empêche un navigateur de requalifier une pièce téléversée en HTML ; `frame-ancestors`
-et `X-Frame-Options`, contre le détournement de clic ; `Referrer-Policy`, parce que le lien de
-confirmation porte un jeton dans sa requête ; et une politique de contenu qui bloque le chargement
-d'un script tiers et l'exfiltration vers un domaine tiers.
-
-Cette politique dit `'unsafe-inline'` sur les scripts, et il faut le savoir : Nuxt injecte sa charge
-utile d'hydratation en ligne, et s'en passer demanderait un nonce propagé dans tout le rendu. Elle
-arrête donc le XSS qui charge son code ailleurs, pas celui qui l'écrit sur place. En développement,
-ni politique de contenu ni HSTS : la première casserait le rechargement à chaud de Vite, la seconde
-forcerait `localhost` en HTTPS pour tous les projets du poste, bien après l'arrêt de ce serveur.
-
-**Cloisonnement multi-agence.** Le décorateur `@AgenceCourante()` extrait l'agence du jeton ; les
-services la reçoivent en paramètre obligatoire. Un enregistrement d'une autre agence répond **404 et
-non 403** : on ne confirme pas son existence. Les comptes externes (client, candidat) tiennent leur
-périmètre de leur rattachement plutôt que d'une colonne `agenceId` dupliquée, qui deviendrait fausse
-en silence si un client changeait d'agence.
-
-**Rôles.** `@Roles(...)` filtre par rôle ; sans décorateur, tout compte authentifié passe.
-Le back-office (`ADMIN_AGENCE`, `CHARGE_RECRUTEMENT`) voit le vivier et les clients ; seul
-`ADMIN_AGENCE` gère les accès ; la lecture du référentiel de qualifications est ouverte à tous les
-comptes authentifiés, parce qu'un candidat et un client en ont besoin pour lire une mission.
-
-**Mots de passe.** Argon2id. Douze caractères minimum à la création — longueur plutôt que règles de
-complexité, conformément aux recommandations ANSSI/CNIL. Une empreinte leurre est vérifiée quand
-l'e-mail est inconnu, pour qu'une réponse instantanée ne révèle pas l'absence de compte. Un compte
-désactivé et un mot de passe faux renvoient le même message.
-
-**Session révocable.** Le JWT d'accès dure 15 minutes et n'est pas annulable ; c'est un jeton de
-rafraîchissement opaque, stocké sous forme d'empreinte SHA-256, qui porte la session (12 heures par
-défaut). Il est à usage unique et tourne à chaque échange. Rejouer un jeton déjà consommé au-delà
-d'un sursis de 30 secondes est traité comme un vol : toute la chaîne est révoquée. Le sursis existe
-parce qu'un chargement de page lance plusieurs requêtes, et que celle qui arrive juste après la
-rotation porte encore l'ancien jeton sans que personne ne l'ait volé.
-
-Désactiver un compte, réinitialiser ou changer un mot de passe révoque toutes ses sessions — y
-compris celle qui fait la demande, sans quoi la mesure ne fermerait pas la session d'un voleur.
-
-**Aucun jeton côté navigateur.** Les deux jetons vivent dans des cookies `httpOnly` que seul Nitro
-lit ; la page appelle `/bff/**` sur son propre domaine et le relais compose l'en-tête
-`Authorization`. Une faille XSS n'a donc rien à voler, et l'API n'a pas besoin d'ouvrir CORS au
-navigateur. Le rafraîchissement est mutualisé entre requêtes concurrentes, pour ne pas déclencher la
-détection de rejeu décrite plus haut.
-
-**Bourrinage.** Dix tentatives de connexion par minute et par adresse. Au-delà de cinq échecs
-consécutifs sur un même compte, la réponse est ralentie de façon exponentielle jusqu'à cinq
-secondes, et le compteur s'oublie après quinze minutes sans échec. Délibérément pas un verrouillage :
-bloquer un compte donnerait à un attaquant le moyen de fermer l'agence à 6 h 30, et annoncer « compte
-verrouillé » trahirait son existence.
-
-**Garde-fous d'administration.** Un administrateur ne peut ni se désactiver, ni changer son propre
-rôle ; on refuse de retirer les droits du dernier administrateur actif d'une agence ; le rôle d'un
-compte client ou candidat ne se change pas, ce serait une escalade de privilèges déguisée.
-
-**Pièces justificatives chiffrées au repos.** Ce sont des données de santé au sens large — NIR,
-diplômes, pièce d'identité, RIB. Elles sont chiffrées en **AES-256-GCM** avant d'atteindre le
-disque : `documents/coffre.ts` pose un marqueur `RELEVE01`, un IV de 12 octets et le tag
-d'authentification, et `stockage.service.ts` ne rend jamais que du clair déchiffré à la volée. Trois
-propriétés tiennent cet édifice, chacune testée :
-
-- la racine de stockage n'est **jamais servie statiquement** — un document ne sort que par une route
-  qui a vérifié la session, et toujours en `Content-Disposition: attachment` ;
-- l'empreinte SHA-256 conservée en base est celle du **clair**, de sorte qu'une rotation de clé ne
-  la périme pas ;
-- un candidat qui demande la pièce d'un autre reçoit **404, pas 403** : un 403 confirmerait que le
-  document existe.
-
-La clé vient de `STOCKAGE_CLE`. Les fichiers déposés avant la mise en place se reprennent par
-`pnpm cli chiffrer:documents`, qui écrit à côté puis renomme — jamais en place, pour qu'une coupure
-de courant ne laisse pas un fichier à moitié chiffré. `--constater` compte sans rien écrire.
-
-**À énoncer :** la clé vit dans l'environnement, pas dans un coffre à secrets. Quelqu'un qui obtient
-à la fois le disque et le fichier d'environnement lit tout. Ce chiffrement protège contre une
-sauvegarde égarée ou un accès au seul volume, pas contre une compromission complète de la machine.
-
----
-
-## Règles métier appliquées
-
-| Règle                                                            | Où                           | Pourquoi                                                                                                       |
-| ---------------------------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| SIRET : 14 chiffres **et** clé de Luhn                           | `contracts/siret.ts`         | Le SIRET part dans la DPAE et sur la facture ; une coquille se paie en rejet administratif                     |
-| Le SIRET n'est pas modifiable                                    | `clientUpdateSchema`         | Un autre SIRET, c'est une autre entité juridique — donc un autre client                                        |
-| Pas de suppression de client, seulement `actif: false`           | `clients.service.ts`         | Un client porte des missions, contrats et factures                                                             |
-| Disponibilités : aucun chevauchement                             | `contracts/disponibilite.ts` | Deux créneaux qui se recouvrent feraient compter deux fois le même intérimaire au matching                     |
-| Un créneau dont la fin précède le début traverse minuit          | idem                         | 20:00–07:00 est une nuit en établissement, pas une faute de frappe                                             |
-| Le planning hebdomadaire se remplace en bloc                     | `PUT /disponibilites`        | Le chevauchement se vérifie sur l'ensemble ; une édition ligne à ligne ouvrirait une course entre deux onglets |
-| Passer `ACTIF` exige une qualification vérifiée et non expirée   | `candidats.service.ts`       | C'est ce statut qui rend le candidat proposable sur une mission                                                |
-| Retirer la dernière qualification vérifiée d'un actif est refusé | idem                         | Mieux vaut refuser que désactiver le candidat dans son dos                                                     |
-
-La règle sur le statut `ACTIF` est une décision d'implémentation, pas une exigence du cahier des
-charges : si l'agence veut pouvoir activer sans justificatif, elle se retire en deux lignes dans
-`candidats.service.ts`.
-
----
-
-## API
-
-Base : `http://localhost:3001/api`. Toutes les routes sauf mention contraire exigent
-`Authorization: Bearer <jeton>`. **82 routes**, documentées exhaustivement par Swagger sur
-<http://localhost:3001/api/docs> — la liste complète n'est pas recopiée ici, elle se périmerait.
-
-| Groupe                    | Routes | Accès                                                     |
-| ------------------------- | -----: | --------------------------------------------------------- |
-| `/auth`, `/sante`         |     15 | public pour l'inscription et les liens, session ensuite    |
-| `/candidats`              |     13 | back-office                                                |
-| `/mon-profil`             |     12 | candidat, sur sa seule fiche                               |
-| `/missions`               |      9 | agence, client et candidat — chacun voit autre chose       |
-| `/clients`                |      7 | back-office                                                |
-| `/competences`, `/utilisateurs` | 7 | back-office ; le référentiel est en lecture seule          |
-| `/interne`                |      6 | `X-Service-Token` — n8n, jamais un navigateur              |
-| `/propositions`           |      5 | candidat et client, selon le sens de la décision           |
-| `/offres`                 |      3 | deux routes publiques, une réservée au candidat            |
-| `/tension`                |      2 | public                                                     |
-| `/conservation`           |      2 | **par jeton, sans session** — voir plus bas                |
-| `/contact`                |      1 | public, sous quota                                         |
-
-Ce qui suit n'est pas la liste : ce sont les décisions que les routes portent et qu'un fichier
-d'OpenAPI ne dit pas.
-
-### Authentification
-
-Deux parcours d'inscription publics, et le même principe des deux côtés : **une inscription ouvre
-un compte, elle ne rend personne opérationnel.** L'intérimaire arrive `EN_VERIFICATION`, se déclarer
-aide-soignant ne suffisant pas à être envoyé chez quelqu'un ; l'établissement arrive **inactif**, et
-`missions.creer()` refuse un client inactif — ce contrôle existait déjà pour les fiches que l'agence
-désactive, donc ouvrir l'inscription n'a rien relâché.
-
-**Le formulaire d'établissement ne demande pas l'autorisation**, et c'est un retour en arrière
-assumé. Une première version réclamait le FINESS et la référence de l'arrêté dès la saisie, au
-motif que l'agence en aurait besoin pour activer. L'argument ne tenait pas : rien ne vérifie ces
-valeurs à ce moment-là, donc les saisir ne prouve rien — un numéro tapé au clavier n'est pas une
-pièce lue. Elles n'ajoutaient que deux champs administratifs devant quelqu'un qui cherche un
-remplaçant pour demain matin, et elles étaient rédigées pour le seul EHPAD.
-
-Le contrôle n'a pas disparu, il a retrouvé l'endroit où il mord : `PATCH /clients/:id` refuse
-`actif: true` tant que le statut juridique, le FINESS et la référence d'autorisation ne sont pas
-tous les trois renseignés, et c'est l'agence qui les saisit en ouvrant la pièce. Deux tests
-d'intégration tiennent ce verrou de bout en bout.
-
-Le **type d'établissement** reste demandé au formulaire, lui, parce qu'il décide de la pièce à
-réclamer ensuite — et qu'on y répond sans avoir de documents devant soi.
-
-### Référentiel et comptes
-
-`GET /competences` accepte `rome` (le métier visé), `recherche` (mot-clé, accents et casse
-ignorés) et `limite`. Il rend les compétences classées par ce que le marché demande le plus, avec
-leur nombre d'offres. **Aucune écriture n'est exposée** : le référentiel se reconstruit depuis les
-offres publiques par `pnpm cli competences`, et une ligne ajoutée à la main ne serait plus une
-observation du marché mais une opinion.
-
-### Missions
-
-**Ce que chaque profil voit est décidé dans le service, jamais dans le contrôleur.** L'agence voit
-son périmètre, le client ses missions, le candidat les missions ouvertes **de son agence** plus
-celles où il a postulé. Les consignes d'accès au domicile ne sortent que pour l'agence, le client
-et le candidat retenu : quelqu'un qui consulte l'annonce n'a pas à lire le code de la porte.
-
-### Candidatures
-
-Une candidature déposée par l'intéressé naît `ACCEPTEE_CANDIDAT` : en cliquant, il a déjà dit oui,
-seule la décision du client manque. Valider en retient un, écarte les autres et pourvoit la
-mission **en une transaction** — sinon deux validations concurrentes laisseraient deux personnes
-persuadées d'avoir la mission.
-
-### Mon profil — espace de l'intérimaire
-
-Routes séparées de `/candidats` plutôt que des gardes assouplies : le back-office garde ses règles
-intactes, et ce qu'un candidat peut toucher se lit d'un coup d'œil sur un seul fichier. **Ce qui en
-est absent l'est pour une raison** : le `statut` appartient à l'agence — se rendre actif soi-même
-viderait la vérification de son sens ; l'adresse e-mail est l'identifiant de connexion ; la visite
-médicale et la vaccination sont constatées sur pièce, jamais déclarées ; les coordonnées
-géographiques sont calculées par géocodage, et les accepter en entrée permettrait de se placer à
-côté du lieu d'une mission. Un diplôme déclaré naît **non vérifié** et ne rend éligible à rien tant
-que l'agence ne l'a pas contrôlé ; une expérience déclarée naît non vérifiée elle aussi et ne
-rapporte aucun point tant qu'un certificat de travail n'a pas été vu.
-
-`/mon-profil/completude` répond à la question que pose tout inscrit — pourquoi aucune mission ne
-m'est proposée — en listant les manques dans l'ordre où ils bloquent.
-
-L'agence lit le même dossier en **lecture seule** par `GET /candidats/:id/documents` et
-`.../documents/:id/contenu` : elle vérifie une pièce, elle n'en dépose ni n'en retire à la place de
-quelqu'un. Le contenu sort toujours en `Content-Disposition: attachment`, jamais `inline`, pour
-qu'un PDF téléversé ne s'exécute pas dans le contexte de l'API.
-
-### Conservation des pièces
-
-**Les deux seules routes du produit autorisées par un jeton plutôt que par une session.** C'est
-voulu : on écrit à quelqu'un précisément parce qu'il ne s'est plus connecté depuis un an. Exiger une
-connexion pour répondre reviendrait à ne jamais obtenir de réponse, donc à effacer par défaut.
-
-Le jeton est à usage unique, borné au délai de réponse, émis pour une adresse donnée et invalide si
-elle a changé depuis. Le `GET` **ne le consomme pas** — un client de messagerie qui précharge les
-liens brûlerait sinon la décision de quelqu'un qui n'a encore rien lu.
-
-### Contact
-
-Le formulaire de la vitrine envoie vraiment : l'API relaie le message à la boîte de l'agence
-(`CONTACT_EMAIL`, sinon l'adresse déclarée dans `@releve/shared`). Il ouvrait jusqu'ici le logiciel
-de messagerie avec un `mailto:` pré-rempli, faute de route — honnête tant que rien n'existait côté
-serveur, mais sans effet chez qui n'a pas de client de messagerie configuré : un bouton qui ne
-répond pas, sans message d'erreur.
-
-**Rien n'est enregistré en base.** Un message de contact n'a pas de cycle de vie, personne ne le
-relit dans l'application, et le conserver ferait une seconde copie d'adresses à protéger pour rien.
-
-Une route ouverte qui fait partir un courriel se transforme vite en robinet à spam, d'où trois
-barrières : **trois messages par quart d'heure** et par adresse, des **bornes de longueur** sur
-chaque champ dans le schéma partagé, et un **piège à robots** — un champ hors écran qu'une personne
-ne remplit jamais. Quand il est rempli, la route répond `202` et n'envoie rien : refuser
-explicitement apprendrait à celui qui sonde qu'il existe un champ à laisser vide.
-
-L'adresse saisie ne devient **jamais l'expéditeur** : elle part en `Reply-To`. L'usurper ferait
-rejeter le message par n'importe quel relais qui vérifie SPF, et ouvrirait le site à l'envoi de
-courrier au nom de n'importe qui.
-
-### Offres publiques et suggestions du marché
-
-Les deux routes ouvertes servent **les missions de Relève**, jamais les offres France Travail :
-`/offres` les liste avec pagination et filtres (`departement`, `ville`, `metier`), `/offres/options`
-alimente les menus déroulants à partir des missions réellement ouvertes. Le nom de l'établissement
-client n'est pas projeté.
-
-La page consomme cette pagination en **chargement progressif** : trois offres, puis trois de plus à
-chaque clic sur « Voir N offres de plus ». La liste publique n'est pas un catalogue à parcourir,
-elle doit donner envie de créer un compte — et « Page 2 sur 4 » posait une question que le visiteur
-ne se pose pas. Le nombre visible sert directement de `limite`, la requête repart toujours de la
-première page : rien à accumuler côté client, et pas de doublon si une mission est publiée entre
-deux clics.
-
-Les menus se construisant sur les missions ouvertes, ils ne valent que ce que vaut le jeu de
-données : avec deux missions dans la même agglomération, le menu des départements n'en offrait
-qu'un. Le seed couvre donc quatre départements et six communes, de quoi éprouver le chaînage
-département → ville.
-
-`/offres/suggestions` est la seule route qui rende des offres France Travail, et elle exige une
-session candidat. Le rapprochement se fait sur le **code ROME de la qualification** du candidat
-(DEAS → `J1501`, DEAES → `K1302`) croisé avec son **rayon de déplacement**, filtré en base par une
-boîte englobante puis tranché à la distance à vol d'oiseau. Chaque suggestion porte sa source et son
-`urlOrigine`.
-
-Aucun score n'est affiché, et c'est délibéré : le barème de Relève pèse d'abord le chevauchement
-entre les créneaux déclarés et les horaires de la mission, or une offre France Travail n'annonce ses
-horaires qu'en texte libre (`35H/semaine, travail en journée`). Un score calculé sur des champs
-absents serait un chiffre inventé, affiché avec l'autorité d'une mesure.
-
-Quand la liste est vide, `motif` dit pourquoi — `AUCUN_METIER`, `ADRESSE_ABSENTE`, `AUCUNE_OFFRE` —
-pour que l'encart indique au candidat ce qu'il peut y changer plutôt que de rester muet.
-
-### Tension du marché
-
-`/tension/suggestion` retombe sur la médiane nationale quand le département ne dit rien, et renvoie
-`perimetre: 'aucun'` plutôt que d'inventer un taux.
-
-### Automatisations
-
-Deux sens de circulation. L'API **émet** un événement signé à chaque transition de mission ;
-l'automatisation **rappelle** l'API sur un préfixe à part. Aucun outil extérieur ne touche la base.
-
-| Événement              | Transition                                   |
-| ---------------------- | -------------------------------------------- |
-| `mission.publiee`      | Création d'une mission (elle naît `PUBLIEE`) |
-| `proposition.envoyee`  | L'agence propose des candidats               |
-| `proposition.acceptee` | Un candidat postule de lui-même              |
-| `mission.pourvue`      | L'établissement retient un candidat          |
-| `mission.annulee`      | Mission annulée                              |
-| `mission.relancee`     | Relance enregistrée par l'automatisation     |
-| `mission.escaladee`    | Escalade après relances infructueuses        |
-
-Chaque envoi porte `X-Releve-Event`, `X-Releve-Delivery` et `X-Releve-Signature` — `sha256=` suivi
-du HMAC SHA-256 du **corps brut**. L'émission est asynchrone et ne lève jamais : une panne de
-l'automatisation ne doit pas faire échouer une validation de mission. Trois tentatives, puis l'échec
-est journalisé — la transition, elle, reste écrite dans `EvenementMission`, qui permet de rejouer.
-
-`POST /missions/:id/propositions` est la route par laquelle **l'agence propose des candidats depuis
-le classement**, par lot. C'est elle qui fait naître une candidature `ENVOYEE` — jusque-là ce statut
-était lu partout et écrit nulle part.
-
-Le seuil de relance est un paramètre d'appel et non un réglage serveur : la démonstration tourne à
-la minute, l'exploitation à la journée, et ce n'est pas à l'API d'arbitrer. Le seuil se mesure depuis
-le **dernier mouvement** — publication ou relance — sans quoi une mission relancée ressortirait
-aussitôt et le workflow tournerait en boucle.
-
-Sans `INTERNAL_SERVICE_TOKEN`, les routes internes répondent `503` : un oubli de configuration ferme
-la porte, il ne l'ouvre pas. Sans `N8N_WEBHOOK_SECRET`, l'API se tait — les transitions sont
-journalisées, rien ne sort. C'est l'état normal d'un poste qui ne fait pas tourner n8n.
-
-Le détail du contrat, et ce qui sort ou non vers Slack, sont dans `docs/automatisations-api.md`. Les
-workflows exportés vivent dans `n8n/`.
-
-#### Où en sont les workflows
-
-**Les trois workflows sont importés et actifs.** Ce qui a été vérifié à l'exécution, journal de n8n
-à l'appui : la signature HMAC dans les deux sens — un envoi signé passe, un envoi forgé est rejeté
-avant d'atteindre le moindre nœud —, l'aiguillage par type d'événement, le compteur Redis du plafond
-de trois alertes par jour, l'alerte urgente jusqu'au courriel reçu, et le rappel de WF2 vers l'API.
-
-| Workflow                           | État                                                                |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| **WF1** — alertes et clôture       | Actif. Boucle complète prouvée sur `mission.publiee`                 |
-| **WF2** — relance et escalade      | Actif. Tourne au quart d'heure et rappelle l'API                     |
-| **WF3** — confirmation de mission  | Actif. Sous-workflow appelé par WF1 sur `mission.pourvue`            |
-
-Ce qui manque n'est plus du travail mais **deux identifiants** : Slack et Airtable. Les nœuds qui en
-dépendent échouent, et WF3 n'a donc jamais été atteint — WF1 s'arrête sur le nœud Slack avant de
-l'appeler. Ces identifiants ne figurent dans aucun export, par construction ; ils se saisissent dans
-n8n. La credential `crypto` du dépôt, elle, ne contient pas le secret : elle référence
-`{{ $env.N8N_WEBHOOK_SECRET }}`.
-
-Le sujet Epitech exige **au moins deux automatisations no-code** : l'exigence est tenue.
-
-#### L'annonce quotidienne, elle, n'attend plus personne
-
-`ANNONCE_MISSIONS_AUTOMATIQUE="true"` déclenche à 7 h le balayage qui écrit à chaque intérimaire les
-missions publiées depuis son dernier message et pour lesquelles il est éligible.
-
-Le balayage existait, testé, mais rien ne l'appelait : il attendait une crontab ou le workflow WF2,
-qui n'est pas écrit. Un dossier valide ne sert à rien si personne n'apprend qu'une mission s'est
-ouverte, et la fonctionnalité paraissait absente alors qu'elle était faite.
-
-Le drapeau répond à l'objection qui avait fait écarter la planification : une tâche cachée dans le
-processus web s'exécute autant de fois qu'il y a d'instances. Même règle que pour l'import, avec un
-enjeu plus sérieux — un import de trop ne fait que consommer du quota, un balayage de trop écrit
-deux fois à de vraies personnes. **À poser sur le serveur qui sert le site, et sur lui seul.**
-
-Les deux autres voies restent valables : `pnpm cli notifier:missions` dans une crontab, ou
-`POST /api/interne/notifications/missions` depuis n8n.
-
-Toujours un **balayage** et non un envoi à la publication : une agence qui dépose huit besoins dans
-l'après-midi ferait sinon huit courriels à la même personne, et c'est ainsi qu'on se fait classer en
-indésirable.
-
-« back-office » = `ADMIN_AGENCE` ou `CHARGE_RECRUTEMENT`.
-
----
-
-
-## Scripts
-
-| Commande                                 | Effet                                               |
-| ---------------------------------------- | --------------------------------------------------- |
-| `pnpm dev`                               | Contracts compilés, puis API et front en parallèle  |
-| `pnpm dev:backend` / `pnpm dev:frontend` | Un seul des deux                                    |
-| `pnpm build`                             | Contracts, puis API, puis front                     |
-| `pnpm test`                              | Règles partagées (49) puis intégration API (462)    |
-| `pnpm test:shared`                       | Règles partagées seules, sans base                  |
-| `pnpm test:backend`                      | Intégration API seule                               |
-| `pnpm typecheck`                         | TypeScript sur les trois paquets, tests compris     |
-| `pnpm lint` / `pnpm format`              | ESLint / Prettier                                   |
-| `pnpm infra:up` / `pnpm infra:down`      | Conteneurs PostgreSQL, Redis et Mailpit             |
-| `pnpm db:migrate`                        | `prisma migrate dev`                                |
-| `pnpm db:seed`                           | Jeu de données de démonstration                     |
-| `pnpm db:studio`                         | Prisma Studio                                       |
-| `pnpm db:reset`                          | **Détruit** la base locale et rejoue les migrations |
-
-### Commandes d'exploitation
-
-Elles tournent hors HTTP, sur le même contexte Nest que l'API — mêmes services, mêmes règles.
-**Deux sont à appeler une fois par jour par l'ordonnanceur** : les deux de conservation, dans cet
-ordre et jamais fondues en une seule (la relance du matin effacerait sinon ce qu'elle vient
-d'annoncer). L'annonce des missions, elle, a désormais sa tâche planifiée dans l'API sous
-`ANNONCE_MISSIONS_AUTOMATIQUE` ; la commande reste utile pour la déclencher à la main ou pour un
-déploiement qui préfère son propre ordonnanceur. `--sec` montre ce qui se passerait sans rien
-écrire.
-
-| Commande                         | Effet                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `pnpm cli conservation:relancer` | Écrit aux candidats dont des pièces atteignent un an                        |
-| `pnpm cli conservation:purger`   | Efface les pièces restées sans réponse 30 jours après la relance            |
-| `pnpm cli notifier:missions`     | Annonce à chaque candidat actif les missions publiées qui lui correspondent |
-| `pnpm cli purger:documents`      | Effacement ciblé par type et par âge, hors du cycle de conservation         |
-| `pnpm cli geocoder`              | Situe les fiches candidats restées sans coordonnées                         |
-| `pnpm cli geocoder:offres`       | Situe les offres collectées à partir de leur commune, via la BAN            |
-| `pnpm cli importer:offres`       | Collecte des offres France Travail (voir « Données publiques »)             |
-| `pnpm cli competences`           | Reconstruit le référentiel de compétences depuis les offres actives         |
-
----
-
-## Limites connues
-
-**Les documents ne sont pas chiffrés au repos.** Pièces d'identité et diplômes vivent en clair sur
-le disque, sous un nom aléatoire et hors de toute racine servie statiquement, mais en clair. Le type
-MIME est par ailleurs celui que déclare le navigateur : ni signature de fichier vérifiée, ni analyse
-antivirale. C'est dit aussi dans `documents.service.ts`, à l'endroit où ça se corrigerait.
-
-**Les adresses e-mail apparaissent en clair dans les journaux.** Une dizaine d'endroits. Utile pour
-suivre un parcours d'inscription en développement, à pseudonymiser avant un usage réel.
-
-**Ni double facteur, ni journal d'audit.** Qui a activé quel établissement, qui a téléchargé quelle
-pièce d'identité : rien ne le trace aujourd'hui.
-
-**Le jeton d'accès survit jusqu'à 15 minutes à une révocation.** La session ne peut plus être
-prolongée dès qu'elle est coupée, mais le JWT en cours reste accepté jusqu'à son expiration. Le
-réduire supposerait une vérification en base à chaque requête — arbitrage entre latence et délai de
-coupure, à poser si le contexte l'exige.
-
-**La colonne PostGIS `geom` est alimentée, mais encore inutilisée par le classement.** Elle est
-écrite à chaque géocodage et son index GiST existe ; en revanche `classer()` charge toujours tout le
-vivier de l'agence en mémoire avant de filtrer. Le pré-filtre `ST_DWithin` est le gain suivant, et
-il ne deviendra mesurable qu'à quelques milliers de fiches.
-
-**La distance reste à vol d'oiseau.** Pour un remplacement au pied levé, 12 km en centre-ville et 12 km en
-campagne ne sont pas le même trajet, et c'est le temps de route qui décide si une intervenante
-accepte. PostGIS n'y changerait rien — il mesure aussi à vol d'oiseau. Il faudra du routage (OSRM
-auto-hébergé sur un extrait OSM, ou une API de matrice de distances).
-
-**Le dépôt de pièces est en place, sans les garde-fous d'un usage réel.** Modèle
-`DocumentCandidat`, stockage disque sous `STOCKAGE_DOCUMENTS`, routes de dépôt, de téléchargement et
-de retrait. **La conservation est bornée à un an** : à l'échéance, `pnpm cli conservation:relancer`
-écrit à la personne pour lui demander si elle veut qu'on garde ses pièces, et
-`conservation:purger` efface celles restées sans réponse trente jours plus tard — le silence ne vaut
-pas accord. Manquent le chiffrement au repos, l'analyse antivirale, la vérification de la signature
-du fichier, la journalisation des accès, et **l'ordonnanceur qui appelle ces deux commandes chaque
-jour** : tant qu'il n'est pas branché, la durée d'un an est écrite dans la politique de
-confidentialité sans être appliquée. La durée vaut pour les **cinq types sans exception**, pièce
-d'identité et diplôme compris : le code ne branche nulle part sur le type de pièce pour calculer une
-échéance. Tout est détaillé dans
-[`docs/conservation-documents.md`](docs/conservation-documents.md).
-
-**Les notifications métier s'arrêtent à la candidature.** Le candidat est averti quand son dossier
-est validé, et chaque matin à 7 h des missions publiées qui lui correspondent. En revanche, un
-candidat retenu ne l'apprend qu'en ouvrant son suivi, un établissement qu'en ouvrant son accueil.
-La sortie courriel existe (`backend/src/mail/`) et les gabarits sont écrits — y compris celui,
-juridiquement formulé, de la confirmation de mission. Ce qui manque est le déclencheur : c'est WF3
-qui doit l'appeler, et WF3 n'est pas commencé.
-
-**Aucune limite par compte sur les liens émis.** Le plafond de trois demandes par minute est posé
-par adresse IP. Quelqu'un qui change d'adresse à chaque essai peut donc inonder une boîte mail de
-liens de réinitialisation — sans jamais en obtenir un seul, puisqu'ils partent chez le titulaire,
-mais c'est un harcèlement possible. Un compteur par compte le fermerait.
-
-**`connexionSchema` accepte 8 caractères** là où la création en exige 12, pour ne pas bloquer un
-compte historique.
-
-**Les tests d'intégration partagent une base** et s'exécutent en série. Suffisant à cette échelle,
-mais à revoir si la suite s'allonge.
-
-**Le produit s'appelle Relève, le code s'appelle Relève.** Les paquets (`@releve/shared`),
-le titre de page dans `nuxt.config.ts` et l'en-tête du back-office portent encore le nom de
-travail. Sans conséquence technique, mais visible en soutenance.
-
-**Le rendu des composants n'est pas testé.** Les 155 tests du front couvrent le calcul — matrice
-d'accès, relais BFF, en-têtes de sécurité, mise en forme —, jamais l'affichage. Les 36 pages, le
-layout et les composants ne sont vérifiés que par le typecheck, le lint et la sonde Chrome de
-`frontend/scripts/sonde-responsive.mjs`, lancée à la main.
-
-**La couverture n'est pas mesurée.** `vitest run --coverage` n'est câblé nulle part, alors que le
-rapport de couverture est un livrable attendu.
-
-**Les trois textes juridiques sont des brouillons de structure.** Mentions légales, conditions
-d'utilisation et politique de confidentialité existent et sont reliées au pied de page. Elles disent
-ce que le code fait vraiment. Les dix-sept champs d'identification sont renseignés par un **jeu de
-démonstration** : raison sociale inventée, SIRET et TVA réduits à des zéros — clé de contrôle
-fausse, donc aucun rattachement possible à une entreprise existante — et organismes explicitement
-fictifs. Un bandeau le dit en tête des trois pages, qui restent en `noindex`. Aucune n'a été relue
-par un professionnel du droit. **L'inscription fait cocher « j'accepte les conditions générales »**, et enregistre la
-date avec la version acceptée (`conditionsAccepteesLe`, `conditionsVersion`) : accepter un texte,
-c'est accepter celui-là, et une révision ultérieure ne peut pas se prévaloir d'un consentement donné
-à la précédente. La connexion, elle, ne fait toujours rien accepter — on n'accepte rien en se
-connectant.
-
-**L'identité légale de l'éditeur est fictive. C'est ce qui sépare encore la démonstration d'une mise
-en ligne.** Les dix-sept champs — raison sociale, SIRET, directeur de la publication, hébergeur,
-durée de conservation du dossier candidat, **garantie financière** — sont remplis par un jeu de
-démonstration, pas par des faits.
-
-Le mécanisme est aussi simple que possible : **un seul fichier**,
-[`frontend/app/data/legal.ts`](frontend/app/data/legal.ts), lu par les trois pages. Passer en réel,
-c'est remplacer chaque valeur puis mettre `MENTIONS_DEMONSTRATION` à `false` — le bandeau disparaît
-alors des trois pages, et rien d'autre ne dépend de ce drapeau.
-
-Ce drapeau n'est **pas déduit du remplissage des champs** : « toutes remplies » ne veut pas dire
-« toutes vraies », et une déduction ferait disparaître l'avertissement à l'instant précis où l'on
-saisit la dernière valeur inventée. Le passage à `false` est un geste explicite, qui se relit dans
-l'historique.
-
-Trois valeurs échappent à la fiction et décrivent le code : la durée de conservation des pièces, la
-liste des sous-traitants, et l'absence de transfert hors Union européenne.
-
-**L'accueil affiche encore des missions d'exemple.** La vitrine publique `/offres` sert de vraies
-missions depuis `GET /offres`, mais l'encart de la page d'accueil n'y est pas branché : il montre
-toujours des exemples explicitement étiquetés comme fictifs. Le raccordement tient en un appel.
-
-**Le contenu éditorial de la vitrine est incomplet.** Les chiffres de l'en-tête d'accueil et le
-téléphone de la page contact attendent les valeurs réelles, dans `frontend/app/data/vitrine.ts`. Le
-bloc de chiffres reste masqué tant qu'il est vide : une absence ne trompe personne, un chiffre
-inventé si. Le formulaire de contact, lui, envoie désormais pour de bon — voir « Contact » dans la
-section API.
-
-**Le récapitulatif quotidien est un delta, pas un récapitulatif.** Le balayage ne retient que les
-missions créées depuis le dernier envoi, et la date de dernier envoi avance même quand aucun courriel
-ne part. Une mission publiée lundi et toujours ouverte vendredi n'a donc été annoncée qu'une fois. Le
-choix est assumé — il évite huit courriels quand une agence dépose huit besoins dans l'après-midi —
-mais « annoncée tant qu'elle n'est pas pourvue » demanderait un vrai changement de logique.
-
-**Les autres moments sont couverts par les automatisations.** L'alerte pour une mission urgente, la
-clôture quand une mission est pourvue ou annulée, et la confirmation au candidat retenu passent
-désormais par les événements émis vers n8n, qui décide et déclenche. Les gabarits existent des deux
-côtés — backend et nœuds n8n — ce qui est le prix de ce découpage : un changement de mention légale
-doit être fait deux fois.
-
-L'interrupteur « Notifications par e-mail » du canvas existe désormais dans « Mon compte » et
-commande quelque chose de réel (`Utilisateur.notificationsEmail`). Il ne coupe que les courriels de
-service : confirmation d'adresse, réinitialisation et fin de conservation des pièces partent
-toujours — les taire parce qu'une case est décochée ferait effacer des documents sans prévenir.
-
-### Piège de développement
-
-`@releve/shared` est compilé en CommonJS et lié par le workspace. Vite doit donc le pré-bundler,
-et il met ce pré-bundle en cache — dans `frontend/node_modules/.cache/vite`, pas dans
-`node_modules/.vite`.
-
-Deux pièges en découlent, réglés tous les deux dans `nuxt.config.ts` par
-`vite.optimizeDeps = { include: ['@releve/shared'], force: true }` :
-
-- sans `include`, Vite traite le paquet comme du source et rate ses exports nommés —
-  `doesn't provide an export named` sur un symbole pourtant bien exporté ;
-- sans `force`, **un fichier ajouté au paquet partagé n'invalide rien.** Vite calcule l'empreinte de
-  son cache sur le fichier de verrouillage et la configuration, pas sur le contenu d'un paquet lié.
-  Le navigateur reçoit alors un pré-bundle d'avant, où le nouveau symbole n'existe pas.
-
-Le second est le plus coûteux à diagnostiquer, parce qu'il **ne se voit pas côté serveur** : Node
-charge le vrai `dist`, la page se rend en 200 et paraît normale. C'est l'hydratation qui échoue,
-sur un `X is undefined`, et l'écran reste là, inerte — un bouton qui ne répond pas, sans message
-d'erreur. Vérifier une page par son HTML rendu ne suffit donc pas ; il faut la charger dans un
-navigateur, ou lire les erreurs que le serveur de développement y remonte.
-
-**Après toute modification du paquet partagé : reconstruire, puis redémarrer le serveur Nuxt.** Les
-deux, dans cet ordre. Le serveur charge `@releve/shared` une fois au démarrage — pour le rendu
-serveur comme pour le navigateur — et ne le relit pas ensuite. Et un redémarrage seul ne suffisait
-pas non plus tant que `force` n'était pas posé : le cache est sur disque et survit à l'arrêt du
-processus.
-
-```bash
-pnpm --filter @releve/shared build   # puis relancer pnpm dev
-```
-
-`force` reconstruit les dépendances à chaque démarrage, pour quelques centaines de millisecondes.
-Sans effet sur le `build` de production, qui repart toujours de zéro.
-
-## Application mobile
-
-Le développement de l’application mobile n’était pas demandé dans les objectifs initiaux du projet. Nous avons néanmoins choisi de réaliser cette application afin d’aller plus loin dans le développement de la solution et de proposer une véritable interface utilisateur accessible depuis un smartphone.
-
-L’objectif était notamment de pouvoir concrétiser les fonctionnalités développées côté backend et de proposer une expérience adaptée aux différents utilisateurs de la plateforme. L’application distingue ainsi un espace destiné aux établissements et un espace destiné aux candidats, avec des fonctionnalités adaptées à chacun.
-
-### État actuel et limites
-
-L’application mobile est fonctionnelle sur plusieurs parcours, mais certaines fonctionnalités restent à finaliser ou à améliorer.
-
-Dans l’espace candidat, la récupération des annonces depuis le backend est prévue et devrait fonctionner pleinement dans une prochaine version. L’objectif est que les candidats puissent récupérer les missions publiées par les établissements, les consulter et, à terme, effectuer les différentes actions prévues autour de ces missions.
-
-Les chiffres clés affichés sur les dashboards constituent également un point qui devra être finalisé. Le fonctionnement prévu repose sur la récupération des données réelles depuis le backend afin d’afficher des indicateurs correspondant à l’activité de la plateforme. Dans une prochaine version, ces données devront donc être davantage fiabilisées et complétées afin que les chiffres affichés correspondent précisément aux données enregistrées.
-
-Ces éléments ne remettent pas en cause la structure mise en place : les écrans, la navigation et les appels à l’API ont été développés afin de permettre leur finalisation dans la suite du projet.
-
-### Améliorations futures
-
-Plusieurs améliorations pourraient être apportées à la solution dans une prochaine version.
-
-La première serait de finaliser complètement la récupération des annonces dans l’espace candidat et de permettre un parcours complet autour des missions, depuis leur consultation jusqu’à la candidature.
-
-Les dashboards pourraient également être améliorés afin de proposer des chiffres clés entièrement connectés aux données réelles de la plateforme. Les indicateurs pourraient être enrichis pour donner une meilleure visibilité sur les missions, les candidatures et leur évolution.
-
-D’autres améliorations pourraient également être envisagées, notamment l’ajout de notifications mobiles pour informer les utilisateurs lorsqu’une nouvelle mission est disponible, lorsqu’une candidature évolue ou lorsqu’une action est nécessaire.
-
-L’expérience utilisateur pourrait aussi être améliorée progressivement, notamment au niveau de l’ergonomie, de l’accessibilité et de la personnalisation des espaces selon le profil de l’utilisateur.
-
-Enfin, une évolution importante serait de poursuivre l’intégration entre le backend et l’application afin d’obtenir des parcours entièrement connectés et cohérents pour les établissements comme pour les candidats.
-
----
-## Questions métier en attente
-
-Le socle est livré et testé. Restent des questions métier, pas du code :
-
-Elles sont détaillées dans [`docs/questions-a-trancher.md`](docs/questions-a-trancher.md), prêtes à
-être envoyées : chaque question y indique ce qu'elle bloque et à partir de quand. **Le format
-d'export attendu par le logiciel de paie est la plus urgente** — il conditionne une partie du
-modèle, et une réponse tardive se paie en reprise de données.
+<div align="center">
+<sub>Relève · Projet Epitech D-WEB-901 · Septembre 2026</sub><br>
+<sub><a href="https://github.com/kenzo-kouokam">👤 kenzo-kouokam</a></sub>
+</div>
