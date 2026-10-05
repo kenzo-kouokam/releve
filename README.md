@@ -11,9 +11,17 @@
 
 **Une mission urgente ne dort plus dans un planning : la bonne personne est prévenue, au bon moment, sans qu'aucun nom ne sorte vers un service tiers.**
 
-[🔁 Workflows n8n](n8n/README.md) · [📡 Contrat d'événements](docs/automatisations.md) · [📘 Documentation technique](docs/README-technique.md) · [📂 Livrables](livrables/)
+[▶️ Démo](#️-démo) · [🔁 Workflows n8n](n8n/README.md) · [📡 Contrat d'événements](docs/automatisations.md) · [📘 Documentation technique](docs/README-technique.md) · [📂 Livrables](livrables/)
 
 </div>
+
+---
+
+## ▶️ Démo
+
+<div align="center"><img src="docs/demo/releve-demo.gif" alt="Démo : l'EHPAD publie une mission urgente, la candidate reçoit l'alerte et postule, l'agence le voit dans Slack, l'EHPAD confirme, l'e-mail de confirmation part et le cockpit Airtable se met à jour" width="900"></div>
+
+*Parcours réel enregistré en local : publication urgente → alerte e-mail (WF1) → candidature → Slack de l'agence → confirmation par l'EHPAD → e-mail de confirmation (WF3) → cockpit Airtable.*
 
 ---
 
